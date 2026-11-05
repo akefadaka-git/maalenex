@@ -1,4 +1,5 @@
 from pydantic import model_validator
+from sqlalchemy.engine import make_url
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,8 +19,13 @@ class Settings(BaseSettings):
             raise ValueError("Only development/test environments are permitted in this G1 baseline.")
         if not self.synthetic_data_only:
             raise ValueError("Synthetic-only mode is mandatory in this G1 baseline.")
-        if not self.database_url.startswith(("postgresql+psycopg://",)):
-            raise ValueError("G1 database configuration must target PostgreSQL.")
+        database = make_url(self.database_url)
+        if database.drivername != "postgresql+psycopg":
+            raise ValueError("G1 database configuration must use PostgreSQL with psycopg.")
+        if database.host not in {"localhost", "127.0.0.1", "::1"}:
+            raise ValueError("G1 database host must be local; remote databases are prohibited.")
+        if database.database != "maalenex_dev":
+            raise ValueError("G1 database name must be maalenex_dev.")
         return self
 
     @property
