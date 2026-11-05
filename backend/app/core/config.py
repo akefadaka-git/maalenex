@@ -18,7 +18,7 @@ class Settings(BaseSettings):
             raise ValueError("Only development/test environments are permitted in this G1 baseline.")
         if not self.synthetic_data_only:
             raise ValueError("Synthetic-only mode is mandatory in this G1 baseline.")
-        if not self.database_url.startswith(("postgresql+psycopg://", "postgresql://")):
+        if not self.database_url.startswith(("postgresql+psycopg://",)):
             raise ValueError("G1 database configuration must target PostgreSQL.")
         return self
 
