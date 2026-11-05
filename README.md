@@ -64,7 +64,15 @@ npm install
 npm run dev
 ```
 
-Run local frontend checks:
+Run the complete local validation sequence from the repository root in Windows PowerShell after installing backend and frontend dependencies:
+
+```powershell
+.\\scripts\\validate-g1.ps1
+```
+
+The runner executes backend pytest/Ruff, the Alembic baseline migration, frontend Vitest, TypeScript typecheck, and Vite production build, recording each exit code. If the local PostgreSQL `maalenex_dev` database is not running, use `-SkipDatabaseMigration`; that check will be explicitly reported as NOT RUN. The backend guard rejects remote database hosts and any database name other than `maalenex_dev`.
+
+Run local frontend checks individually if preferred:
 
 ```bash
 npm test
