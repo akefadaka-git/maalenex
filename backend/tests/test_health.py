@@ -38,3 +38,13 @@ def test_disabling_synthetic_only_mode_is_rejected() -> None:
 def test_non_postgresql_database_url_is_rejected() -> None:
     with pytest.raises(ValidationError):
         Settings(database_url="sqlite+pysqlite:///:memory:")
+
+
+def test_remote_database_host_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        Settings(database_url="postgresql+psycopg://maalenex:maalenex@example.com:5432/maalenex_dev")
+
+
+def test_non_development_database_name_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        Settings(database_url="postgresql+psycopg://maalenex:maalenex@localhost:5432/production")
