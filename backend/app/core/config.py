@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     app_name: str = "MaaleNex Moto"
     app_env: str = "development"
     api_prefix: str = "/api/v1"
-    database_url: str = "postgresql+psycopg://maalenex:maalenex@localhost:5432/maalenex_dev"
+    database_url: str = "postgresql+psycopg://localhost:5432/maalenex_dev"
     cors_origins: str = "http://localhost:5173"
     synthetic_data_only: bool = True
 
