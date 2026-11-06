@@ -36,7 +36,7 @@ python -m pip install --upgrade pip
 pip install -e ".[dev]"
 ```
 
-Copy the root `.env.example` to `backend/.env` and adjust only local development values. The example credentials are placeholders, not production secrets. Create a local database named `maalenex_dev`, then start the API:
+Copy the root `.env.example` to `backend/.env` and adjust only local development values. The committed example contains no database username or password. Configure local PostgreSQL authentication on your machine, or supply a local-only `DATABASE_URL` through the environment; never commit authentication material. Create a local database named `maalenex_dev`, then start the API:
 
 ```bash
 uvicorn app.main:app --reload
