@@ -101,11 +101,26 @@ def upgrade() -> None:
         sa.Column("request_id", sa.String(80)),
         sa.Column("correlation_id", sa.String(80)),
         sa.Column("metadata_redacted", sa.JSON(), nullable=False))
+    op.execute("""
+        CREATE OR REPLACE FUNCTION reject_audit_event_mutation()
+        RETURNS trigger LANGUAGE plpgsql AS $
+        BEGIN
+            RAISE EXCEPTION 'audit_events are append-only';
+        END;
+        $
+    """)
+    op.execute("""
+        CREATE TRIGGER audit_events_append_only
+        BEFORE UPDATE OR DELETE ON audit_events
+        FOR EACH ROW EXECUTE FUNCTION reject_audit_event_mutation()
+    """)
     for column in ("event_type", "occurred_at", "actor_id", "organization_id", "resource_id", "request_id", "correlation_id"):
         op.create_index("ix_audit_events_" + column, "audit_events", [column])
 
 
 def downgrade() -> None:
+    op.execute("DROP TRIGGER IF EXISTS audit_events_append_only ON audit_events")
+    op.execute("DROP FUNCTION IF EXISTS reject_audit_event_mutation()")
     op.drop_table("audit_events")
     op.execute("DROP INDEX IF EXISTS uq_active_organization_membership")
     op.drop_table("organization_memberships")
