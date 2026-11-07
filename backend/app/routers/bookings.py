@@ -10,7 +10,7 @@ from app.db.session import get_db
 from app.domains.bookings.access import (
     BookingAccessError, BookingAccessRateLimited, create_access_challenge,
     enforce_guest_access_rate_limit, resolve_booking_grant,
-    verify_access_challenge, verify_booking_csrf,
+    verify_access_challenge, verify_booking_csrf, revoke_booking_grants,
 )
 from app.domains.bookings.models import (
     Booking, BookingContact, BookingFareSnapshot,
@@ -222,6 +222,28 @@ def accept_guest_reservation(
         "travel_ticket_issued": False,
         "boarding_authorized": False,
     }
+
+
+@router.post("/bookings/{booking_id}/access/revoke")
+def revoke_guest_booking_access(
+    booking_id: UUID, request: Request, response: Response,
+    grant: BookingAccessGrant = Depends(current_booking_grant),
+    db: Session = Depends(get_db),
+) -> dict:
+    _require_origin(request)
+    if grant.scope != "manage" or not verify_booking_csrf(
+        grant, cookie_token=request.cookies.get(CSRF_COOKIE),
+        header_token=request.headers.get("X-CSRF-Token"),
+    ):
+        raise HTTPException(status_code=403, detail="Booking access revocation authorization failed.")
+    revoked = revoke_booking_grants(db, booking_id=booking_id)
+    db.commit()
+    response.delete_cookie(
+        ACCESS_COOKIE, path=f"{settings.api_prefix}/bookings/{booking_id}",
+        samesite="lax",
+    )
+    response.delete_cookie(CSRF_COOKIE, path="/", samesite="lax")
+    return {"booking_id": str(booking_id), "revoked_grants": revoked, "access_revoked": True}
 
 
 @router.post("/bookings/{booking_id}/cancel")
