@@ -59,7 +59,13 @@ The command is restricted by application settings to development/test synthetic-
 - Purges guest rate-limit records older than 30 days.
 - Purges expired, accepted or revoked operator invitations after 30 days.
 
-The command is bounded and safe to rerun. Schedule it externally at an appropriate interval in a synthetic test environment; no production scheduler or production worker has been installed or enabled.
+The command is bounded and safe to rerun. For recurring synthetic maintenance, run the supervised worker from `backend/`:
+
+```powershell
+python scripts/booking_maintenance_worker.py --interval-seconds 60 --batch-size 500
+```
+
+The worker handles SIGINT/SIGTERM, logs each cycle, retries on the next interval after a failed cycle and uses PostgreSQL `SKIP LOCKED` batches so concurrent worker instances do not process the same hold rows. Use a local process supervisor if automatic restart is needed. No production scheduler or production worker has been installed or enabled.
 
 ## Verification
 
