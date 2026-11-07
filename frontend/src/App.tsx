@@ -307,7 +307,7 @@ export default function App() {
             {passengerNames.map((name, index) => <label key={index}><span>{t.traveler} {index + 1}</span>
               <input value={name} onChange={(e) => setPassengerNames((current) => current.map((value, i) => i === index ? e.target.value : value))} required maxLength={160} /></label>)}
             <p className="notice">{t.holdNote}</p>
-            <button className="search-button" type="submit" disabled={working || loadingSeats || selectedSeatIds.length !== passengerCount}>{working ? t.loading : t.createHold}</button>
+            <button className="search-button" type="submit" disabled={working || loadingSeats || Boolean(hold) || selectedSeatIds.length !== passengerCount}>{working ? t.loading : t.createHold}</button>
           </form>
         </section>}
 
