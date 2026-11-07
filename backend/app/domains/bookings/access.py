@@ -20,6 +20,10 @@ class BookingAccessError(Exception):
     pass
 
 
+class BookingAccessRateLimited(Exception):
+    pass
+
+
 def _normalize_phone(value: str) -> str:
     return "".join(ch for ch in value if ch.isdigit() or ch == "+")
 
@@ -66,6 +70,7 @@ def create_access_challenge(
     db: Session, *, booking_reference: str, contact_phone: str, client_ip: str,
 ) -> tuple[BookingAccessChallenge, str]:
     now = db.scalar(select(func.now()))
+    _check_challenge_rate_limit(db, client_ip=client_ip, now=now)
     normalized_phone = _normalize_phone(contact_phone)
     booking = db.scalar(
         select(Booking).join(BookingContact, BookingContact.id == Booking.booking_contact_id).where(
