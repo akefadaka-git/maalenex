@@ -12,6 +12,7 @@ def test_administration_router_is_registered_under_api_prefix():
         "/api/v1/trips/{trip_id}/publish",
         "/api/v1/fares/{fare_id}/versions/{version_id}/review",
         "/api/v1/audit/events",
+        "/api/v1/trips/{trip_id}/manifest",
     }
     assert expected.issubset(paths)
     assert any(
