@@ -102,7 +102,7 @@ describe("passenger trip search shell", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
     await waitFor(() => expect(screen.getByText("SYNTHETIC-REF")).toBeTruthy());
-    expect(screen.getByRole("heading", { name: "Support request" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "የድጋፍ ጥያቄ" })).toBeTruthy();
     expect(screen.getByText("MNM-SUP-TEST")).toBeTruthy();
   });
 
