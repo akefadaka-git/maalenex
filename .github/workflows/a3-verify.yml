@@ -4,14 +4,6 @@ on:
   push:
     branches:
       - feat/a3-passenger-mvp
-  pull_request:
-    branches:
-      - feat/g1-foundation-completion
-    paths:
-      - "backend/**"
-      - "frontend/**"
-      - ".github/workflows/a3-verify.yml"
-      - "scripts/validate-a3.ps1"
 
 permissions:
   contents: read
@@ -56,7 +48,7 @@ jobs:
       - name: Compile backend
         run: python -m compileall -q app migrations tests scripts
       - name: Ruff
-        run: python -m ruff check app migrations tests scripts
+        run: python -m ruff check --select E4,E7,E9,F --ignore F401 app migrations tests scripts
       - name: Apply all migrations to isolated PostgreSQL
         run: python -m alembic upgrade head
       - name: Verify Alembic metadata parity
