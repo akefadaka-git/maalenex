@@ -275,6 +275,14 @@ def test_postgres_guest_support_case_and_access_revocation_flow():
     assert "image/svg+xml" in qr.headers["content-type"]
     assert "<svg" in qr.text
     assert qr.headers["cache-control"] == "no-store, private"
+    cancellation = client.post(
+        f"/api/v1/bookings/{booking_id}/cancel", headers=headers,
+    )
+    assert cancellation.status_code == 409
+    ticket = client.post("/api/v1/tickets")
+    assert ticket.status_code == 409
+    boarding = client.post("/api/v1/boarding/validate")
+    assert boarding.status_code == 409
     created = client.post(
         f"/api/v1/bookings/{booking_id}/support-cases",
         headers=headers,
