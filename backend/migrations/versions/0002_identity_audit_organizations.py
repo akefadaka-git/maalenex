@@ -74,6 +74,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False))
     op.create_index("ix_organizations_status", "organizations", ["status"])
+    op.create_foreign_key("fk_role_assignment_organization", "access_role_assignments", "organizations", ["organization_id"], ["id"], ondelete="CASCADE")
     op.create_table("organization_memberships",
         sa.Column("id", uuid, primary_key=True),
         sa.Column("organization_id", uuid, sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
@@ -83,6 +84,7 @@ def upgrade() -> None:
         sa.Column("revoked_at", sa.DateTime(timezone=True)))
     op.create_index("ix_organization_memberships_organization_id", "organization_memberships", ["organization_id"])
     op.create_index("ix_organization_memberships_user_id", "organization_memberships", ["user_id"])
+    op.execute("CREATE UNIQUE INDEX uq_active_organization_membership ON organization_memberships(organization_id, user_id) WHERE revoked_at IS NULL")
     op.create_table("audit_events",
         sa.Column("id", uuid, primary_key=True),
         sa.Column("event_type", sa.String(100), nullable=False),
@@ -105,7 +107,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("audit_events")
+    op.execute("DROP INDEX IF EXISTS uq_active_organization_membership")
     op.drop_table("organization_memberships")
+    op.drop_constraint("fk_role_assignment_organization", "access_role_assignments", type_="foreignkey")
     op.drop_table("organizations")
     op.drop_table("access_role_assignments")
     op.drop_table("access_role_permissions")
