@@ -135,11 +135,12 @@ def authenticate_staff(
 def resolve_staff_session(db: Session, *, raw_token: str | None) -> StaffContext:
     if not raw_token:
         raise AuthenticationError()
-    now = db.scalar(select(__import__("sqlalchemy").func.now()))
+    now = _database_now(db)
+    expiry_cutoff = now.replace(tzinfo=None) if db.bind.dialect.name == "sqlite" else now
     session = db.scalar(select(StaffSession).where(
         StaffSession.secret_hash == token_digest(raw_token),
         StaffSession.revoked_at.is_(None),
-        StaffSession.expires_at > now.replace(tzinfo=None) if db.bind.dialect.name == "sqlite" else StaffSession.expires_at > now,
+        StaffSession.expires_at > expiry_cutoff,
     ))
     if session is None:
         raise AuthenticationError()
