@@ -1,6 +1,5 @@
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from uuid import UUID
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import and_, exists, func, or_, select
@@ -46,7 +45,7 @@ def search_published_trips(
     passenger_count: int = Query(default=1, ge=1, le=10),
     db: Session = Depends(get_db),
 ) -> list[dict]:
-    local_start = datetime.combine(travel_date, time.min, ZoneInfo("Africa/Addis_Ababa"))
+    local_start = datetime.combine(travel_date, time.min, timezone(timedelta(hours=3)))
     local_end = datetime.combine(travel_date, time.max, ZoneInfo("Africa/Addis_Ababa"))
     start_utc = local_start.astimezone(timezone.utc)
     end_utc = local_end.astimezone(timezone.utc)
