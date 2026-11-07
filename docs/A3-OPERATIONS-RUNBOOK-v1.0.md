@@ -67,6 +67,10 @@ python scripts/booking_maintenance_worker.py --interval-seconds 60 --batch-size 
 
 The worker handles SIGINT/SIGTERM, logs each cycle, retries on the next interval after a failed cycle and uses PostgreSQL `SKIP LOCKED` batches so concurrent worker instances do not process the same hold rows. Use a local process supervisor if automatic restart is needed. No production scheduler or production worker has been installed or enabled.
 
+## Passenger UI accessibility baseline
+
+The passenger UI uses semantic headings and forms, associated visible labels, a localized keyboard skip link, visible keyboard focus indicators, an `aria-live` trip-results region, pressed-state seat controls, disabled unavailable seats and alternative text for the reservation QR. This is an implementation-level accessibility baseline; an independent WCAG 2.2 AA audit and assistive-technology usability review have not been performed.
+
 ## Verification
 
 The A3 GitHub Actions workflow runs:
