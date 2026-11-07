@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 
@@ -34,6 +34,19 @@ class StaffContext:
     session: StaffSession
 
 
+def _database_now(db: Session) -> datetime:
+    value = db.scalar(select(func.now()))
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value)
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value
+
+
+def _as_utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+
+
 def _login_attempt_key(login_identifier: str, client_ip: str) -> str:
     material = login_identifier.strip().lower() + "|" + client_ip
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
@@ -42,7 +55,7 @@ def _login_attempt_key(login_identifier: str, client_ip: str) -> str:
 def authenticate_staff(
     db: Session, *, login_identifier: str, password: str, client_ip: str,
 ) -> IssuedStaffSession:
-    now = db.scalar(select(func.now()))
+    now = _database_now(db)
     normalized_login = login_identifier.strip().lower()
     key_hash = _login_attempt_key(normalized_login, client_ip)
     attempt = db.scalar(select(AuthLoginAttempt).where(
@@ -63,11 +76,11 @@ def authenticate_staff(
             ).with_for_update())
     if attempt is None:
         raise AuthenticationRateLimited()
-    if attempt.window_started_at < now - timedelta(minutes=15):
+    if _as_utc(attempt.window_started_at) < now - timedelta(minutes=15):
         attempt.window_started_at = now
         attempt.failed_count = 0
         attempt.locked_until = None
-    if attempt.locked_until is not None and attempt.locked_until > now:
+    if attempt.locked_until is not None and _as_utc(attempt.locked_until) > now:
         raise AuthenticationRateLimited()
 
     user = db.scalar(select(User).where(
@@ -84,7 +97,7 @@ def authenticate_staff(
         ).order_by(Credential.created_at.desc()).limit(1))
     valid = (
         user is not None and credential is not None
-        and (credential.expires_at is None or credential.expires_at > now)
+        and (credential.expires_at is None or _as_utc(credential.expires_at) > now)
         and verify_secret(password, credential.secret_hash)
     )
     if not valid:
@@ -126,7 +139,7 @@ def resolve_staff_session(db: Session, *, raw_token: str | None) -> StaffContext
     session = db.scalar(select(StaffSession).where(
         StaffSession.secret_hash == token_digest(raw_token),
         StaffSession.revoked_at.is_(None),
-        StaffSession.expires_at > now,
+        StaffSession.expires_at > now.replace(tzinfo=None) if db.bind.dialect.name == "sqlite" else StaffSession.expires_at > now,
     ))
     if session is None:
         raise AuthenticationError()
