@@ -3,8 +3,8 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import and_, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, exists, func, or_, select
+from sqlalchemy.orm import Session, aliased
 
 from app.db.session import get_db
 from app.domains.bookings.models import Booking, SeatAllocation, SeatHold
@@ -23,10 +23,12 @@ def list_public_locations(db: Session = Depends(get_db)) -> list[dict]:
 
 @router.get("/catalog/routes")
 def list_public_routes(db: Session = Depends(get_db)) -> list[dict]:
+    origin = aliased(Location)
+    destination = aliased(Location)
     rows = db.execute(
-        select(Route, Location, Location)
-        .join(Location, Route.origin_location_id == Location.id)
-        .join(Location, Route.destination_location_id == Location.id)
+        select(Route, origin, destination)
+        .join(origin, Route.origin_location_id == origin.id)
+        .join(destination, Route.destination_location_id == destination.id)
         .where(Route.status == "published")
         .order_by(Route.code)
     ).all()
@@ -80,16 +82,20 @@ def search_published_trips(
         occupied = db.scalar(
             select(func.count(SeatAllocation.id))
             .join(Booking, Booking.id == SeatAllocation.booking_id)
-            .outerjoin(SeatHold, and_(
-                SeatHold.booking_id == SeatAllocation.booking_id,
-                SeatHold.trip_seat_id == SeatAllocation.trip_seat_id,
-            ))
             .where(
                 SeatAllocation.trip_id == trip.id,
                 SeatAllocation.status == "active",
                 or_(
                     Booking.status == "reserved",
-                    and_(Booking.status == "held", SeatHold.status == "active", SeatHold.expires_at > now),
+                    and_(
+                        Booking.status == "held",
+                        exists(select(1).where(
+                            SeatHold.booking_id == SeatAllocation.booking_id,
+                            SeatHold.trip_seat_id == SeatAllocation.trip_seat_id,
+                            SeatHold.status == "active",
+                            SeatHold.expires_at > now,
+                        )),
+                    ),
                 ),
             )
         ) or 0
