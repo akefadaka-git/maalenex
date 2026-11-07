@@ -25,7 +25,8 @@ Do not distribute synthetic invitation tokens as real operator onboarding links.
 - Booking access is granted only after the booking contact challenge succeeds.
 - Access grants are opaque, stored as hashes, scoped to one booking, expire after two hours and are CSRF-bound.
 - The passenger app stores only the active booking ID in sessionStorage. The access cookie remains HttpOnly and booking-path scoped.
-- On refresh, the app retrieves booking state and the existing reservation reference through the protected booking API.
+- On refresh, the app retrieves booking state, the existing reservation reference and the reservation QR through protected booking APIs.
+- The QR encodes only a versioned opaque reservation reference. It is an identification reference, not a travel ticket and cannot authorize boarding.
 - A passenger can revoke all active grants for the booking. Revocation clears the browser cookies and the sessionStorage booking pointer.
 - Challenge codes are returned to the UI only when running in development/test with synthetic-only mode. A real delivery provider is not configured.
 
@@ -56,6 +57,7 @@ The command is restricted by application settings to development/test synthetic-
 - Purges expired/consumed access challenges after one day.
 - Purges expired/revoked guest access grants after 30 days.
 - Purges guest rate-limit records older than 30 days.
+- Purges expired, accepted or revoked operator invitations after 30 days.
 
 The command is bounded and safe to rerun. Schedule it externally at an appropriate interval in a synthetic test environment; no production scheduler or production worker has been installed or enabled.
 
