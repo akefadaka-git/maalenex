@@ -63,8 +63,8 @@ def accept_operator_invitation(
     if invitation is None:
         raise HTTPException(status_code=404, detail="Invitation is invalid or expired.")
     operator = db.get(Organization, invitation.organization_id)
-    if operator is None or operator.status != "approved":
-        raise HTTPException(status_code=409, detail="Operator is not approved for account activation.")
+    if operator is None or operator.organization_type != "operator" or operator.status != "approved":
+        raise HTTPException(status_code=409, detail="Operator organization is not approved for account activation.")
     if db.scalar(select(User.id).where(
         User.login_identifier == invitation.login_identifier
     )) is not None:
