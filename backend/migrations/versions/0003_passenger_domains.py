@@ -10,6 +10,8 @@ branch_labels = None
 depends_on = None
 
 def upgrade() -> None:
+    op.execute("CREATE TABLE idempotency_records (id uuid PRIMARY KEY, principal_scope varchar(128) NOT NULL, operation varchar(80) NOT NULL, idempotency_key varchar(128) NOT NULL, request_hash varchar(64) NOT NULL, resource_type varchar(80) NOT NULL, resource_id varchar(80), response_payload json NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), expires_at timestamptz NOT NULL, CONSTRAINT uq_idempotency_scope_operation_key UNIQUE(principal_scope, operation, idempotency_key))")
+    op.execute("CREATE INDEX ix_idempotency_records_expires_at ON idempotency_records(expires_at)")
     op.execute("CREATE TABLE locations (id uuid PRIMARY KEY, name varchar(160) NOT NULL, location_type varchar(32) NOT NULL, status varchar(24) NOT NULL)")
     op.execute("CREATE INDEX ix_locations_status ON locations(status)")
     op.execute("CREATE TABLE terminals (id uuid PRIMARY KEY, location_id uuid NOT NULL REFERENCES locations(id) ON DELETE RESTRICT, name varchar(160) NOT NULL, status varchar(24) NOT NULL)")
@@ -68,6 +70,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute("DROP TABLE IF EXISTS booking_access_grants CASCADE")
+    op.execute("DROP TABLE IF EXISTS idempotency_records CASCADE")
     op.execute("DROP TABLE IF EXISTS reservation_references CASCADE")
     op.execute("DROP TABLE IF EXISTS booking_fare_snapshots CASCADE")
     op.execute("DROP TABLE IF EXISTS seat_allocations CASCADE")
