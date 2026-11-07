@@ -46,6 +46,22 @@ def propose_fare(
     return version
 
 
+
+def submit_fare(db: Session, *, fare_version_id: UUID, proposer_id: UUID) -> FareVersion:
+    version = db.scalar(select(FareVersion).where(
+        FareVersion.id == fare_version_id
+    ).with_for_update())
+    if version is None or version.proposed_by != proposer_id or version.status != "draft":
+        raise FareConflict("Only the proposer may submit their draft fare version.")
+    if version.amount_minor_units < 0 or version.currency_code != "ETB":
+        raise FareConflict("Fare amount or currency is invalid.")
+    version.status = "submitted"
+    record_event(db, event_type="fare.version.submitted", actor_type="staff",
+                 actor_id=str(proposer_id), resource_type="fare_version",
+                 resource_id=str(version.id), action="submit", outcome="success")
+    db.flush()
+    return version
+
 def decide_fare(
     db: Session, *, fare_version_id: UUID, reviewer_id: UUID,
     decision: str, reason: str,
@@ -88,6 +104,17 @@ def publish_fare(db: Session, *, fare_version_id: UUID, publisher_id: UUID) -> F
         raise FareConflict("The publisher must be separate from the approver.")
     if version.effective_from > now or (version.effective_to is not None and version.effective_to <= now):
         raise FareConflict("Fare effective period does not include publication time.")
+    if version.effective_to is not None and version.effective_to <= version.effective_from:
+        raise FareConflict("Fare effective_to must be later than effective_from.")
+    overlapping = db.scalar(select(FareVersion.id).where(
+        FareVersion.fare_id == version.fare_id,
+        FareVersion.id != version.id,
+        FareVersion.status == "published",
+        FareVersion.effective_from < (version.effective_to if version.effective_to is not None else datetime.max.replace(tzinfo=version.effective_from.tzinfo)),
+        (FareVersion.effective_to.is_(None)) | (FareVersion.effective_to > version.effective_from),
+    ).limit(1))
+    if overlapping is not None:
+        raise FareConflict("Published fare effective periods may not overlap.")
     version.status = "published"
     version.published_by = publisher_id
     version.published_at = now
