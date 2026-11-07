@@ -369,6 +369,36 @@ def test_postgres_manifest_is_operator_scoped_and_excludes_contact_phone():
     trip_id, seat_id = _seed_single_seat_trip()
     with SessionLocal() as db:
         trip = db.get(Trip, UUID(trip_id))
+        other_operator = Organization(
+            display_name="Synthetic isolated operator", status="approved",
+        )
+        db.add(other_operator)
+        db.flush()
+        other_vehicle = Vehicle(
+            organization_id=other_operator.id,
+            vehicle_reference="SYN-" + uuid4().hex[:8],
+            status="active", review_status="approved",
+        )
+        db.add(other_vehicle)
+        db.flush()
+        other_layout = SeatLayoutVersion(
+            vehicle_id=other_vehicle.id, version_number=1, status="approved",
+        )
+        db.add(other_layout)
+        db.flush()
+        other_trip = Trip(
+            organization_id=other_operator.id,
+            route_id=trip.route_id,
+            boarding_terminal_id=trip.boarding_terminal_id,
+            vehicle_id=other_vehicle.id,
+            seat_layout_version_id=other_layout.id,
+            departure_at=trip.departure_at + timedelta(hours=2),
+            status="published",
+        )
+        db.add(other_trip)
+        db.flush()
+        other_trip_id = other_trip.id
+
         booking = create_seat_hold(
             db, trip_id=UUID(trip_id), contact_name="Private Synthetic Contact",
             contact_phone="+251900000005", passengers=[{"name": "Manifest Passenger"}],
@@ -392,6 +422,8 @@ def test_postgres_manifest_is_operator_scoped_and_excludes_contact_phone():
     assert payload["contact_phone_included"] is False
     assert "+251900000005" not in response.text
     assert payload["boarding_authorized"] is False
+    cross_tenant = client.get(f"/api/v1/trips/{other_trip_id}/manifest")
+    assert cross_tenant.status_code == 403, cross_tenant.text
 
 
 def test_postgres_booking_idempotency_replays_same_result_and_rejects_changed_payload():
