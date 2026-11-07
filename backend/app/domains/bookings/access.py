@@ -5,11 +5,13 @@ from secrets import randbelow
 from uuid import UUID
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.domains.audit.service import record_event
 from app.domains.bookings.models import (
     Booking, BookingAccessChallenge, BookingAccessGrant, BookingContact,
+    GuestAccessRateLimit,
 )
 from app.domains.identity.security import hash_secret, issue_opaque_token, token_digest, verify_secret
 
@@ -21,6 +23,44 @@ class BookingAccessError(Exception):
 def _normalize_phone(value: str) -> str:
     return "".join(ch for ch in value if ch.isdigit() or ch == "+")
 
+
+
+def _check_challenge_rate_limit(db: Session, *, client_ip: str, now) -> None:
+    key_hash = hashlib.sha256(("guest-access:" + client_ip).encode("utf-8")).hexdigest()
+    attempt = db.scalar(select(GuestAccessRateLimit).where(
+        GuestAccessRateLimit.key_hash == key_hash
+    ).with_for_update())
+    if attempt is None:
+        try:
+            with db.begin_nested():
+                attempt = GuestAccessRateLimit(
+                    key_hash=key_hash, window_started_at=now,
+                    request_count=0, locked_until=None,
+                )
+                db.add(attempt)
+                db.flush()
+        except IntegrityError:
+            attempt = db.scalar(select(GuestAccessRateLimit).where(
+                GuestAccessRateLimit.key_hash == key_hash
+            ).with_for_update())
+    if attempt is None:
+        raise BookingAccessRateLimited()
+    window_start = attempt.window_started_at
+    locked_until = attempt.locked_until
+    if window_start.tzinfo is None and now.tzinfo is not None:
+        window_start = window_start.replace(tzinfo=now.tzinfo)
+    if locked_until is not None and locked_until.tzinfo is None and now.tzinfo is not None:
+        locked_until = locked_until.replace(tzinfo=now.tzinfo)
+    if locked_until is not None and locked_until > now:
+        raise BookingAccessRateLimited()
+    if window_start < now - timedelta(minutes=15):
+        attempt.window_started_at = now
+        attempt.request_count = 0
+        attempt.locked_until = None
+    attempt.request_count += 1
+    if attempt.request_count > 10:
+        attempt.locked_until = now + timedelta(minutes=15)
+        raise BookingAccessRateLimited()
 
 def create_access_challenge(
     db: Session, *, booking_reference: str, contact_phone: str, client_ip: str,
