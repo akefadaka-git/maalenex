@@ -8,7 +8,6 @@ class Schedule(Base):
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("organizations.id", ondelete="RESTRICT"), index=True)
     route_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("routes.id", ondelete="RESTRICT"))
-    boarding_terminal_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("terminals.id", ondelete="RESTRICT"))
     departure_rule: Mapped[str] = mapped_column(String(160))
     status: Mapped[str] = mapped_column(String(24), default="draft")
 class Trip(Base):
@@ -16,6 +15,7 @@ class Trip(Base):
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("organizations.id", ondelete="RESTRICT"), index=True)
     route_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("routes.id", ondelete="RESTRICT"))
+    boarding_terminal_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("terminals.id", ondelete="RESTRICT"))
     schedule_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("schedules.id", ondelete="SET NULL"), nullable=True)
     vehicle_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("vehicles.id", ondelete="RESTRICT"))
     seat_layout_version_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("seat_layout_versions.id", ondelete="RESTRICT"))
