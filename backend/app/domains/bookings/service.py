@@ -1,14 +1,17 @@
 from datetime import timedelta
+import hashlib
+import json
 from secrets import token_urlsafe
 from uuid import UUID, uuid4
 
 from sqlalchemy import func, or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.domains.audit.service import record_event
 from app.domains.bookings.models import (
     Booking, BookingContact, BookingFareSnapshot, BookingPassenger,
-    Passenger, SeatAllocation, SeatHold,
+    IdempotencyRecord, Passenger, SeatAllocation, SeatHold,
 )
 from app.domains.fares.models import Fare, FareVersion
 from app.domains.reservations.models import ReservationReference
@@ -33,6 +36,58 @@ def create_seat_hold(
     phone = "".join(ch for ch in contact_phone if ch.isdigit() or ch == "+")
     if not name or not phone or len(name) > 160 or len(phone) > 32:
         raise ValueError("A valid booking contact name and phone are required.")
+    if not idempotency_key or len(idempotency_key) > 128:
+        raise ValueError("A valid idempotency key is required.")
+    passenger_names = [" ".join(str(item.get("name", "")).split()) for item in passengers]
+    if any(not item or len(item) > 160 for item in passenger_names):
+        raise ValueError("Each passenger must have a name of at most 160 characters.")
+    request_data = {
+        "trip_id": str(trip_id), "contact_name": name, "contact_phone": phone,
+        "passengers": passenger_names, "seat_ids": [str(item) for item in seat_ids],
+        "hold_minutes": hold_minutes,
+    }
+    request_hash = hashlib.sha256(json.dumps(request_data, sort_keys=True).encode("utf-8")).hexdigest()
+    principal_scope = "guest:" + hashlib.sha256(phone.encode("utf-8")).hexdigest()
+    now = db.scalar(select(func.now()))
+    existing = db.scalar(select(IdempotencyRecord).where(
+        IdempotencyRecord.principal_scope == principal_scope,
+        IdempotencyRecord.operation == "booking.create_hold",
+        IdempotencyRecord.idempotency_key == idempotency_key,
+    ).with_for_update())
+    if existing is not None and existing.expires_at > now:
+        if existing.request_hash != request_hash:
+            raise BookingConflict("Idempotency key was already used for a different request.")
+        if existing.resource_id:
+            original = db.get(Booking, UUID(existing.resource_id))
+            if original is not None:
+                return original
+        raise BookingConflict("The original booking request is still being processed.")
+    if existing is not None:
+        db.delete(existing)
+        db.flush()
+    try:
+        with db.begin_nested():
+            idempotency = IdempotencyRecord(
+                principal_scope=principal_scope, operation="booking.create_hold",
+                idempotency_key=idempotency_key, request_hash=request_hash,
+                resource_type="booking", resource_id=None, response_payload={},
+                expires_at=now + timedelta(days=7),
+            )
+            db.add(idempotency)
+            db.flush()
+    except IntegrityError:
+        duplicate = db.scalar(select(IdempotencyRecord).where(
+            IdempotencyRecord.principal_scope == principal_scope,
+            IdempotencyRecord.operation == "booking.create_hold",
+            IdempotencyRecord.idempotency_key == idempotency_key,
+        ))
+        if duplicate is None or duplicate.request_hash != request_hash:
+            raise BookingConflict("Idempotency key conflict.")
+        if duplicate.resource_id:
+            original = db.get(Booking, UUID(duplicate.resource_id))
+            if original is not None:
+                return original
+        raise BookingConflict("The original booking request is still being processed.")
 
     # Serialize all contenders on stable trip-seat rows, then recheck expiry and
     # allocation state inside this transaction. The caller owns commit/rollback.
@@ -127,10 +182,7 @@ def create_seat_hold(
     )
     db.add(fare_snapshot)
 
-    for sequence, (passenger_data, seat) in enumerate(zip(passengers, seats), start=1):
-        passenger_name = " ".join(str(passenger_data.get("name", "")).split())
-        if not passenger_name or len(passenger_name) > 160:
-            raise ValueError("Each passenger must have a name of at most 160 characters.")
+    for sequence, (passenger_name, seat) in enumerate(zip(passenger_names, seats), start=1):
         passenger = Passenger(display_name=passenger_name)
         db.add(passenger)
         db.flush()
