@@ -6,7 +6,7 @@ from app.db.base import Base
 class User(Base):
     __tablename__ = "staff_users"
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    login_identifier: Mapped[str] = mapped_column(String(254), unique=True, index=True)
+    login_identifier: Mapped[str] = mapped_column(String(254), unique=True)
     display_name: Mapped[str] = mapped_column(String(160))
     status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
