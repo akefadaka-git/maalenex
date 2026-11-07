@@ -52,6 +52,7 @@ def upgrade() -> None:
     op.execute("CREATE INDEX ix_seat_holds_trip_seat_id ON seat_holds(trip_seat_id)")
     op.execute("CREATE INDEX ix_seat_holds_status ON seat_holds(status)")
     op.execute("CREATE INDEX ix_seat_holds_expires_at ON seat_holds(expires_at)")
+    op.execute("CREATE UNIQUE INDEX uq_active_trip_seat_hold ON seat_holds(trip_id, trip_seat_id) WHERE status = 'active'")
     op.execute("CREATE TABLE seat_allocations (id uuid PRIMARY KEY, booking_id uuid NOT NULL REFERENCES bookings(id) ON DELETE CASCADE, booking_passenger_id uuid NOT NULL REFERENCES booking_passengers(id) ON DELETE CASCADE, trip_id uuid NOT NULL REFERENCES trips(id) ON DELETE RESTRICT, trip_seat_id uuid NOT NULL REFERENCES trip_seats(id) ON DELETE RESTRICT, status varchar(24) NOT NULL, allocated_at timestamptz NOT NULL DEFAULT now(), released_at timestamptz)")
     op.execute("CREATE INDEX ix_seat_allocations_booking_id ON seat_allocations(booking_id)")
     op.execute("CREATE UNIQUE INDEX uq_active_trip_seat_allocation ON seat_allocations(trip_id, trip_seat_id) WHERE status = 'active'")
