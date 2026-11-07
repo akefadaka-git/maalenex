@@ -176,3 +176,8 @@ def verify_booking_csrf(
     return hmac.compare_digest(cookie_token, header_token) and hmac.compare_digest(
         token_digest(cookie_token), grant.csrf_token_hash,
     )
+
+
+def enforce_guest_access_rate_limit(db: Session, *, client_ip: str) -> None:
+    now = db.scalar(select(func.now()))
+    _check_challenge_rate_limit(db, client_ip=client_ip, now=now)
