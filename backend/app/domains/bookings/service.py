@@ -207,6 +207,8 @@ def create_seat_hold(
         outcome="success", organization_id=trip.organization_id,
         metadata={"passenger_count": len(passengers), "hold_minutes": hold_minutes},
     )
+    idempotency.resource_id = str(booking.id)
+    idempotency.response_payload = {"booking_id": str(booking.id)}
     db.flush()
     return booking
 
