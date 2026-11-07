@@ -59,9 +59,11 @@ def current_booking_grant(
     booking_id: UUID, request: Request, db: Session = Depends(get_db),
 ) -> BookingAccessGrant:
     try:
-        return resolve_booking_grant(
+        grant = resolve_booking_grant(
             db, booking_id=booking_id, raw_token=request.cookies.get(ACCESS_COOKIE),
         )
+        db.commit()
+        return grant
     except BookingAccessError:
         raise HTTPException(status_code=401, detail="Booking access verification required.")
 
