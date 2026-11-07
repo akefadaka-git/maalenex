@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import get_db
 from app.domains.bookings.access import (
-    BookingAccessError, create_access_challenge, resolve_booking_grant,
+    BookingAccessError, BookingAccessRateLimited, create_access_challenge, resolve_booking_grant,
     verify_access_challenge, verify_booking_csrf,
 )
 from app.domains.bookings.models import (
@@ -108,11 +108,15 @@ def create_booking_hold(
 def request_booking_access_challenge(
     payload: ChallengeRequest, request: Request, db: Session = Depends(get_db),
 ) -> dict:
-    challenge, code = create_access_challenge(
-        db, booking_reference=payload.booking_reference,
-        contact_phone=payload.contact_phone, client_ip=_client_ip(request),
-    )
-    db.commit()
+    try:
+        challenge, code = create_access_challenge(
+            db, booking_reference=payload.booking_reference,
+            contact_phone=payload.contact_phone, client_ip=_client_ip(request),
+        )
+        db.commit()
+    except BookingAccessRateLimited:
+        db.commit()
+        raise HTTPException(status_code=429, detail="Too many verification requests. Try again later.")
     result = {"challenge_id": str(challenge.id), "accepted": True, "expires_in_seconds": 600}
     if settings.app_env in {"development", "test"} and settings.synthetic_data_only:
         result["synthetic_test_code"] = code
