@@ -7,12 +7,15 @@ import os
 import pytest
 from app.db.session import SessionLocal
 from app.domains.bookings.service import BookingConflict, create_seat_hold
+from app.domains.bookings.maintenance import expire_stale_holds
 from app.domains.catalog.models import Location, Route, Terminal
 from app.domains.fares.models import Fare, FareVersion
 from app.domains.fleet.models import SeatLayoutVersion, Vehicle, VehicleSeat
 from app.domains.identity.models import User
 from app.domains.organizations.models import Organization
 from app.domains.trips.models import Trip, TripSeat
+from app.domains.reservations.models import BookingAccessGrant
+from app.domains.bookings.access import revoke_booking_grants
 
 
 pytestmark = pytest.mark.skipif(
@@ -127,3 +130,57 @@ def test_postgres_concurrent_holds_cannot_allocate_the_same_trip_seat():
             SeatAllocation.status == "active",
         ))
         assert active == 1
+
+
+def test_postgres_maintenance_expires_holds_and_releases_allocations():
+    from sqlalchemy import select
+    from app.domains.bookings.models import Booking, SeatAllocation, SeatHold
+
+    trip_id, seat_id = _seed_single_seat_trip()
+    with SessionLocal() as db:
+        booking = create_seat_hold(
+            db, trip_id=UUID(trip_id), contact_name="Synthetic Contact",
+            contact_phone="+251900000001", passengers=[{"name": "Synthetic Passenger"}],
+            seat_ids=[UUID(seat_id)], idempotency_key="maintenance-" + uuid4().hex,
+            hold_minutes=10,
+        )
+        booking_id = booking.id
+        past = db.scalar(select(func.now())) - timedelta(minutes=1)
+        booking.expires_at = past
+        hold = db.scalar(select(SeatHold).where(SeatHold.booking_id == booking_id))
+        hold.expires_at = past
+        db.commit()
+        assert expire_stale_holds(db, batch_size=50) == 1
+        db.commit()
+        db.refresh(booking)
+        db.refresh(hold)
+        allocation = db.scalar(select(SeatAllocation).where(SeatAllocation.booking_id == booking_id))
+        assert booking.status == "expired"
+        assert hold.status == "expired"
+        assert allocation.status == "expired"
+
+
+def test_postgres_guest_can_revoke_all_active_booking_access_grants():
+    from sqlalchemy import select
+    from app.domains.bookings.models import Booking
+
+    trip_id, seat_id = _seed_single_seat_trip()
+    with SessionLocal() as db:
+        booking = create_seat_hold(
+            db, trip_id=UUID(trip_id), contact_name="Synthetic Contact",
+            contact_phone="+251900000002", passengers=[{"name": "Synthetic Passenger"}],
+            seat_ids=[UUID(seat_id)], idempotency_key="revoke-" + uuid4().hex,
+            hold_minutes=10,
+        )
+        now = db.scalar(select(func.now()))
+        grant = BookingAccessGrant(
+            booking_id=booking.id, credential_hash="a" * 64,
+            csrf_token_hash="b" * 64, scope="manage",
+            expires_at=now + timedelta(hours=1),
+        )
+        db.add(grant)
+        db.flush()
+        assert revoke_booking_grants(db, booking_id=booking.id) == 1
+        db.commit()
+        db.refresh(grant)
+        assert grant.revoked_at is not None
