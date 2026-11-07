@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.db import model_registry  # noqa: F401
 from app.routers.auth import router as auth_router
 from app.routers.health import router as health_router
 from app.routers.passenger_catalog import router as passenger_catalog_router
