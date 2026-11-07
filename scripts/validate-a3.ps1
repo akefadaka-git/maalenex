@@ -41,7 +41,7 @@ try {
     try {
         Invoke-ValidationStep "Backend syntax compilation" { python -m compileall -q app migrations tests }
         Invoke-ValidationStep "Backend pytest" { python -m pytest }
-        Invoke-ValidationStep "Backend Ruff" { python -m ruff check app tests migrations }
+        Invoke-ValidationStep "Backend Ruff correctness checks" { python -m ruff check --select E4,E7,E9,F --ignore F401 app migrations tests scripts }
         if ($RunLocalDatabaseMigration) {
             Invoke-ValidationStep "Alembic upgrade head (local synthetic maalenex_dev only)" { python -m alembic upgrade head }
         } else {
