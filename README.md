@@ -1,10 +1,10 @@
 # MaaleNex Moto
 
-Amharic-first motorcycle mobility and service platform for Ethiopia, designed for offline-capable workflows and controlled, secure dispatch.
+Amharic-first passenger mobility platform for Ethiopia, beginning with passenger trip discovery in Jinka. Freight logistics remains a separately phased future domain. The initial passenger product is online-first; offline boarding is not included.
 
 ## Development status
 
-Greenfield G1 foundation. This public repository is synthetic-data-only. Never commit secrets, personal data, real driver/passenger records, identity documents, addresses, payment credentials, or production data. The application deliberately rejects non-development runtime environments in this baseline.
+A3 Passenger MVP implementation is in progress on `feat/a3-passenger-mvp`, based on the G1 foundation branch. The public repository remains synthetic-data-only. Never commit secrets, personal data, real operator/passenger records, identity documents, addresses, payment credentials, or production data. The application deliberately rejects non-development runtime environments.
 
 ## Technology
 
@@ -12,7 +12,7 @@ Greenfield G1 foundation. This public repository is synthetic-data-only. Never c
 - Database: PostgreSQL with psycopg 3
 - Frontend: React 18, TypeScript, Vite, Vitest, Testing Library
 - API: versioned under `/api/v1`; interactive development docs at `/api/v1/docs`
-- Domain boundary: modular monolith; domain packages are reserved for separately approved domain work
+- Domain boundary: modular monolith with Identity, Audit, Organization, Catalog, Fleet, Trips, Fares, Bookings and Reservation Access domains
 
 ## Local development
 
@@ -52,7 +52,7 @@ ruff check app tests migrations
 alembic upgrade head
 ```
 
-Alembic is wired to application metadata and the configured PostgreSQL URL. No business tables or initial business migration are included: domain schemas and their migrations require the applicable G2 Owner approval. Do not generate migrations from unapproved domain assumptions.
+Alembic is wired to application metadata and the configured PostgreSQL URL. The A3 branch contains explicit migrations for identity/audit/operator foundations and the synthetic passenger catalog, fleet, trip, fare, booking and reservation schema. Apply migrations only to the local synthetic `maalenex_dev` database. Review migration parity and run PostgreSQL integration tests before treating the schema as verified.
 
 ### Frontend
 
@@ -80,12 +80,14 @@ npm run typecheck
 npm run build
 ```
 
-Vite serves the app at `http://localhost:5173`. The Amharic interface is the default; use the language control to switch to English.
+Vite serves the app at `http://localhost:5173`. The Amharic passenger trip-search interface is the default; use the language control to switch to English. Published trip search is read-only. Booking-access verification, reservation creation, payment collection, travel-ticket issuance and boarding APIs are not enabled yet.
 
 ## Data and operational boundary
 
 - Synthetic fixtures only; no real people, identifiers, addresses, trips, transactions, or payment credentials.
-- No live dispatch, real payment processing, production personal-data processing, production deployment, or public service launch is authorized.
+- No live operator onboarding, real passenger bookings, payment collection, ticket issuance, boarding, production personal-data processing, production deployment, or public service launch is authorized.
+- Reservation references are not travel tickets and cannot authorize boarding.
+- The passenger search API returns only published trip information and availability snapshots; booking rechecks inventory transactionally.
 - Do not add credentials to source control. Use local environment variables and keep `.env` untracked.
 - No paid CI or external service is required for the documented local checks.
 - No software license has been selected. Public visibility does not itself grant permission to use, modify, or redistribute this code.
