@@ -8,6 +8,7 @@ class Schedule(Base):
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("organizations.id", ondelete="RESTRICT"), index=True)
     route_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("routes.id", ondelete="RESTRICT"))
+    boarding_terminal_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("terminals.id", ondelete="RESTRICT"))
     departure_rule: Mapped[str] = mapped_column(String(160))
     status: Mapped[str] = mapped_column(String(24), default="draft")
 class Trip(Base):
