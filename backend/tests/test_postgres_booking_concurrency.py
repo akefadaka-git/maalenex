@@ -17,10 +17,9 @@ from app.domains.organizations.models import Organization
 from app.domains.trips.models import Trip, TripSeat
 from app.domains.reservations.models import BookingAccessGrant
 from app.domains.bookings.access import revoke_booking_grants
-from app.domains.identity.security import issue_opaque_token, token_digest, hash_secret
-from app.domains.identity.models import Credential, Role, RoleAssignment, StaffSession
+from app.domains.identity.security import issue_opaque_token, token_digest
+from app.domains.identity.models import Credential, Role, RoleAssignment
 from app.domains.organizations.models import OrganizationInvitation, OrganizationMembership
-from app.domains.support.models import SupportCase
 from fastapi.testclient import TestClient
 from app.main import app
 
@@ -167,8 +166,6 @@ def test_postgres_maintenance_expires_holds_and_releases_allocations():
 
 
 def test_postgres_guest_can_revoke_all_active_booking_access_grants():
-    from app.domains.bookings.models import Booking
-
     trip_id, seat_id = _seed_single_seat_trip()
     with SessionLocal() as db:
         booking = create_seat_hold(
