@@ -22,6 +22,7 @@ from app.domains.identity.models import Role, RoleAssignment, User
 from app.domains.organizations.models import Organization, OrganizationInvitation, OrganizationMembership
 from app.domains.organizations.service import create_candidate_operator
 from app.domains.trips.models import Trip, TripSeat
+from app.domains.support.models import SupportCase
 from app.routers.auth import current_staff_context, require_csrf
 from app.domains.identity.service import StaffContext
 from app.domains.identity.security import issue_opaque_token, token_digest
@@ -41,6 +42,11 @@ class OperatorReview(BaseModel):
 class OperatorRoleAssignment(BaseModel):
     user_id: UUID
     role_code: Literal["synthetic_operator_manager"] = "synthetic_operator_manager"
+
+
+class SupportResolution(BaseModel):
+    resolution_code: str = Field(min_length=3, max_length=80)
+    resolution_note: str = Field(min_length=3, max_length=1000)
 
 
 class OperatorInvitationCreate(BaseModel):
@@ -769,6 +775,91 @@ def publish_fare_version(
         db.rollback()
         raise HTTPException(status_code=409, detail=str(exc))
     return {"id": str(published.id), "status": published.status}
+
+
+@router.get("/support/cases")
+def list_support_cases(
+    case_status: Literal["open", "in_progress", "resolved", "closed"] | None = None,
+    limit: int = 100,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.support.manage")
+    statement = select(SupportCase).order_by(SupportCase.created_at.asc())
+    if case_status:
+        statement = statement.where(SupportCase.status == case_status)
+    cases = db.scalars(statement.limit(max(1, min(limit, 200)))).all()
+    return [{
+        "id": str(case.id),
+        "case_reference": case.case_reference,
+        "booking_id": str(case.booking_id),
+        "category": case.category,
+        "subject": case.subject,
+        "message": case.message,
+        "status": case.status,
+        "assigned_to": str(case.assigned_to) if case.assigned_to else None,
+        "created_at": case.created_at.isoformat(),
+    } for case in cases]
+
+
+@router.post("/support/cases/{case_id}/claim")
+def claim_support_case(
+    case_id: UUID, request: Request,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.support.manage")
+    case = db.scalar(select(SupportCase).where(
+        SupportCase.id == case_id
+    ).with_for_update())
+    if case is None or case.status not in {"open", "in_progress"}:
+        raise HTTPException(status_code=409, detail="Support case is not available for assignment.")
+    if case.assigned_to not in {None, context.user.id}:
+        raise HTTPException(status_code=409, detail="Support case is assigned to another staff member.")
+    case.assigned_to = context.user.id
+    case.status = "in_progress"
+    _audit(
+        db, context=context, event="support.case.claimed",
+        resource_type="support_case", resource_id=case.id,
+        action="claim", metadata={"category": case.category},
+    )
+    db.commit()
+    return {"case_reference": case.case_reference, "status": case.status}
+
+
+@router.post("/support/cases/{case_id}/resolve")
+def resolve_support_case(
+    case_id: UUID, payload: SupportResolution, request: Request,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.support.manage")
+    case = db.scalar(select(SupportCase).where(
+        SupportCase.id == case_id
+    ).with_for_update())
+    if case is None or case.status not in {"open", "in_progress"}:
+        raise HTTPException(status_code=409, detail="Support case is not open.")
+    if case.assigned_to not in {None, context.user.id}:
+        raise HTTPException(status_code=403, detail="Support case is assigned to another staff member.")
+    now = db.scalar(select(func.now()))
+    case.assigned_to = context.user.id
+    case.status = "resolved"
+    case.resolution_code = payload.resolution_code.strip()
+    case.resolution_note = payload.resolution_note.strip()
+    case.resolved_at = now
+    _audit(
+        db, context=context, event="support.case.resolved",
+        resource_type="support_case", resource_id=case.id,
+        action="resolve", metadata={"resolution_code": case.resolution_code},
+    )
+    db.commit()
+    return {
+        "case_reference": case.case_reference,
+        "status": case.status,
+        "resolved_at": case.resolved_at.isoformat(),
+    }
 
 
 @router.get("/audit/events")
