@@ -103,11 +103,11 @@ def upgrade() -> None:
         sa.Column("metadata_redacted", sa.JSON(), nullable=False))
     op.execute("""
         CREATE OR REPLACE FUNCTION reject_audit_event_mutation()
-        RETURNS trigger LANGUAGE plpgsql AS $
+        RETURNS trigger LANGUAGE plpgsql AS $audit$
         BEGIN
             RAISE EXCEPTION 'audit_events are append-only';
         END;
-        $
+        $audit$
     """)
     op.execute("""
         CREATE TRIGGER audit_events_append_only
