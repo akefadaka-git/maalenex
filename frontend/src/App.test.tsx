@@ -10,6 +10,7 @@ const locations = [
 describe("passenger trip search shell", () => {
   afterEach(() => {
     cleanup();
+    sessionStorage.clear();
     vi.unstubAllGlobals();
     document.documentElement.lang = "am";
   });
@@ -80,4 +81,29 @@ describe("passenger trip search shell", () => {
   fireEvent.click(screen.getByRole("button", { name: "A1" }));
   expect(screen.getByRole("button", { name: "A1" }).getAttribute("aria-pressed")).toBe("true");
 });
+  it("restores a verified booking after refresh and shows its support history", async () => {
+    sessionStorage.setItem("mnm_active_booking_id", "booking-restore-1");
+    const booking = {
+      booking_id: "booking-restore-1", booking_reference: "SYNTHETIC-REF",
+      status: "held", passengers: [{ name: "Synthetic Passenger", seat: "A1" }],
+      fare: { amount_minor_units: 250000, currency_code: "ETB" },
+      payment_enabled: false, ticketing_enabled: false, boarding_authorized: false,
+      reservation: null,
+    };
+    const cases = [{
+      case_reference: "MNM-SUP-TEST", category: "reservation_status",
+      subject: "Synthetic support", message: "Synthetic test support message",
+      status: "open", resolution_code: null, resolution_note: null,
+    }];
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => locations })
+      .mockResolvedValueOnce({ ok: true, json: async () => booking })
+      .mockResolvedValueOnce({ ok: true, json: async () => cases });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+    await waitFor(() => expect(screen.getByText("SYNTHETIC-REF")).toBeTruthy());
+    expect(screen.getByRole("heading", { name: "Support request" })).toBeTruthy();
+    expect(screen.getByText("MNM-SUP-TEST")).toBeTruthy();
+  });
+
 });
