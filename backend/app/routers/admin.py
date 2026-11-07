@@ -223,8 +223,16 @@ def create_operator_invitation(
     role = db.scalar(select(Role).where(Role.code == "synthetic_operator_manager"))
     if role is None:
         raise HTTPException(status_code=503, detail="Operator manager role has not been provisioned.")
-    token = issue_opaque_token()
     now = db.scalar(select(func.now()))
+    stale = list(db.scalars(select(OrganizationInvitation).where(
+        OrganizationInvitation.organization_id == organization_id,
+        OrganizationInvitation.login_identifier == login,
+        OrganizationInvitation.accepted_at.is_(None),
+        OrganizationInvitation.revoked_at.is_(None),
+    ).with_for_update()))
+    for old_invitation in stale:
+        old_invitation.revoked_at = now
+    token = issue_opaque_token()
     invitation = OrganizationInvitation(
         organization_id=organization_id, login_identifier=login,
         display_name=payload.display_name.strip(), role_id=role.id,
