@@ -79,3 +79,17 @@ class BookingFareSnapshot(Base):
     currency_code: Mapped[str] = mapped_column(String(3), default="ETB")
     fare_description_snapshot: Mapped[str] = mapped_column(String(240))
     captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class IdempotencyRecord(Base):
+    __tablename__ = "idempotency_records"
+    __table_args__ = (UniqueConstraint("principal_scope", "operation", "idempotency_key", name="uq_idempotency_scope_operation_key"),)
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    principal_scope: Mapped[str] = mapped_column(String(128))
+    operation: Mapped[str] = mapped_column(String(80))
+    idempotency_key: Mapped[str] = mapped_column(String(128))
+    request_hash: Mapped[str] = mapped_column(String(64))
+    resource_type: Mapped[str] = mapped_column(String(80))
+    resource_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    response_payload: Mapped[dict] = mapped_column(default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
