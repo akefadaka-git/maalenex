@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.domains.audit.service import record_event
 from app.domains.bookings.models import (
-    Booking, BookingAccessChallenge, BookingAccessGrant, BookingContact,
+    Booking, BookingAccessChallenge, BookingContact,
     GuestAccessRateLimit,
 )
 from app.domains.reservations.models import BookingAccessGrant
