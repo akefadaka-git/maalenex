@@ -15,6 +15,7 @@ type BookingDetails = {
   passengers: Array<{ name: string; seat: string }>;
   fare: { amount_minor_units: number; currency_code: "ETB" } | null;
   payment_enabled: false; ticketing_enabled: false; boarding_authorized: false;
+  reservation?: ReservationResult | null;
 };
 type ReservationResult = {
   reservation_reference: string; qr_payload_version: number; qr_payload_reference: string;
@@ -45,6 +46,8 @@ const copy = {
     error: "የጉዞ መረጃን ማግኘት አልተቻለም። እንደገና ይሞክሩ።",
     emptyLocations: "ለሙከራ የታተሙ ቦታዎች ገና የሉም።",
     language: "Switch language to English",
+    revokeAccess: "Revoke booking access",
+    accessRevoked: "Booking access was revoked.",
     footer: "በሙከራ ላይ ያለ መድረክ። እውነተኛ ቦታ ማስያዝ፣ ክፍያ ወይም መሳፈር አይፈቀድም።",
   },
   en: {
@@ -70,6 +73,8 @@ const copy = {
     error: "Could not load trip information. Please try again.",
     emptyLocations: "No published locations are available in this synthetic environment yet.",
     language: "ቋንቋውን ወደ አማርኛ ቀይር",
+    revokeAccess: "የቦታ ማስያዣ መዳረሻን ዝጋ",
+    accessRevoked: "የቦታ ማስያዣ መዳረሻ ተዘግቷል።",
     footer: "Development platform. Real reservations, payments and boarding are not authorized.",
   },
 };
@@ -128,6 +133,28 @@ export default function App() {
         if (!(reason instanceof DOMException && reason.name === "AbortError")) setError("error");
       })
       .finally(() => setLoadingLocations(false));
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const savedBookingId = sessionStorage.getItem("mnm_active_booking_id");
+    if (!savedBookingId) return;
+    const controller = new AbortController();
+    fetch(`/api/v1/bookings/${encodeURIComponent(savedBookingId)}`, {
+      credentials: "include", signal: controller.signal,
+    }).then(async (response) => {
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 404) {
+          sessionStorage.removeItem("mnm_active_booking_id");
+        }
+        return;
+      }
+      const detail = await response.json() as BookingDetails;
+      setBooking(detail);
+      setReservation(detail.reservation ?? null);
+    }).catch(() => {
+      if (!controller.signal.aborted) setError("error");
+    });
     return () => controller.abort();
   }, []);
 
@@ -218,6 +245,7 @@ export default function App() {
       });
       if (!response.ok) throw new Error("verify");
       const result = await response.json() as { booking_id: string };
+      sessionStorage.setItem("mnm_active_booking_id", result.booking_id);
       const detail = await fetch(`/api/v1/bookings/${result.booking_id}`, { credentials: "include" });
       if (!detail.ok) throw new Error("booking");
       setBooking((await detail.json()) as BookingDetails);
@@ -235,6 +263,22 @@ export default function App() {
       });
       if (!response.ok) throw new Error("reservation");
       setReservation((await response.json()) as ReservationResult);
+    } catch { setError("error"); }
+    finally { setWorking(false); }
+  }
+
+  async function revokeBookingAccess() {
+    if (!booking) return;
+    setWorking(true); setError("");
+    try {
+      const response = await fetch(`/api/v1/bookings/${booking.booking_id}/access/revoke`, {
+        method: "POST", credentials: "include",
+        headers: { "X-CSRF-Token": csrfCookie() },
+      });
+      if (!response.ok) throw new Error("revoke");
+      sessionStorage.removeItem("mnm_active_booking_id");
+      setBooking(null); setReservation(null); setHold(null); setChallengeId("");
+      setSyntheticCode(""); setVerificationCode("");
     } catch { setError("error"); }
     finally { setWorking(false); }
   }
@@ -338,7 +382,9 @@ export default function App() {
           <p><strong>{t.qrRef}:</strong> <code>{reservation.qr_payload_reference}</code></p>
           <p className="trip-warning">{t.notTicket}</p>
           <p className="trip-warning">{t.disabled}</p>
+          <button className="secondary-button" type="button" disabled={working} onClick={revokeBookingAccess}>{t.revokeAccess}</button>
         </section>}
+        {booking && !reservation && <button className="secondary-button" type="button" disabled={working} onClick={revokeBookingAccess}>{t.revokeAccess}</button>}
       </section>
 
       <footer><span>{t.footer}</span><span>© MaaleNex Moto · 2026</span></footer>
