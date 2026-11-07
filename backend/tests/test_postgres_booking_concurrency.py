@@ -17,6 +17,12 @@ from app.domains.organizations.models import Organization
 from app.domains.trips.models import Trip, TripSeat
 from app.domains.reservations.models import BookingAccessGrant
 from app.domains.bookings.access import revoke_booking_grants
+from app.domains.identity.security import issue_opaque_token, token_digest, hash_secret
+from app.domains.identity.models import Credential, Role, RoleAssignment, StaffSession
+from app.domains.organizations.models import OrganizationInvitation, OrganizationMembership
+from app.domains.support.models import SupportCase
+from fastapi.testclient import TestClient
+from app.main import app
 
 
 pytestmark = pytest.mark.skipif(
@@ -183,3 +189,106 @@ def test_postgres_guest_can_revoke_all_active_booking_access_grants():
         db.commit()
         db.refresh(grant)
         assert grant.revoked_at is not None
+
+
+def test_postgres_operator_invitation_is_single_use_and_creates_scoped_membership():
+    token = issue_opaque_token()
+    with SessionLocal() as db:
+        operator = Organization(display_name="Synthetic invited operator", status="approved")
+        inviter = User(
+            login_identifier="inviter-" + uuid4().hex + "@example.test",
+            display_name="Synthetic Inviter", status="active",
+        )
+        role = Role(code="synthetic_operator_manager", description="Synthetic operator manager")
+        db.add_all([operator, inviter, role])
+        db.flush()
+        invitation = OrganizationInvitation(
+            organization_id=operator.id,
+            login_identifier="invitee-" + uuid4().hex + "@example.test",
+            display_name="Synthetic Invitee",
+            role_id=role.id, token_hash=token_digest(token),
+            created_by=inviter.id,
+            expires_at=db.scalar(select(func.now())) + timedelta(hours=1),
+        )
+        db.add(invitation)
+        db.commit()
+        organization_id = operator.id
+        login_identifier = invitation.login_identifier
+
+    client = TestClient(app)
+    response = client.post(
+        "/api/v1/auth/operator-invitations/accept",
+        json={"token": token, "password": "Synthetic-Password-2026!"},
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["login_identifier"] == login_identifier
+    replay = client.post(
+        "/api/v1/auth/operator-invitations/accept",
+        json={"token": token, "password": "Synthetic-Password-2026!"},
+    )
+    assert replay.status_code == 404
+
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.login_identifier == login_identifier))
+        membership = db.scalar(select(OrganizationMembership).where(
+            OrganizationMembership.organization_id == organization_id,
+            OrganizationMembership.user_id == user.id,
+            OrganizationMembership.revoked_at.is_(None),
+        ))
+        assignment = db.scalar(select(RoleAssignment).where(
+            RoleAssignment.organization_id == organization_id,
+            RoleAssignment.user_id == user.id,
+            RoleAssignment.revoked_at.is_(None),
+        ))
+        credential = db.scalar(select(Credential).where(Credential.user_id == user.id))
+        assert user.status == "active"
+        assert membership is not None and assignment is not None and credential is not None
+
+
+def test_postgres_guest_support_case_and_access_revocation_flow():
+    trip_id, seat_id = _seed_single_seat_trip()
+    access_token = issue_opaque_token()
+    csrf_token = issue_opaque_token()
+    with SessionLocal() as db:
+        booking = create_seat_hold(
+            db, trip_id=UUID(trip_id), contact_name="Synthetic Contact",
+            contact_phone="+251900000003", passengers=[{"name": "Synthetic Passenger"}],
+            seat_ids=[UUID(seat_id)], idempotency_key="support-" + uuid4().hex,
+            hold_minutes=10,
+        )
+        booking_id = booking.id
+        db.add(BookingAccessGrant(
+            booking_id=booking_id,
+            credential_hash=token_digest(access_token),
+            csrf_token_hash=token_digest(csrf_token),
+            scope="manage",
+            expires_at=db.scalar(select(func.now())) + timedelta(hours=1),
+        ))
+        db.commit()
+
+    client = TestClient(app)
+    cookie_path = f"/api/v1/bookings/{booking_id}"
+    client.cookies.set("mnm_booking_access", access_token, path=cookie_path)
+    client.cookies.set("mnm_booking_csrf", csrf_token, path="/")
+    headers = {"Origin": "http://localhost:5173", "X-CSRF-Token": csrf_token}
+    created = client.post(
+        f"/api/v1/bookings/{booking_id}/support-cases",
+        headers=headers,
+        json={
+            "category": "reservation_status",
+            "subject": "Synthetic reservation question",
+            "message": "Please confirm the current reservation status for this synthetic test.",
+        },
+    )
+    assert created.status_code == 201, created.text
+    listed = client.get(f"/api/v1/bookings/{booking_id}/support-cases")
+    assert listed.status_code == 200
+    assert listed.json()[0]["case_reference"] == created.json()["case_reference"]
+
+    revoked = client.post(
+        f"/api/v1/bookings/{booking_id}/access/revoke", headers=headers,
+    )
+    assert revoked.status_code == 200, revoked.text
+    assert revoked.json()["access_revoked"] is True
+    denied = client.get(f"/api/v1/bookings/{booking_id}")
+    assert denied.status_code == 401
