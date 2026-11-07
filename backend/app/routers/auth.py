@@ -1,5 +1,3 @@
-from datetime import timezone
-
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, SecretStr
 from sqlalchemy import func, select
@@ -7,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.domains.audit.service import record_event
 from app.domains.identity.models import Credential, RoleAssignment, User
 from app.domains.identity.security import hash_secret, token_digest
 from app.domains.organizations.models import Organization, OrganizationInvitation, OrganizationMembership
