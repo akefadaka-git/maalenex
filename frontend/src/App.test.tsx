@@ -88,7 +88,15 @@ describe("passenger trip search shell", () => {
       status: "held", passengers: [{ name: "Synthetic Passenger", seat: "A1" }],
       fare: { amount_minor_units: 250000, currency_code: "ETB" },
       payment_enabled: false, ticketing_enabled: false, boarding_authorized: false,
-      reservation: null,
+      reservation: {
+        reservation_reference: "SYN-RESERVATION",
+        qr_payload_version: 1,
+        qr_payload_reference: "opaque-qr-reference",
+        status: "active",
+        payment_collected: false,
+        travel_ticket_issued: false,
+        boarding_authorized: false,
+      },
     };
     const cases = [{
       case_reference: "MNM-SUP-TEST", category: "reservation_status",
@@ -103,6 +111,7 @@ describe("passenger trip search shell", () => {
     render(<App />);
     await waitFor(() => expect(screen.getByText("SYNTHETIC-REF")).toBeTruthy());
     expect(screen.getByRole("heading", { name: "የድጋፍ ጥያቄ" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "የቦታ ማስያዣ QR ኮድ" })).toBeTruthy();
     expect(screen.getByText("MNM-SUP-TEST")).toBeTruthy();
   });
 
