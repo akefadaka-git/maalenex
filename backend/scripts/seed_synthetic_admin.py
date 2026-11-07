@@ -26,7 +26,19 @@ PLATFORM_PERMISSIONS = (
     "platform.trip.publish",
     "platform.fare.approve",
     "platform.fare.publish",
+    "platform.fleet.review",
+    "operator.fleet.manage",
+    "operator.trip.manage",
+    "operator.fare.propose",
+    "organization.members.manage",
 )
+
+OPERATOR_PERMISSIONS = {
+    "operator.fleet.manage",
+    "operator.trip.manage",
+    "operator.fare.propose",
+    "organization.members.manage",
+}
 
 
 def main() -> None:
@@ -50,18 +62,26 @@ def main() -> None:
             db.add(role)
             db.flush()
 
+        operator_role = db.scalar(select(Role).where(Role.code == "synthetic_operator_manager"))
+        if operator_role is None:
+            operator_role = Role(code="synthetic_operator_manager", description="Synthetic operator manager, organization-scoped")
+            db.add(operator_role)
+            db.flush()
+
         for code in PLATFORM_PERMISSIONS:
             permission = db.scalar(select(Permission).where(Permission.code == code))
             if permission is None:
                 permission = Permission(code=code, description=code.replace(".", " ").title())
                 db.add(permission)
                 db.flush()
-            assigned = db.scalar(select(RolePermission.id).where(
-                RolePermission.role_id == role.id,
-                RolePermission.permission_id == permission.id,
-            ))
-            if assigned is None:
-                db.add(RolePermission(role_id=role.id, permission_id=permission.id))
+            target_roles = [role] if code.startswith("platform.") else [operator_role]
+            for target_role in target_roles:
+                assigned = db.scalar(select(RolePermission.id).where(
+                    RolePermission.role_id == target_role.id,
+                    RolePermission.permission_id == permission.id,
+                ))
+                if assigned is None:
+                    db.add(RolePermission(role_id=target_role.id, permission_id=permission.id))
 
         db.add(user)
         db.flush()
