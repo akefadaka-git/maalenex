@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 type Language = "am" | "en";
 type LocationOption = { id: string; name: string; type: string };
@@ -113,14 +113,14 @@ export default function App() {
       })
       .finally(() => setLoadingLocations(false));
     return () => controller.abort();
-  }, []);
+  }, [language]);
 
   const destinations = useMemo(
     () => locations.filter((item) => item.id !== originId),
     [locations, originId],
   );
 
-  async function searchTrips(event: React.FormEvent<HTMLFormElement>) {
+  async function searchTrips(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!originId || !destinationId || originId === destinationId) return;
     setSearching(true);
