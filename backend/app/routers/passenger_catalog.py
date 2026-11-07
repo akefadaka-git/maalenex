@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.domains.bookings.models import Booking, SeatAllocation, SeatHold
 from app.domains.catalog.models import Location, Route, Terminal
 from app.domains.fares.models import Fare, FareVersion
+from app.domains.organizations.models import Organization
 from app.domains.trips.models import Trip, TripSeat
 
 router = APIRouter(tags=["passenger-catalog"])
@@ -57,9 +58,12 @@ def search_published_trips(
             Terminal.id == Trip.boarding_terminal_id,
             Terminal.location_id == Route.origin_location_id,
             Terminal.status == "published",
-        )).where(
+        ))
+        .join(Organization, Organization.id == Trip.organization_id)
+        .where(
             Trip.status == "published",
             Route.status == "published",
+            Organization.status == "approved",
             Route.origin_location_id == origin_id,
             Route.destination_location_id == destination_id,
             Trip.departure_at >= start_utc,
@@ -125,8 +129,21 @@ def search_published_trips(
 @router.get("/trips/{trip_id}/seats")
 def list_trip_seats(trip_id: UUID, db: Session = Depends(get_db)) -> list[dict]:
     now = db.scalar(select(func.now()))
-    trip = db.get(Trip, trip_id)
-    if trip is None or trip.status != "published":
+    trip_row = db.execute(
+        select(Trip.id)
+        .join(Route, Route.id == Trip.route_id)
+        .join(Terminal, and_(
+            Terminal.id == Trip.boarding_terminal_id,
+            Terminal.location_id == Route.origin_location_id,
+            Terminal.status == "published",
+        ))
+        .join(Organization, Organization.id == Trip.organization_id)
+        .where(
+            Trip.id == trip_id, Trip.status == "published",
+            Route.status == "published", Organization.status == "approved",
+        )
+    ).first()
+    if trip_row is None:
         return []
     seats = db.scalars(
         select(TripSeat).where(
