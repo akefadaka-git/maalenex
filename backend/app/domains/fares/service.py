@@ -34,7 +34,7 @@ def propose_fare(
     version = FareVersion(
         fare_id=fare.id, version_number=(latest or 0) + 1,
         amount_minor_units=amount_minor_units, currency_code="ETB",
-        effective_from=effective_from, status="draft", proposed_by=proposed_by,
+        effective_from=effective_from, effective_to=effective_to, status="draft", proposed_by=proposed_by,
     )
     db.add(version)
     record_event(db, event_type="fare.version.proposed", actor_type="staff",
@@ -55,7 +55,7 @@ def submit_fare(db: Session, *, fare_version_id: UUID, proposer_id: UUID) -> Far
         raise FareConflict("Only the proposer may submit their draft fare version.")
     if version.amount_minor_units < 0 or version.currency_code != "ETB":
         raise FareConflict("Fare amount or currency is invalid.")
-    version.status = "submitted"
+    if version.effective_to is not None and version.effective_to <= version.effective_from:\n        raise FareConflict("Fare effective_to must be later than effective_from.")\n    version.status = "submitted"
     record_event(db, event_type="fare.version.submitted", actor_type="staff",
                  actor_id=str(proposer_id), resource_type="fare_version",
                  resource_id=str(version.id), action="submit", outcome="success")
@@ -83,7 +83,7 @@ def decide_fare(
     )
     version.status = decision
     version.approved_by = reviewer_id if decision == "approved" else None
-    version.approved_at = db.scalar(select(func.now()))
+    version.approved_at = db.scalar(select(func.now())) if decision == "approved" else None
     db.add(approval)
     record_event(db, event_type="fare.version.reviewed", actor_type="staff",
                  actor_id=str(reviewer_id), resource_type="fare_version",
@@ -106,15 +106,20 @@ def publish_fare(db: Session, *, fare_version_id: UUID, publisher_id: UUID) -> F
         raise FareConflict("Fare effective period does not include publication time.")
     if version.effective_to is not None and version.effective_to <= version.effective_from:
         raise FareConflict("Fare effective_to must be later than effective_from.")
-    overlapping = db.scalar(select(FareVersion.id).where(
-        FareVersion.fare_id == version.fare_id,
-        FareVersion.id != version.id,
+    fare = db.scalar(select(Fare).where(Fare.id == version.fare_id).with_for_update())
+    if fare is None:
+        raise FareConflict("Fare record is missing.")
+    previous_versions = list(db.scalars(select(FareVersion).where(
+        FareVersion.fare_id == fare.id,
         FareVersion.status == "published",
-        FareVersion.effective_from < (version.effective_to if version.effective_to is not None else datetime.max.replace(tzinfo=version.effective_from.tzinfo)),
-        (FareVersion.effective_to.is_(None)) | (FareVersion.effective_to > version.effective_from),
-    ).limit(1))
-    if overlapping is not None:
-        raise FareConflict("Published fare effective periods may not overlap.")
+        FareVersion.id != version.id,
+    ).with_for_update()))
+    for previous in previous_versions:
+        previous.status = "retired"
+        record_event(db, event_type="fare.version.retired", actor_type="staff",
+                     actor_id=str(publisher_id), resource_type="fare_version",
+                     resource_id=str(previous.id), action="retire", outcome="success",
+                     reason_code="superseded_by_new_version")
     version.status = "published"
     version.published_by = publisher_id
     version.published_at = now
