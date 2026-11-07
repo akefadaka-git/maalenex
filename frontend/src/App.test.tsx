@@ -48,7 +48,7 @@ describe("passenger trip search shell", () => {
       .mockResolvedValueOnce({ ok: true, json: async () => [trip] });
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
-    await waitFor(() => expect(screen.getByRole("option", { name: "Wolaita Sodo" })).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByRole("option", { name: "Wolaita Sodo" }).length).toBeGreaterThan(0));
     fireEvent.click(screen.getByRole("button", { name: "ጉዞ ፈልግ" }));
     await waitFor(() => expect(screen.getByText(/Jinka Bus Terminal.*12/)).toBeTruthy());
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -71,7 +71,7 @@ describe("passenger trip search shell", () => {
     ] });
   vi.stubGlobal("fetch", fetchMock);
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("option", { name: "Wolaita Sodo" })).toBeTruthy());
+  await waitFor(() => expect(screen.getAllByRole("option", { name: "Wolaita Sodo" }).length).toBeGreaterThan(0));
   fireEvent.click(screen.getByRole("button", { name: "ጉዞ ፈልግ" }));
   await waitFor(() => expect(screen.getByRole("button", { name: "ወንበሮችን ይምረጡ" })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: "ወንበሮችን ይምረጡ" }));
