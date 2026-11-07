@@ -7,7 +7,7 @@ import os
 import pytest
 from sqlalchemy import func, select
 from app.db.session import SessionLocal
-from app.domains.bookings.service import BookingConflict, create_seat_hold
+from app.domains.bookings.service import BookingConflict, accept_reservation, create_seat_hold
 from app.domains.bookings.maintenance import expire_stale_holds
 from app.domains.catalog.models import Location, Route, Terminal
 from app.domains.fares.models import Fare, FareVersion
@@ -18,8 +18,9 @@ from app.domains.trips.models import Trip, TripSeat
 from app.domains.reservations.models import BookingAccessGrant
 from app.domains.bookings.access import revoke_booking_grants
 from app.domains.identity.security import issue_opaque_token, token_digest
-from app.domains.identity.models import Credential, Role, RoleAssignment
+from app.domains.identity.models import Credential, Permission, Role, RoleAssignment, RolePermission, StaffSession
 from app.domains.organizations.models import OrganizationInvitation, OrganizationMembership
+from app.domains.support.models import SupportCase
 from fastapi.testclient import TestClient
 from app.main import app
 
@@ -289,3 +290,99 @@ def test_postgres_guest_support_case_and_access_revocation_flow():
     assert revoked.json()["access_revoked"] is True
     denied = client.get(f"/api/v1/bookings/{booking_id}")
     assert denied.status_code == 401
+
+
+def _create_staff_session(db, *, organization_id=None, permission_code="platform.support.manage"):
+    user = User(
+        login_identifier="synthetic-staff-" + uuid4().hex + "@example.test",
+        display_name="Synthetic Staff Reviewer", status="active",
+    )
+    role = Role(code="synthetic-role-" + uuid4().hex[:12], description="Synthetic test role")
+    permission = Permission(code=permission_code, description="Synthetic test permission")
+    db.add_all([user, role, permission])
+    db.flush()
+    db.add_all([
+        RolePermission(role_id=role.id, permission_id=permission.id),
+        RoleAssignment(
+            user_id=user.id, role_id=role.id,
+            organization_id=organization_id, assigned_by=user.id,
+        ),
+    ])
+    session_token = issue_opaque_token()
+    csrf_token = issue_opaque_token()
+    now = db.scalar(select(func.now()))
+    db.add(StaffSession(
+        user_id=user.id, secret_hash=token_digest(session_token),
+        csrf_token_hash=token_digest(csrf_token),
+        expires_at=now + timedelta(hours=8),
+    ))
+    db.flush()
+    return session_token, csrf_token
+
+
+def test_postgres_support_staff_can_claim_and_resolve_cases():
+    trip_id, seat_id = _seed_single_seat_trip()
+    with SessionLocal() as db:
+        booking = create_seat_hold(
+            db, trip_id=UUID(trip_id), contact_name="Synthetic Contact",
+            contact_phone="+251900000004", passengers=[{"name": "Synthetic Passenger"}],
+            seat_ids=[UUID(seat_id)], idempotency_key="support-staff-" + uuid4().hex,
+        )
+        case = SupportCase(
+            case_reference="MNM-SUP-" + uuid4().hex[:16].upper(),
+            booking_id=booking.id, category="reservation_status",
+            subject="Synthetic support case",
+            message="Synthetic support message for staff workflow verification.",
+            status="open",
+        )
+        db.add(case)
+        session_token, csrf_token = _create_staff_session(db)
+        case_id = case.id
+        case_reference = case.case_reference
+        db.commit()
+
+    client = TestClient(app)
+    client.cookies.set("mnm_staff_session", session_token, path="/")
+    client.cookies.set("mnm_csrf", csrf_token, path="/")
+    headers = {"X-CSRF-Token": csrf_token, "Origin": "http://localhost:5173"}
+    listed = client.get("/api/v1/support/cases")
+    assert listed.status_code == 200, listed.text
+    assert any(item["case_reference"] == case_reference for item in listed.json())
+    claimed = client.post(f"/api/v1/support/cases/{case_id}/claim", headers=headers)
+    assert claimed.status_code == 200, claimed.text
+    resolved = client.post(
+        f"/api/v1/support/cases/{case_id}/resolve",
+        headers=headers,
+        json={"resolution_code": "information_provided", "resolution_note": "Synthetic case resolved."},
+    )
+    assert resolved.status_code == 200, resolved.text
+    assert resolved.json()["status"] == "resolved"
+
+
+def test_postgres_manifest_is_operator_scoped_and_excludes_contact_phone():
+    trip_id, seat_id = _seed_single_seat_trip()
+    with SessionLocal() as db:
+        trip = db.get(Trip, UUID(trip_id))
+        booking = create_seat_hold(
+            db, trip_id=UUID(trip_id), contact_name="Private Synthetic Contact",
+            contact_phone="+251900000005", passengers=[{"name": "Manifest Passenger"}],
+            seat_ids=[UUID(seat_id)], idempotency_key="manifest-" + uuid4().hex,
+        )
+        accept_reservation(db, booking_id=booking.id)
+        session_token, csrf_token = _create_staff_session(
+            db, organization_id=trip.organization_id,
+            permission_code="operator.trip.manifest.read",
+        )
+        db.commit()
+
+    client = TestClient(app)
+    client.cookies.set("mnm_staff_session", session_token, path="/")
+    client.cookies.set("mnm_csrf", csrf_token, path="/")
+    response = client.get(f"/api/v1/trips/{trip_id}/manifest")
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["passenger_count"] == 1
+    assert payload["manifest"][0]["passenger_name"] == "Manifest Passenger"
+    assert payload["contact_phone_included"] is False
+    assert "+251900000005" not in response.text
+    assert payload["boarding_authorized"] is False
