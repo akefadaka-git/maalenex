@@ -7,7 +7,8 @@ _SENSITIVE_KEYS = {"password", "secret", "token", "authorization", "phone", "ema
 def redact_metadata(value: dict | None) -> dict:
     safe = {}
     for key, item in (value or {}).items():
-        if key.lower() in _SENSITIVE_KEYS:
+        normalized_key = key.lower().replace("-", "_")
+        if any(marker in normalized_key for marker in _SENSITIVE_KEYS):
             safe[key] = "[REDACTED]"
         elif isinstance(item, dict):
             safe[key] = redact_metadata(item)
