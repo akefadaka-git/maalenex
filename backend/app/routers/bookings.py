@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import get_db
 from app.domains.bookings.access import (
-    BookingAccessError, BookingAccessRateLimited, create_access_challenge, resolve_booking_grant,
+    BookingAccessError, BookingAccessRateLimited, create_access_challenge,
+    enforce_guest_access_rate_limit, resolve_booking_grant,
     verify_access_challenge, verify_booking_csrf,
 )
 from app.domains.bookings.models import (
@@ -67,10 +68,11 @@ def current_booking_grant(
 
 @router.post("/bookings/holds", status_code=status.HTTP_201_CREATED)
 def create_booking_hold(
-    payload: CreateHoldRequest, db: Session = Depends(get_db),
+    payload: CreateHoldRequest, request: Request, db: Session = Depends(get_db),
     idempotency_key: str = Header(alias="Idempotency-Key", min_length=8, max_length=128),
 ) -> dict:
     try:
+        enforce_guest_access_rate_limit(db, client_ip=_client_ip(request))
         booking = create_seat_hold(
             db, trip_id=payload.trip_id,
             contact_name=payload.booking_contact_name,
@@ -83,6 +85,9 @@ def create_booking_hold(
             BookingFareSnapshot.booking_id == booking.id
         ))
         db.commit()
+    except BookingAccessRateLimited:
+        db.commit()
+        raise HTTPException(status_code=429, detail="Too many booking requests. Try again later.")
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=422, detail=str(exc))
