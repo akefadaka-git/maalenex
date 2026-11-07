@@ -42,7 +42,7 @@ Copy the root `.env.example` to `backend/.env` and adjust only local development
 uvicorn app.main:app --reload
 ```
 
-The API listens on `http://127.0.0.1:8000`; health check: `GET /api/v1/health`; OpenAPI UI: `/api/v1/docs`.
+The API listens on `http://127.0.0.1:8000`; health check: `GET /api/v1/health`; OpenAPI UI: `/api/v1/docs`. The Vite development server proxies `/api` to this backend.
 
 Run backend checks from `backend/`:
 
@@ -52,7 +52,7 @@ ruff check app tests migrations
 alembic upgrade head
 ```
 
-Alembic is wired to application metadata and the configured PostgreSQL URL. The A3 branch contains explicit migrations for identity/audit/operator foundations and the synthetic passenger catalog, fleet, trip, fare, booking and reservation schema. Apply migrations only to the local synthetic `maalenex_dev` database. Review migration parity and run PostgreSQL integration tests before treating the schema as verified.
+Alembic is wired to application metadata and the configured PostgreSQL URL. The A3 branch contains explicit migrations for identity/audit/operator foundations and the synthetic passenger catalog, fleet, trip, fare, booking and reservation schema. Apply migrations only to the local synthetic `maalenex_dev` database. Current A3 migrations include staff identity/rate-limiting, audit, operator organization, passenger catalog, fleet, trips, fares, bookings, reservation access and guest challenge rate-limiting. Review migration/model parity and run PostgreSQL integration/concurrency tests before treating the schema as verified.
 
 ### Frontend
 
@@ -80,12 +80,15 @@ npm run typecheck
 npm run build
 ```
 
-Vite serves the app at `http://localhost:5173`. The Amharic passenger trip-search interface is the default; use the language control to switch to English. Published trip search is read-only. Booking-access verification, reservation creation, payment collection, travel-ticket issuance and boarding APIs are not enabled yet.
+Vite serves the app at `http://localhost:5173`. The Amharic passenger trip-search and synthetic reservation interface is the default; use the language control to switch to English. The development API includes staff session authentication, published trip/seat search, synthetic booking holds, contact challenge verification and payment-disabled reservation acceptance. The local synthetic verification code is returned only in development/test mode. Payment collection, travel-ticket issuance and boarding remain disabled.
 
 ## Data and operational boundary
 
 - Synthetic fixtures only; no real people, identifiers, addresses, trips, transactions, or payment credentials.
 - No live operator onboarding, real passenger bookings, payment collection, ticket issuance, boarding, production personal-data processing, production deployment, or public service launch is authorized.
+- Development/test contact-verification codes are synthetic debug values only; no SMS/email provider is connected.
+- Staff accounts require explicit synthetic provisioning; there is no public staff registration endpoint.
+- Reservation references and their QR payload references are not travel tickets and cannot authorize boarding.
 - Reservation references are not travel tickets and cannot authorize boarding.
 - The passenger search API returns only published trip information and availability snapshots; booking rechecks inventory transactionally.
 - Do not add credentials to source control. Use local environment variables and keep `.env` untracked.
