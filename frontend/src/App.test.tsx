@@ -112,7 +112,7 @@ describe("passenger trip search shell", () => {
     await waitFor(() => expect(screen.getByText("SYN-RESERVATION")).toBeTruthy());
     expect(screen.getByRole("heading", { name: "የድጋፍ ጥያቄ" })).toBeTruthy();
     expect(screen.getByRole("img", { name: "የቦታ ማስያዣ QR ኮድ" })).toBeTruthy();
-    expect(screen.getByText("MNM-SUP-TEST")).toBeTruthy();
+    await waitFor(() => expect(screen.getByText("MNM-SUP-TEST")).toBeTruthy());
   });
 
 });
