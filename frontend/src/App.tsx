@@ -44,7 +44,7 @@ const copy = {
     challenge: "ማረጋገጫ", code: "የማረጋገጫ ኮድ", verify: "አረጋግጥ",
     syntheticCode: "የሙከራ ኮድ", reserve: "ቦታ ማስያዣውን አረጋግጥ",
     reservation: "የቦታ ማስያዣ ማረጋገጫ", reservationRef: "የማስያዣ ማጣቀሻ",
-    qrRef: "የQR ማጣቀሻ ይዘት", notTicket: "ይህ ትኬት አይደለም፤ መሳፈርን አያስፈቅድም።",
+    qrRef: "የQR ማጣቀሻ ይዘት", qrCode: "የቦታ ማስያዣ QR ኮድ", notTicket: "ይህ ትኬት አይደለም፤ መሳፈርን አያስፈቅድም።",
     disabled: "ክፍያና የጉዞ ትኬት አልተከፈቱም።",
     loadingLocations: "የመነሻና መድረሻ ቦታዎች በመጫን ላይ…",
     error: "የጉዞ መረጃን ማግኘት አልተቻለም። እንደገና ይሞክሩ።",
@@ -76,7 +76,7 @@ const copy = {
     challenge: "Contact verification", code: "Verification code", verify: "Verify",
     syntheticCode: "Synthetic test code", reserve: "Confirm reservation",
     reservation: "Reservation confirmation", reservationRef: "Reservation reference",
-    qrRef: "QR payload reference", notTicket: "This is not a travel ticket and does not authorize boarding.",
+    qrRef: "QR payload reference", qrCode: "Reservation QR code", notTicket: "This is not a travel ticket and does not authorize boarding.",
     disabled: "Payments and travel tickets are not enabled.",
     loadingLocations: "Loading origin and destination locations…",
     error: "Could not load trip information. Please try again.",
@@ -428,6 +428,13 @@ export default function App() {
           <h2>{t.reservation}</h2>
           <p><strong>{t.reservationRef}:</strong> {reservation.reservation_reference}</p>
           <p><strong>{t.qrRef}:</strong> <code>{reservation.qr_payload_reference}</code></p>
+          {booking && <img
+            src={`/api/v1/bookings/${booking.booking_id}/reservation/qr.svg`}
+            alt={t.qrCode}
+            width={180}
+            height={180}
+            loading="lazy"
+          />}
           <p className="trip-warning">{t.notTicket}</p>
           <p className="trip-warning">{t.disabled}</p>
           <button className="secondary-button" type="button" disabled={working} onClick={revokeBookingAccess}>{t.revokeAccess}</button>
