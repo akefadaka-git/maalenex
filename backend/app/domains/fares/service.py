@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import UUID, uuid4
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from app.domains.audit.service import record_event
 from app.domains.fares.models import Fare, FareApproval, FareVersion
@@ -67,7 +67,7 @@ def decide_fare(
     )
     version.status = decision
     version.approved_by = reviewer_id if decision == "approved" else None
-    version.approved_at = datetime.now(timezone.utc)
+    version.approved_at = db.scalar(select(func.now()))
     db.add(approval)
     record_event(db, event_type="fare.version.reviewed", actor_type="staff",
                  actor_id=str(reviewer_id), resource_type="fare_version",
@@ -78,7 +78,7 @@ def decide_fare(
 
 
 def publish_fare(db: Session, *, fare_version_id: UUID, publisher_id: UUID) -> FareVersion:
-    now = db.scalar(select(__import__("sqlalchemy").func.now()))
+    now = db.scalar(select(func.now()))
     version = db.scalar(select(FareVersion).where(
         FareVersion.id == fare_version_id
     ).with_for_update())
