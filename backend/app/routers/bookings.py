@@ -299,11 +299,14 @@ def create_guest_support_case(
     booking = db.get(Booking, booking_id)
     if booking is None:
         raise HTTPException(status_code=404, detail="Booking not found.")
+    subject = payload.subject.strip()
+    message = payload.message.strip()
+    if len(subject) < 3 or len(message) < 10:
+        raise HTTPException(status_code=422, detail="Support subject and message cannot be blank.")
     case = SupportCase(
         case_reference="MNM-SUP-" + token_urlsafe(9).replace("-", "").replace("_", "").upper(),
         booking_id=booking.id, category=payload.category,
-        subject=payload.subject.strip(), message=payload.message.strip(),
-        status="open",
+        subject=subject, message=message, status="open",
     )
     db.add(case)
     db.flush()
