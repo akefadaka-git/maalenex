@@ -1,3 +1,5 @@
+from typing import Literal
+from secrets import token_urlsafe
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
@@ -19,6 +21,8 @@ from app.domains.bookings.models import (
 from app.domains.bookings.service import BookingConflict, accept_reservation, create_seat_hold
 from app.domains.trips.models import TripSeat
 from app.domains.reservations.models import BookingAccessGrant, ReservationReference
+from app.domains.support.models import SupportCase
+from app.domains.audit.service import record_event
 
 router = APIRouter(tags=["passenger-bookings"])
 ACCESS_COOKIE = "mnm_booking_access"
@@ -35,6 +39,12 @@ class CreateHoldRequest(BaseModel):
     booking_contact_phone: str = Field(min_length=1, max_length=32)
     passengers: list[PassengerInput] = Field(min_length=1, max_length=10)
     seat_ids: list[UUID] = Field(min_length=1, max_length=10)
+
+
+class SupportCaseRequest(BaseModel):
+    category: Literal["booking_access", "reservation_status", "accessibility", "other"]
+    subject: str = Field(min_length=3, max_length=160)
+    message: str = Field(min_length=10, max_length=2000)
 
 
 class ChallengeRequest(BaseModel):
@@ -235,6 +245,65 @@ def accept_guest_reservation(
         "travel_ticket_issued": False,
         "boarding_authorized": False,
     }
+
+
+@router.post("/bookings/{booking_id}/support-cases", status_code=status.HTTP_201_CREATED)
+def create_guest_support_case(
+    booking_id: UUID, payload: SupportCaseRequest, request: Request,
+    grant: BookingAccessGrant = Depends(current_booking_grant),
+    db: Session = Depends(get_db),
+) -> dict:
+    _require_origin(request)
+    if grant.scope != "manage" or not verify_booking_csrf(
+        grant, cookie_token=request.cookies.get(CSRF_COOKIE),
+        header_token=request.headers.get("X-CSRF-Token"),
+    ):
+        raise HTTPException(status_code=403, detail="Booking support authorization failed.")
+    booking = db.get(Booking, booking_id)
+    if booking is None:
+        raise HTTPException(status_code=404, detail="Booking not found.")
+    case = SupportCase(
+        case_reference="MNM-SUP-" + token_urlsafe(9).replace("-", "").replace("_", "").upper(),
+        booking_id=booking.id, category=payload.category,
+        subject=payload.subject.strip(), message=payload.message.strip(),
+        status="open",
+    )
+    db.add(case)
+    db.flush()
+    record_event(
+        db, event_type="support.case.created", actor_type="guest",
+        actor_id=None, resource_type="support_case", resource_id=str(case.id),
+        action="create", outcome="success",
+        metadata={"category": case.category, "booking_id": str(booking.id)},
+    )
+    db.commit()
+    return {
+        "case_reference": case.case_reference,
+        "status": case.status,
+        "created_at": case.created_at.isoformat(),
+    }
+
+
+@router.get("/bookings/{booking_id}/support-cases")
+def list_guest_support_cases(
+    booking_id: UUID,
+    grant: BookingAccessGrant = Depends(current_booking_grant),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    cases = db.scalars(select(SupportCase).where(
+        SupportCase.booking_id == booking_id
+    ).order_by(SupportCase.created_at.desc())).all()
+    return [{
+        "case_reference": case.case_reference,
+        "category": case.category,
+        "subject": case.subject,
+        "message": case.message,
+        "status": case.status,
+        "resolution_code": case.resolution_code,
+        "resolution_note": case.resolution_note,
+        "created_at": case.created_at.isoformat(),
+        "resolved_at": case.resolved_at.isoformat() if case.resolved_at else None,
+    } for case in cases]
 
 
 @router.post("/bookings/{booking_id}/access/revoke")
