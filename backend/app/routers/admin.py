@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.session import get_db
 from app.domains.bookings.models import Booking, BookingPassenger, Passenger, SeatAllocation
 from app.domains.audit.models import AuditEvent
@@ -18,11 +19,12 @@ from app.domains.fares.service import FareConflict, decide_fare, propose_fare, p
 from app.domains.fleet.models import SeatLayoutVersion, Vehicle, VehicleSeat
 from app.domains.identity.authorization import has_permission
 from app.domains.identity.models import Role, RoleAssignment, User
-from app.domains.organizations.models import Organization, OrganizationMembership
+from app.domains.organizations.models import Organization, OrganizationInvitation, OrganizationMembership
 from app.domains.organizations.service import create_candidate_operator
 from app.domains.trips.models import Trip, TripSeat
 from app.routers.auth import current_staff_context, require_csrf
 from app.domains.identity.service import StaffContext
+from app.domains.identity.security import issue_opaque_token, token_digest
 
 router = APIRouter(tags=["platform-administration"])
 
@@ -39,6 +41,11 @@ class OperatorReview(BaseModel):
 class OperatorRoleAssignment(BaseModel):
     user_id: UUID
     role_code: Literal["synthetic_operator_manager"] = "synthetic_operator_manager"
+
+
+class OperatorInvitationCreate(BaseModel):
+    login_identifier: str = Field(min_length=5, max_length=254)
+    display_name: str = Field(min_length=2, max_length=160)
 
 
 class LocationCreate(BaseModel):
@@ -188,6 +195,113 @@ def assign_operator_role(
         db.rollback()
         raise HTTPException(status_code=409, detail="An equivalent active assignment already exists.")
     return {"id": str(assignment.id), "organization_id": str(organization_id), "user_id": str(user.id), "role": role.code}
+
+
+@router.post("/operators/{organization_id}/invitations", status_code=status.HTTP_201_CREATED)
+def create_operator_invitation(
+    organization_id: UUID, payload: OperatorInvitationCreate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.access.manage")
+    if settings.app_env not in {"development", "test"} or not settings.synthetic_data_only:
+        raise HTTPException(status_code=503, detail="Invitation delivery is not configured.")
+    operator = db.get(Organization, organization_id)
+    if operator is None or operator.status != "approved":
+        raise HTTPException(status_code=409, detail="Only approved operators can receive staff invitations.")
+    login = payload.login_identifier.strip().lower()
+    if "@" not in login or any(character.isspace() for character in login):
+        raise HTTPException(status_code=422, detail="A valid login email is required.")
+    if db.scalar(select(User.id).where(User.login_identifier == login)) is not None:
+        raise HTTPException(status_code=409, detail="A staff account already exists for this login.")
+    role = db.scalar(select(Role).where(Role.code == "synthetic_operator_manager"))
+    if role is None:
+        raise HTTPException(status_code=503, detail="Operator manager role has not been provisioned.")
+    token = issue_opaque_token()
+    now = db.scalar(select(func.now()))
+    invitation = OrganizationInvitation(
+        organization_id=organization_id, login_identifier=login,
+        display_name=payload.display_name.strip(), role_id=role.id,
+        token_hash=token_digest(token), created_by=context.user.id,
+        expires_at=now + timedelta(hours=48),
+    )
+    db.add(invitation)
+    db.flush()
+    _audit(
+        db, context=context, event="organization.invitation.created",
+        resource_type="organization_invitation", resource_id=invitation.id,
+        action="invite", organization_id=organization_id,
+        metadata={"role": role.code},
+    )
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="An active invitation already exists for this login.")
+    return {
+        "invitation_id": str(invitation.id),
+        "login_identifier": invitation.login_identifier,
+        "expires_at": invitation.expires_at.isoformat(),
+        "delivery": "disabled_synthetic_token_only",
+        "synthetic_invitation_token": token,
+    }
+
+
+@router.post("/operators/{organization_id}/invitations/{invitation_id}/revoke")
+def revoke_operator_invitation(
+    organization_id: UUID, invitation_id: UUID, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.access.manage")
+    invitation = db.scalar(select(OrganizationInvitation).where(
+        OrganizationInvitation.id == invitation_id,
+        OrganizationInvitation.organization_id == organization_id,
+    ).with_for_update())
+    if invitation is None or invitation.accepted_at is not None or invitation.revoked_at is not None:
+        raise HTTPException(status_code=409, detail="Invitation is not revocable.")
+    invitation.revoked_at = db.scalar(select(func.now()))
+    _audit(
+        db, context=context, event="organization.invitation.revoked",
+        resource_type="organization_invitation", resource_id=invitation.id,
+        action="revoke", organization_id=organization_id,
+    )
+    db.commit()
+    return {"invitation_id": str(invitation.id), "revoked": True}
+
+
+@router.post("/operators/{organization_id}/memberships/{membership_id}/revoke")
+def revoke_operator_membership(
+    organization_id: UUID, membership_id: UUID, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.access.manage")
+    membership = db.scalar(select(OrganizationMembership).where(
+        OrganizationMembership.id == membership_id,
+        OrganizationMembership.organization_id == organization_id,
+        OrganizationMembership.revoked_at.is_(None),
+    ).with_for_update())
+    if membership is None:
+        raise HTTPException(status_code=404, detail="Active organization membership not found.")
+    now = db.scalar(select(func.now()))
+    membership.revoked_at = now
+    membership.membership_status = "revoked"
+    assignments = list(db.scalars(select(RoleAssignment).where(
+        RoleAssignment.user_id == membership.user_id,
+        RoleAssignment.organization_id == organization_id,
+        RoleAssignment.revoked_at.is_(None),
+    ).with_for_update()))
+    for assignment in assignments:
+        assignment.revoked_at = now
+    _audit(
+        db, context=context, event="organization.membership.revoked",
+        resource_type="organization_membership", resource_id=membership.id,
+        action="revoke", organization_id=organization_id,
+        metadata={"role_assignments_revoked": len(assignments)},
+    )
+    db.commit()
+    return {"membership_id": str(membership.id), "revoked_role_assignments": len(assignments)}
 
 
 @router.post("/catalog/locations", status_code=status.HTTP_201_CREATED)
