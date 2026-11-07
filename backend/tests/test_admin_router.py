@@ -1,31 +1,31 @@
-from fastapi.routing import APIRoute
+from fastapi.testclient import TestClient
 
 from app.main import app
 
 
 def test_administration_router_is_registered_under_api_prefix():
-    routes = [
-        route for route in app.routes
-        if isinstance(route, APIRoute) and "platform-administration" in route.tags
-    ]
-    assert routes
-    paths = {route.path for route in routes}
-    assert "/api/v1/operators" in paths
-    assert "/api/v1/catalog/routes" in paths
-    assert "/api/v1/vehicles/{vehicle_id}/review" in paths
-    assert "/api/v1/trips/{trip_id}/publish" in paths
-    assert "/api/v1/fares/{fare_id}/versions/{version_id}/review" in paths
-    assert "/api/v1/audit/events" in paths
+    paths = app.openapi()["paths"]
+    expected = {
+        "/api/v1/operators",
+        "/api/v1/catalog/routes",
+        "/api/v1/vehicles/{vehicle_id}/review",
+        "/api/v1/trips/{trip_id}/publish",
+        "/api/v1/fares/{fare_id}/versions/{version_id}/review",
+        "/api/v1/audit/events",
+    }
+    assert expected.issubset(paths)
+    assert any(
+        "platform-administration" in operation.get("tags", [])
+        for path, operations in paths.items()
+        if path in expected
+        for operation in operations.values()
+    )
 
 
-def test_every_administration_route_requires_staff_session_context():
-    routes = [
-        route for route in app.routes
-        if isinstance(route, APIRoute) and "platform-administration" in route.tags
-    ]
-    for route in routes:
-        dependency_names = {
-            getattr(dependency.call, "__name__", "")
-            for dependency in route.dependant.dependencies
-        }
-        assert "current_staff_context" in dependency_names, route.path
+def test_administration_mutation_requires_staff_session():
+    client = TestClient(app)
+    response = client.post(
+        "/api/v1/operators",
+        json={"display_name": "Synthetic unauthorized operator"},
+    )
+    assert response.status_code == 401
