@@ -21,6 +21,10 @@ type ReservationResult = {
   reservation_reference: string; qr_payload_version: number; qr_payload_reference: string;
   status: string; payment_collected: false; travel_ticket_issued: false; boarding_authorized: false;
 };
+type SupportCase = {
+  case_reference: string; category: string; subject: string; message: string;
+  status: string; resolution_code: string | null; resolution_note: string | null;
+};
 
 const copy = {
   am: {
@@ -48,6 +52,11 @@ const copy = {
     language: "Switch language to English",
     revokeAccess: "Revoke booking access",
     accessRevoked: "Booking access was revoked.",
+    support: "የድጋፍ ጥያቄ",
+    supportSubject: "ርዕስ",
+    supportMessage: "መልዕክት",
+    supportSubmit: "ጥያቄ ላክ",
+    supportCases: "የድጋፍ ጥያቄዎች",
     footer: "በሙከራ ላይ ያለ መድረክ። እውነተኛ ቦታ ማስያዝ፣ ክፍያ ወይም መሳፈር አይፈቀድም።",
   },
   en: {
@@ -75,6 +84,11 @@ const copy = {
     language: "ቋንቋውን ወደ አማርኛ ቀይር",
     revokeAccess: "የቦታ ማስያዣ መዳረሻን ዝጋ",
     accessRevoked: "የቦታ ማስያዣ መዳረሻ ተዘግቷል።",
+    support: "Support request",
+    supportSubject: "Subject",
+    supportMessage: "Message",
+    supportSubmit: "Submit request",
+    supportCases: "Support cases",
     footer: "Development platform. Real reservations, payments and boarding are not authorized.",
   },
 };
@@ -115,6 +129,9 @@ export default function App() {
   const [verificationCode, setVerificationCode] = useState("");
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [reservation, setReservation] = useState<ReservationResult | null>(null);
+  const [supportCases, setSupportCases] = useState<SupportCase[]>([]);
+  const [supportSubject, setSupportSubject] = useState("");
+  const [supportMessage, setSupportMessage] = useState("");
   const [working, setWorking] = useState(false);
   const t = copy[language];
 
@@ -152,6 +169,10 @@ export default function App() {
       const detail = await response.json() as BookingDetails;
       setBooking(detail);
       setReservation(detail.reservation ?? null);
+      const casesResponse = await fetch(`/api/v1/bookings/${encodeURIComponent(savedBookingId)}/support-cases`, {
+        credentials: "include", signal: controller.signal,
+      });
+      if (casesResponse.ok) setSupportCases(await casesResponse.json() as SupportCase[]);
     }).catch(() => {
       if (!controller.signal.aborted) setError("error");
     });
@@ -248,7 +269,11 @@ export default function App() {
       sessionStorage.setItem("mnm_active_booking_id", result.booking_id);
       const detail = await fetch(`/api/v1/bookings/${result.booking_id}`, { credentials: "include" });
       if (!detail.ok) throw new Error("booking");
-      setBooking((await detail.json()) as BookingDetails);
+      const bookingDetails = await detail.json() as BookingDetails;
+      setBooking(bookingDetails);
+      setReservation(bookingDetails.reservation ?? null);
+      const casesResponse = await fetch(`/api/v1/bookings/${result.booking_id}/support-cases`, { credentials: "include" });
+      if (casesResponse.ok) setSupportCases(await casesResponse.json() as SupportCase[]);
     } catch { setError("error"); }
     finally { setWorking(false); }
   }
@@ -267,6 +292,29 @@ export default function App() {
     finally { setWorking(false); }
   }
 
+  async function submitSupportCase(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!booking || !supportSubject.trim() || !supportMessage.trim()) return;
+    setWorking(true); setError("");
+    try {
+      const response = await fetch(`/api/v1/bookings/${booking.booking_id}/support-cases`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfCookie() },
+        body: JSON.stringify({
+          category: "reservation_status",
+          subject: supportSubject,
+          message: supportMessage,
+        }),
+      });
+      if (!response.ok) throw new Error("support");
+      const casesResponse = await fetch(`/api/v1/bookings/${booking.booking_id}/support-cases`, { credentials: "include" });
+      if (!casesResponse.ok) throw new Error("support-list");
+      setSupportCases(await casesResponse.json() as SupportCase[]);
+      setSupportSubject(""); setSupportMessage("");
+    } catch { setError("error"); }
+    finally { setWorking(false); }
+  }
+
   async function revokeBookingAccess() {
     if (!booking) return;
     setWorking(true); setError("");
@@ -277,7 +325,7 @@ export default function App() {
       });
       if (!response.ok) throw new Error("revoke");
       sessionStorage.removeItem("mnm_active_booking_id");
-      setBooking(null); setReservation(null); setHold(null); setChallengeId("");
+      setBooking(null); setReservation(null); setHold(null); setChallengeId(""); setSupportCases([]);
       setSyntheticCode(""); setVerificationCode("");
     } catch { setError("error"); }
     finally { setWorking(false); }
@@ -385,6 +433,21 @@ export default function App() {
           <button className="secondary-button" type="button" disabled={working} onClick={revokeBookingAccess}>{t.revokeAccess}</button>
         </section>}
         {booking && !reservation && <button className="secondary-button" type="button" disabled={working} onClick={revokeBookingAccess}>{t.revokeAccess}</button>}
+        {booking && <section className="booking-panel" aria-labelledby="support-title">
+          <h2 id="support-title">{t.support}</h2>
+          <form className="details-form" onSubmit={submitSupportCase}>
+            <label><span>{t.supportSubject}</span><input value={supportSubject} onChange={(e) => setSupportSubject(e.target.value)} required maxLength={160} /></label>
+            <label><span>{t.supportMessage}</span><textarea value={supportMessage} onChange={(e) => setSupportMessage(e.target.value)} required minLength={10} maxLength={2000} rows={4} /></label>
+            <button className="secondary-button" type="submit" disabled={working || !supportSubject.trim() || supportMessage.trim().length < 10}>{t.supportSubmit}</button>
+          </form>
+          {supportCases.length > 0 && <div className="support-list">
+            <h3>{t.supportCases}</h3>
+            <ul>{supportCases.map((item) => <li key={item.case_reference}>
+              <strong>{item.case_reference}</strong> · {item.subject} · {item.status}
+              {item.resolution_note && <p>{item.resolution_note}</p>}
+            </li>)}</ul>
+          </div>}
+        </section>}
       </section>
 
       <footer><span>{t.footer}</span><span>© MaaleNex Moto · 2026</span></footer>
