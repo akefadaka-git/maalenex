@@ -1,6 +1,6 @@
 from datetime import datetime
 from uuid import UUID, uuid4
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Uuid, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Uuid, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 class Vehicle(Base):
@@ -27,6 +27,6 @@ class VehicleSeat(Base):
     seat_layout_version_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("seat_layout_versions.id", ondelete="CASCADE"), index=True)
     seat_code: Mapped[str] = mapped_column(String(16))
     row_label: Mapped[str | None] = mapped_column(String(12), nullable=True)
-    position_metadata: Mapped[dict] = mapped_column(default=dict)
+    position_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
     seat_type: Mapped[str] = mapped_column(String(24), default="standard")
     is_sellable: Mapped[bool] = mapped_column(Boolean, default=True)
