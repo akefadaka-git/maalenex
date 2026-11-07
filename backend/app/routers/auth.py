@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import get_db
 from app.domains.audit.service import record_event
-from app.domains.identity.models import StaffSession
 from app.domains.identity.service import (
     AuthenticationError, AuthenticationRateLimited, StaffContext,
     authenticate_staff, resolve_staff_session, verify_csrf,
@@ -23,7 +22,9 @@ class LoginRequest(BaseModel):
 
 def current_staff_context(request: Request, db: Session = Depends(get_db)) -> StaffContext:
     try:
-        return resolve_staff_session(db, raw_token=request.cookies.get(SESSION_COOKIE))
+        context = resolve_staff_session(db, raw_token=request.cookies.get(SESSION_COOKIE))
+        db.commit()
+        return context
     except AuthenticationError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
 
