@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 import os
 
 import pytest
+from sqlalchemy import func, select
 from app.db.session import SessionLocal
 from app.domains.bookings.service import BookingConflict, create_seat_hold
 from app.domains.bookings.maintenance import expire_stale_holds
@@ -133,7 +134,6 @@ def test_postgres_concurrent_holds_cannot_allocate_the_same_trip_seat():
 
 
 def test_postgres_maintenance_expires_holds_and_releases_allocations():
-    from sqlalchemy import select
     from app.domains.bookings.models import Booking, SeatAllocation, SeatHold
 
     trip_id, seat_id = _seed_single_seat_trip()
@@ -161,7 +161,6 @@ def test_postgres_maintenance_expires_holds_and_releases_allocations():
 
 
 def test_postgres_guest_can_revoke_all_active_booking_access_grants():
-    from sqlalchemy import select
     from app.domains.bookings.models import Booking
 
     trip_id, seat_id = _seed_single_seat_trip()
