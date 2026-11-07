@@ -1,10 +1,14 @@
 from datetime import datetime
 from uuid import UUID, uuid4
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Uuid, UniqueConstraint, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, String, Uuid, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 class Fare(Base):
     __tablename__ = "fares"
+    __table_args__ = (
+        Index("uq_route_fare_scope", "organization_id", "route_id", unique=True, postgresql_where=text("trip_id IS NULL")),
+        Index("uq_trip_fare_scope", "organization_id", "route_id", "trip_id", unique=True, postgresql_where=text("trip_id IS NOT NULL")),
+    )
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("organizations.id", ondelete="RESTRICT"), index=True)
     route_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("routes.id", ondelete="RESTRICT"))
