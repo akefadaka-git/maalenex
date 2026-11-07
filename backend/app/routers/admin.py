@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.domains.bookings.models import Booking, BookingPassenger, Passenger, SeatAllocation
 from app.domains.audit.models import AuditEvent
 from app.domains.audit.service import record_event
 from app.domains.catalog.models import Location, Route, RouteStop, Terminal
@@ -488,6 +489,61 @@ def approve_trip(
            resource_id=trip.id, action="approve", organization_id=trip.organization_id)
     db.commit()
     return {"id": str(trip.id), "status": trip.status}
+
+
+
+@router.get("/trips/{trip_id}/manifest")
+def read_trip_manifest(
+    trip_id: UUID,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    trip = db.get(Trip, trip_id)
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found.")
+    _authorize(db, context, "operator.trip.manifest.read", trip.organization_id)
+    rows = db.execute(
+        select(
+            Booking.booking_reference,
+            Passenger.display_name,
+            TripSeat.seat_code_snapshot,
+            BookingPassenger.passenger_sequence,
+        )
+        .join(BookingPassenger, BookingPassenger.booking_id == Booking.id)
+        .join(Passenger, Passenger.id == BookingPassenger.passenger_id)
+        .join(SeatAllocation, SeatAllocation.booking_passenger_id == BookingPassenger.id)
+        .join(TripSeat, TripSeat.id == SeatAllocation.trip_seat_id)
+        .where(
+            Booking.trip_id == trip_id,
+            Booking.status == "reserved",
+            SeatAllocation.trip_id == trip_id,
+            SeatAllocation.status == "active",
+        )
+        .order_by(TripSeat.seat_code_snapshot, BookingPassenger.passenger_sequence)
+    ).all()
+    _audit(
+        db, context=context, event="trip.manifest.accessed",
+        resource_type="trip", resource_id=trip.id, action="read_manifest",
+        organization_id=trip.organization_id,
+        metadata={"manifest_passenger_count": len(rows)},
+    )
+    db.commit()
+    return {
+        "trip_id": str(trip.id),
+        "boarding_terminal_id": str(trip.boarding_terminal_id),
+        "passenger_count": len(rows),
+        "manifest": [
+            {
+                "booking_reference": booking_reference,
+                "passenger_name": passenger_name,
+                "seat_code": seat_code,
+                "sequence": sequence,
+            }
+            for booking_reference, passenger_name, seat_code, sequence in rows
+        ],
+        "contact_phone_included": False,
+        "boarding_authorized": False,
+    }
 
 
 @router.post("/trips/{trip_id}/publish")
