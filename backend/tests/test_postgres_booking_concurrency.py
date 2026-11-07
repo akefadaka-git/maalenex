@@ -392,3 +392,41 @@ def test_postgres_manifest_is_operator_scoped_and_excludes_contact_phone():
     assert payload["contact_phone_included"] is False
     assert "+251900000005" not in response.text
     assert payload["boarding_authorized"] is False
+
+
+def test_postgres_booking_idempotency_replays_same_result_and_rejects_changed_payload():
+    from sqlalchemy import func, select
+    from app.domains.bookings.models import Booking
+
+    trip_id, seat_id = _seed_single_seat_trip()
+    key = "idempotency-" + uuid4().hex
+    request = {
+        "trip_id": UUID(trip_id),
+        "contact_name": "Synthetic Idempotent Contact",
+        "contact_phone": "+251900000006",
+        "passengers": [{"name": "Synthetic Passenger"}],
+        "seat_ids": [UUID(seat_id)],
+        "idempotency_key": key,
+        "hold_minutes": 10,
+    }
+    with SessionLocal() as db:
+        first = create_seat_hold(db, **request)
+        first_id = first.id
+        db.commit()
+
+        replay = create_seat_hold(db, **request)
+        assert replay.id == first_id
+        db.commit()
+
+        changed = dict(request)
+        changed["contact_name"] = "Different Synthetic Contact"
+        try:
+            create_seat_hold(db, **changed)
+            raise AssertionError("A changed payload must not replay the original idempotency key.")
+        except BookingConflict:
+            db.rollback()
+
+        count = db.scalar(select(func.count(Booking.id)).where(
+            Booking.trip_id == UUID(trip_id)
+        ))
+        assert count == 1
