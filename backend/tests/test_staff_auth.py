@@ -70,18 +70,14 @@ def test_invalid_login_is_counted_and_locked_after_five_attempts(db):
 
 
 def test_revoked_session_is_not_resolved(db):
+    seed_user(db)
     issued = authenticate_staff(
         db, login_identifier="operator@example.test",
         password="synthetic-password", client_ip="127.0.0.1",
-    ) if db.scalar(select(User)) else None
-    if issued is None:
-        seed_user(db)
-        issued = authenticate_staff(
-            db, login_identifier="operator@example.test",
-            password="synthetic-password", client_ip="127.0.0.1",
-        )
+    )
     db.commit()
-    issued.session.revoked_at = issued.session.created_at
+    from datetime import datetime, timezone
+    issued.session.revoked_at = datetime.now(timezone.utc)
     db.commit()
     with pytest.raises(AuthenticationError):
         resolve_staff_session(db, raw_token=issued.session_token)
