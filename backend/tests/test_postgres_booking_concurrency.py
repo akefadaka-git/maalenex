@@ -1,11 +1,10 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from threading import Barrier
-from uuid import uuid4
+from uuid import UUID, uuid4
+import os
 
 import pytest
-from sqlalchemy.orm import Session
-
 from app.db.session import SessionLocal
 from app.domains.bookings.service import BookingConflict, create_seat_hold
 from app.domains.catalog.models import Location, Route, Terminal
@@ -17,7 +16,7 @@ from app.domains.trips.models import Trip, TripSeat
 
 
 pytestmark = pytest.mark.skipif(
-    __import__("os").environ.get("RUN_POSTGRES_INTEGRATION") != "1",
+    os.environ.get("RUN_POSTGRES_INTEGRATION") != "1",
     reason="Requires the isolated PostgreSQL CI service.",
 )
 
@@ -96,11 +95,11 @@ def test_postgres_concurrent_holds_cannot_allocate_the_same_trip_seat():
             try:
                 barrier.wait(timeout=10)
                 booking = create_seat_hold(
-                    db, trip_id=__import__("uuid").UUID(trip_id),
+                    db, trip_id=UUID(trip_id),
                     contact_name=f"Synthetic Passenger {index}",
                     contact_phone=f"+25190000000{index}",
                     passengers=[{"name": f"Passenger {index}"}],
-                    seat_ids=[__import__("uuid").UUID(seat_id)],
+                    seat_ids=[UUID(seat_id)],
                     idempotency_key="concurrency-" + uuid4().hex,
                     hold_minutes=10,
                 )
