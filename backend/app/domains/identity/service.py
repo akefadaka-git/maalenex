@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from datetime import timedelta
 import hashlib
 import hmac
-from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -10,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.domains.audit.service import record_event
 from app.domains.identity.models import AuthLoginAttempt, Credential, StaffSession, User
-from app.domains.identity.security import hash_secret, issue_opaque_token, token_digest, verify_secret
+from app.domains.identity.security import issue_opaque_token, token_digest, verify_secret
 
 
 class AuthenticationError(Exception):
