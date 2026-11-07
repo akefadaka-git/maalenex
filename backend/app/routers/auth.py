@@ -1,9 +1,16 @@
+from datetime import timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, SecretStr
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
+from app.domains.audit.service import record_event
+from app.domains.identity.models import Credential, RoleAssignment, User
+from app.domains.identity.security import hash_secret, token_digest
+from app.domains.organizations.models import Organization, OrganizationInvitation, OrganizationMembership
 from app.domains.audit.service import record_event
 from app.domains.identity.service import (
     AuthenticationError, AuthenticationRateLimited, StaffContext,
@@ -17,6 +24,11 @@ CSRF_COOKIE = "mnm_csrf"
 
 class LoginRequest(BaseModel):
     login_identifier: str = Field(min_length=1, max_length=254)
+    password: SecretStr
+
+
+class AcceptOperatorInvitation(BaseModel):
+    token: str = Field(min_length=32, max_length=128)
     password: SecretStr
 
 
@@ -35,6 +47,64 @@ def require_csrf(request: Request, context: StaffContext) -> None:
         header_token=request.headers.get("X-CSRF-Token"),
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="CSRF validation failed.")
+
+
+@router.post("/operator-invitations/accept", status_code=status.HTTP_201_CREATED)
+def accept_operator_invitation(
+    payload: AcceptOperatorInvitation, db: Session = Depends(get_db),
+) -> dict:
+    password = payload.password.get_secret_value()
+    if len(password) < 14 or len(password) > 256:
+        raise HTTPException(status_code=422, detail="Password must contain 14 to 256 characters.")
+    now = db.scalar(select(func.now()))
+    invitation = db.scalar(select(OrganizationInvitation).where(
+        OrganizationInvitation.token_hash == token_digest(payload.token),
+        OrganizationInvitation.accepted_at.is_(None),
+        OrganizationInvitation.revoked_at.is_(None),
+        OrganizationInvitation.expires_at > now,
+    ).with_for_update())
+    if invitation is None:
+        raise HTTPException(status_code=404, detail="Invitation is invalid or expired.")
+    operator = db.get(Organization, invitation.organization_id)
+    if operator is None or operator.status != "approved":
+        raise HTTPException(status_code=409, detail="Operator is not approved for account activation.")
+    if db.scalar(select(User.id).where(
+        User.login_identifier == invitation.login_identifier
+    )) is not None:
+        raise HTTPException(status_code=409, detail="A staff account already exists for this login.")
+    user = User(
+        login_identifier=invitation.login_identifier,
+        display_name=invitation.display_name,
+        status="active",
+    )
+    db.add(user)
+    db.flush()
+    db.add(Credential(
+        user_id=user.id, credential_type="password",
+        secret_hash=hash_secret(password), status="active",
+    ))
+    db.add(OrganizationMembership(
+        organization_id=operator.id, user_id=user.id, membership_status="active",
+    ))
+    db.add(RoleAssignment(
+        user_id=user.id, role_id=invitation.role_id,
+        organization_id=operator.id, assigned_by=invitation.created_by,
+    ))
+    invitation.accepted_at = now
+    record_event(
+        db, event_type="organization.invitation.accepted", actor_type="guest",
+        actor_id=str(user.id), resource_type="organization_invitation",
+        resource_id=str(invitation.id), action="accept", outcome="success",
+        organization_id=operator.id, metadata={"role": "synthetic_operator_manager"},
+    )
+    db.commit()
+    return {
+        "user_id": str(user.id),
+        "login_identifier": user.login_identifier,
+        "organization_id": str(operator.id),
+        "membership_status": "active",
+        "next_step": "sign_in",
+    }
 
 
 @router.post("/sessions")
