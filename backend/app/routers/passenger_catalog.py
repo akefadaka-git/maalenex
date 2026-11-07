@@ -121,3 +121,45 @@ def search_published_trips(
             "payment_enabled": False,
         })
     return results
+
+
+@router.get("/trips/{trip_id}/seats")
+def list_trip_seats(trip_id: UUID, db: Session = Depends(get_db)) -> list[dict]:
+    now = db.scalar(select(func.now()))
+    trip = db.get(Trip, trip_id)
+    if trip is None or trip.status != "published":
+        return []
+    seats = db.scalars(
+        select(TripSeat).where(
+            TripSeat.trip_id == trip_id,
+            TripSeat.sellable_status == "sellable",
+        ).order_by(TripSeat.seat_code_snapshot)
+    ).all()
+    results = []
+    for seat in seats:
+        occupied = db.scalar(
+            select(func.count(SeatAllocation.id))
+            .join(Booking, Booking.id == SeatAllocation.booking_id)
+            .where(
+                SeatAllocation.trip_seat_id == seat.id,
+                SeatAllocation.status == "active",
+                or_(
+                    Booking.status == "reserved",
+                    and_(
+                        Booking.status == "held",
+                        exists(select(1).where(
+                            SeatHold.booking_id == SeatAllocation.booking_id,
+                            SeatHold.trip_seat_id == seat.id,
+                            SeatHold.status == "active",
+                            SeatHold.expires_at > now,
+                        )),
+                    ),
+                ),
+            )
+        ) or 0
+        results.append({
+            "trip_seat_id": str(seat.id),
+            "seat_code": seat.seat_code_snapshot,
+            "available": occupied == 0,
+        })
+    return results
