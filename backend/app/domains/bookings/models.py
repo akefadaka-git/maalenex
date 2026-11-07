@@ -41,6 +41,8 @@ class BookingPassenger(Base):
 
 class SeatHold(Base):
     __tablename__ = "seat_holds"
+    __table_args__ = (Index("uq_active_trip_seat_hold", "trip_id", "trip_seat_id", unique=True,
+                            postgresql_where=text("status = 'active'")),)
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     booking_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("bookings.id", ondelete="CASCADE"), index=True)
     trip_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("trips.id", ondelete="RESTRICT"), index=True)
