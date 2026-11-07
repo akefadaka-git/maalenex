@@ -182,3 +182,22 @@ def verify_booking_csrf(
 def enforce_guest_access_rate_limit(db: Session, *, client_ip: str) -> None:
     now = db.scalar(select(func.now()))
     _check_challenge_rate_limit(db, client_ip=client_ip, now=now)
+
+
+def revoke_booking_grants(db: Session, *, booking_id: UUID) -> int:
+    now = db.scalar(select(func.now()))
+    grants = list(db.scalars(select(BookingAccessGrant).where(
+        BookingAccessGrant.booking_id == booking_id,
+        BookingAccessGrant.revoked_at.is_(None),
+        BookingAccessGrant.expires_at > now,
+    ).with_for_update()))
+    for grant in grants:
+        grant.revoked_at = now
+    record_event(
+        db, event_type="booking.access.grants.revoked", actor_type="guest",
+        actor_id=None, resource_type="booking", resource_id=str(booking_id),
+        action="revoke_access", outcome="success",
+        metadata={"revoked_grant_count": len(grants)},
+    )
+    db.flush()
+    return len(grants)
