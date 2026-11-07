@@ -13,6 +13,12 @@ def test_administration_router_is_registered_under_api_prefix():
         "/api/v1/fares/{fare_id}/versions/{version_id}/review",
         "/api/v1/audit/events",
         "/api/v1/trips/{trip_id}/manifest",
+        "/api/v1/operators/{organization_id}/invitations",
+        "/api/v1/operators/{organization_id}/invitations/{invitation_id}/revoke",
+        "/api/v1/operators/{organization_id}/memberships/{membership_id}/revoke",
+        "/api/v1/support/cases",
+        "/api/v1/support/cases/{case_id}/claim",
+        "/api/v1/support/cases/{case_id}/resolve",
     }
     assert expected.issubset(paths)
     assert any(
