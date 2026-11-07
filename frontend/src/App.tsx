@@ -28,6 +28,7 @@ type SupportCase = {
 
 const copy = {
   am: {
+    skip: "ወደ ዋና ይዘት ዝለል",
     eyebrow: "የተሳፋሪ መጓጓዣ", title: "ጉዞዎን ያቅዱ።",
     subtitle: "ከጂንካ የሚነሱ የታተሙ የጉዞ መርሐ ግብሮችን ይፈልጉ።",
     status: "የልማት አካባቢ · ሰው ሠራሽ መረጃ",
@@ -60,6 +61,7 @@ const copy = {
     footer: "በሙከራ ላይ ያለ መድረክ። እውነተኛ ቦታ ማስያዝ፣ ክፍያ ወይም መሳፈር አይፈቀድም።",
   },
   en: {
+    skip: "Skip to main content",
     eyebrow: "PASSENGER MOBILITY", title: "Plan your journey.",
     subtitle: "Search published passenger schedules originating from Jinka.",
     status: "Development environment · Synthetic data",
@@ -333,6 +335,7 @@ export default function App() {
 
   return (
     <main className="page" lang={language}>
+      <a className="skip-link" href="#hero-title">{t.skip}</a>
       <header className="topbar">
         <a className="brand" href="/" aria-label="MaaleNex Moto home">
           <span className="brand-mark" aria-hidden="true">M</span> MAALE NEX MOTO
