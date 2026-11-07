@@ -21,6 +21,7 @@ describe("passenger trip search shell", () => {
     }));
     render(<App />);
     expect(screen.getByRole("heading", { name: "ጉዞዎን ያቅዱ።" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "ወደ ዋና ይዘት ዝለል" }).getAttribute("href")).toBe("#hero-title");
     await waitFor(() => expect(screen.getByRole("option", { name: "Jinka" })).toBeTruthy());
     expect(document.documentElement.lang).toBe("am");
   });
