@@ -45,7 +45,11 @@ def create_seat_hold(
         select(TripSeat).where(TripSeat.trip_id == trip_id, TripSeat.id.in_(seat_ids))
         .order_by(TripSeat.id).with_for_update()
     ))
-    if len(seats) != len(seat_ids) or any(seat.sellable_status != "sellable" for seat in seats):
+    if len(seats) != len(seat_ids):
+        raise BookingConflict("One or more requested seats are unavailable.")
+    seats_by_id = {seat.id: seat for seat in seats}
+    seats = [seats_by_id[seat_id] for seat_id in seat_ids]
+    if any(seat.sellable_status != "sellable" for seat in seats):
         raise BookingConflict("One or more requested seats are unavailable.")
 
     expired_holds = list(db.scalars(
