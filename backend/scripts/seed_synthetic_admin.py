@@ -33,13 +33,6 @@ PLATFORM_PERMISSIONS = (
     "organization.members.manage",
 )
 
-OPERATOR_PERMISSIONS = {
-    "operator.fleet.manage",
-    "operator.trip.manage",
-    "operator.fare.propose",
-    "organization.members.manage",
-}
-
 
 def main() -> None:
     if settings.app_env not in {"development", "test"} or not settings.synthetic_data_only:
