@@ -53,3 +53,31 @@ describe("passenger trip search shell", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
+
+
+it("loads seat inventory and allows selecting only available seats", async () => {
+  const trip = {
+    id: "trip-1", departure_at: "2026-11-08T06:00:00+00:00",
+    arrival_estimate_at: null, boarding_model: "Jinka Bus Terminal",
+    available_seats: 2, availability_as_of: "2026-11-07T00:00:00+00:00",
+    fare: { amount_minor_units: 250000, currency_code: "ETB" },
+    reservation_only: true, ticketing_enabled: false, payment_enabled: false,
+  };
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce({ ok: true, json: async () => locations })
+    .mockResolvedValueOnce({ ok: true, json: async () => [trip] })
+    .mockResolvedValueOnce({ ok: true, json: async () => [
+      { trip_seat_id: "seat-1", seat_code: "A1", available: true },
+      { trip_seat_id: "seat-2", seat_code: "A2", available: false },
+    ] });
+  vi.stubGlobal("fetch", fetchMock);
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("option", { name: "Wolaita Sodo" })).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: "ጉዞ ፈልግ" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "ወንበሮችን ይምረጡ" })).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: "ወንበሮችን ይምረጡ" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "A1" })).toBeTruthy());
+  expect((screen.getByRole("button", { name: "A2" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "A1" }));
+  expect(screen.getByRole("button", { name: "A1" }).getAttribute("aria-pressed")).toBe("true");
+});
