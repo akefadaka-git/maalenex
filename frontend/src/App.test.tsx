@@ -32,7 +32,7 @@ describe("passenger trip search shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Switch language to English" }));
     expect(screen.getByRole("heading", { name: "Plan your journey." })).toBeTruthy();
     expect(document.documentElement.lang).toBe("en");
-    await waitFor(() => expect(screen.getByRole("option", { name: "Wolaita Sodo" })).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByRole("option", { name: "Wolaita Sodo" }).length).toBeGreaterThan(0));
   });
 
   it("loads and searches synthetic published trips", async () => {
