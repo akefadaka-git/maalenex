@@ -125,11 +125,11 @@ export default function App() {
         if (items.length > 1) setDestinationId(items[1].id);
       })
       .catch((reason: unknown) => {
-        if (!(reason instanceof DOMException && reason.name === "AbortError")) setError(t.error);
+        if (!(reason instanceof DOMException && reason.name === "AbortError")) setError("error");
       })
       .finally(() => setLoadingLocations(false));
     return () => controller.abort();
-  }, [language]);
+  }, []);
 
   const destinations = useMemo(() => locations.filter((item) => item.id !== originId), [locations, originId]);
 
@@ -147,7 +147,7 @@ export default function App() {
       const response = await fetch(`/api/v1/trips/search?${params.toString()}`);
       if (!response.ok) throw new Error("search");
       setTrips((await response.json()) as TripResult[]);
-    } catch { setTrips([]); setError(t.error); }
+    } catch { setTrips([]); setError("error"); }
     finally { setSearching(false); }
   }
 
@@ -159,7 +159,7 @@ export default function App() {
       const response = await fetch(`/api/v1/trips/${trip.id}/seats`);
       if (!response.ok) throw new Error("seats");
       setSeats((await response.json()) as SeatOption[]);
-    } catch { setError(t.error); }
+    } catch { setError("error"); }
     finally { setLoadingSeats(false); }
   }
 
@@ -186,7 +186,7 @@ export default function App() {
       });
       if (!response.ok) throw new Error("hold");
       setHold((await response.json()) as HoldResult);
-    } catch { setError(t.error); }
+    } catch { setError("error"); }
     finally { setWorking(false); }
   }
 
@@ -202,7 +202,7 @@ export default function App() {
       const result = await response.json() as { challenge_id: string; synthetic_test_code?: string };
       setChallengeId(result.challenge_id);
       setSyntheticCode(result.synthetic_test_code ?? "");
-    } catch { setError(t.error); }
+    } catch { setError("error"); }
     finally { setWorking(false); }
   }
 
@@ -221,7 +221,7 @@ export default function App() {
       const detail = await fetch(`/api/v1/bookings/${result.booking_id}`, { credentials: "include" });
       if (!detail.ok) throw new Error("booking");
       setBooking((await detail.json()) as BookingDetails);
-    } catch { setError(t.error); }
+    } catch { setError("error"); }
     finally { setWorking(false); }
   }
 
@@ -235,7 +235,7 @@ export default function App() {
       });
       if (!response.ok) throw new Error("reservation");
       setReservation((await response.json()) as ReservationResult);
-    } catch { setError(t.error); }
+    } catch { setError("error"); }
     finally { setWorking(false); }
   }
 
@@ -272,7 +272,7 @@ export default function App() {
 
         {loadingLocations && <p className="notice">{t.loadingLocations}</p>}
         {!loadingLocations && locations.length === 0 && <p className="notice">{t.emptyLocations}</p>}
-        {error && <p className="error" role="alert">{error}</p>}
+        {error && <p className="error" role="alert">{t.error}</p>}
 
         {searched && <section className="results" aria-live="polite">
           <h2>{t.results}</h2>
