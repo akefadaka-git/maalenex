@@ -52,10 +52,8 @@ describe("passenger trip search shell", () => {
     await waitFor(() => expect(screen.getByText(/Jinka Bus Terminal.*12/)).toBeTruthy());
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
-});
 
-
-it("loads seat inventory and allows selecting only available seats", async () => {
+  it("loads seat inventory and allows selecting only available seats", async () => {
   const trip = {
     id: "trip-1", departure_at: "2026-11-08T06:00:00+00:00",
     arrival_estimate_at: null, boarding_model: "Jinka Bus Terminal",
@@ -80,4 +78,5 @@ it("loads seat inventory and allows selecting only available seats", async () =>
   expect((screen.getByRole("button", { name: "A2" }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(screen.getByRole("button", { name: "A1" }));
   expect(screen.getByRole("button", { name: "A1" }).getAttribute("aria-pressed")).toBe("true");
+});
 });
