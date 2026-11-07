@@ -213,8 +213,8 @@ def create_operator_invitation(
     if settings.app_env not in {"development", "test"} or not settings.synthetic_data_only:
         raise HTTPException(status_code=503, detail="Invitation delivery is not configured.")
     operator = db.get(Organization, organization_id)
-    if operator is None or operator.status != "approved":
-        raise HTTPException(status_code=409, detail="Only approved operators can receive staff invitations.")
+    if operator is None or operator.organization_type != "operator" or operator.status != "approved":
+        raise HTTPException(status_code=409, detail="Only approved operator organizations can receive staff invitations.")
     login = payload.login_identifier.strip().lower()
     if "@" not in login or any(character.isspace() for character in login):
         raise HTTPException(status_code=422, detail="A valid login email is required.")
@@ -644,6 +644,8 @@ def read_trip_manifest(
         .where(
             Booking.trip_id == trip_id,
             Booking.status == "reserved",
+            BookingPassenger.trip_seat_id == TripSeat.id,
+            TripSeat.trip_id == trip_id,
             SeatAllocation.trip_id == trip_id,
             SeatAllocation.status == "active",
         )
