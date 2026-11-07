@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, aliased
 
 from app.db.session import get_db
 from app.domains.bookings.models import Booking, SeatAllocation, SeatHold
-from app.domains.catalog.models import Location, Route
+from app.domains.catalog.models import Location, Route, Terminal
 from app.domains.fares.models import Fare, FareVersion
 from app.domains.trips.models import Trip, TripSeat
 
@@ -51,8 +51,14 @@ def search_published_trips(
     start_utc = local_start.astimezone(timezone.utc)
     end_utc = local_end.astimezone(timezone.utc)
     now = db.scalar(select(func.now()))
-    trips = db.scalars(
-        select(Trip).join(Route, Route.id == Trip.route_id).where(
+    trip_rows = db.execute(
+        select(Trip, Terminal)
+        .join(Route, Route.id == Trip.route_id)
+        .join(Terminal, and_(
+            Terminal.id == Trip.boarding_terminal_id,
+            Terminal.location_id == Route.origin_location_id,
+            Terminal.status == "published",
+        )).where(
             Trip.status == "published",
             Route.status == "published",
             Route.origin_location_id == origin_id,
@@ -62,7 +68,7 @@ def search_published_trips(
         ).order_by(Trip.departure_at)
     ).all()
     results = []
-    for trip in trips:
+    for trip, terminal in trip_rows:
         fare = db.scalar(
             select(FareVersion).join(Fare, Fare.id == FareVersion.fare_id).where(
                 Fare.organization_id == trip.organization_id,
@@ -106,7 +112,7 @@ def search_published_trips(
             "id": str(trip.id),
             "departure_at": trip.departure_at.isoformat(),
             "arrival_estimate_at": trip.arrival_estimate_at.isoformat() if trip.arrival_estimate_at else None,
-            "boarding_model": "Jinka Bus Terminal",
+            "boarding_model": terminal.name,
             "available_seats": available,
             "availability_as_of": now.isoformat(),
             "fare": {"amount_minor_units": fare.amount_minor_units, "currency_code": "ETB"},
