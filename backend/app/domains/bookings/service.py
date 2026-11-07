@@ -24,7 +24,7 @@ class BookingConflict(Exception):
 
 def create_seat_hold(
     db: Session, *, trip_id: UUID, contact_name: str, contact_phone: str,
-    passengers: list[dict[str, str]], seat_ids: list[UUID], hold_minutes: int = 10,
+    passengers: list[dict[str, str]], seat_ids: list[UUID], idempotency_key: str, hold_minutes: int = 10,
 ) -> Booking:
     if not passengers or len(passengers) != len(seat_ids):
         raise ValueError("Each passenger must be assigned exactly one distinct seat.")
