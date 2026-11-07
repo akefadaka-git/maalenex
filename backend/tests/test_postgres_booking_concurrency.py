@@ -255,6 +255,7 @@ def test_postgres_guest_support_case_and_access_revocation_flow():
             hold_minutes=10,
         )
         booking_id = booking.id
+        accept_reservation(db, booking_id=booking_id)
         db.add(BookingAccessGrant(
             booking_id=booking_id,
             credential_hash=token_digest(access_token),
@@ -269,6 +270,11 @@ def test_postgres_guest_support_case_and_access_revocation_flow():
     client.cookies.set("mnm_booking_access", access_token, path=cookie_path)
     client.cookies.set("mnm_booking_csrf", csrf_token, path="/")
     headers = {"Origin": "http://localhost:5173", "X-CSRF-Token": csrf_token}
+    qr = client.get(f"/api/v1/bookings/{booking_id}/reservation/qr.svg")
+    assert qr.status_code == 200, qr.text
+    assert "image/svg+xml" in qr.headers["content-type"]
+    assert "<svg" in qr.text
+    assert qr.headers["cache-control"] == "no-store, private"
     created = client.post(
         f"/api/v1/bookings/{booking_id}/support-cases",
         headers=headers,
