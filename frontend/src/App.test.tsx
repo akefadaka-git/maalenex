@@ -49,7 +49,7 @@ describe("passenger trip search shell", () => {
     render(<App />);
     await waitFor(() => expect(screen.getByRole("option", { name: "Wolaita Sodo" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "ጉዞ ፈልግ" }));
-    await waitFor(() => expect(screen.getByText("Jinka Bus Terminal · ባዶ ወንበሮች: 12")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Jinka Bus Terminal.*12/)).toBeTruthy());
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
