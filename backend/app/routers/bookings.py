@@ -13,11 +13,12 @@ from app.domains.bookings.access import (
     verify_access_challenge, verify_booking_csrf,
 )
 from app.domains.bookings.models import (
-    Booking, BookingAccessGrant, BookingContact, BookingFareSnapshot,
+    Booking, BookingContact, BookingFareSnapshot,
     BookingPassenger, Passenger, SeatHold,
 )
 from app.domains.bookings.service import BookingConflict, accept_reservation, create_seat_hold
 from app.domains.trips.models import TripSeat
+from app.domains.reservations.models import BookingAccessGrant
 
 router = APIRouter(tags=["passenger-bookings"])
 ACCESS_COOKIE = "mnm_booking_access"
