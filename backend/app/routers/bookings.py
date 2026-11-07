@@ -1,8 +1,11 @@
+from io import BytesIO
 from typing import Literal
 from secrets import token_urlsafe
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+import qrcode
+from qrcode.image.svg import SvgPathImage
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -216,6 +219,40 @@ def read_guest_booking(
             "boarding_authorized": False,
         } if reservation else None,
     }
+
+
+@router.get("/bookings/{booking_id}/reservation/qr.svg")
+def read_reservation_qr(
+    booking_id: UUID,
+    grant: BookingAccessGrant = Depends(current_booking_grant),
+    db: Session = Depends(get_db),
+) -> Response:
+    reservation = db.scalar(select(ReservationReference).where(
+        ReservationReference.booking_id == booking_id,
+        ReservationReference.status == "active",
+    ).order_by(ReservationReference.created_at.desc()).limit(1))
+    if reservation is None:
+        raise HTTPException(status_code=404, detail="Active reservation reference not found.")
+    payload = (
+        f"maalenex-moto:reservation:v{reservation.qr_payload_version}:"
+        f"{reservation.qr_payload_reference}"
+    )
+    code = qrcode.QRCode(
+        version=None, error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=6, border=4,
+    )
+    code.add_data(payload)
+    code.make(fit=True)
+    image = code.make_image(image_factory=SvgPathImage)
+    output = BytesIO()
+    image.save(output)
+    return Response(
+        content=output.getvalue(), media_type="image/svg+xml",
+        headers={
+            "Cache-Control": "no-store, private",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.post("/bookings/{booking_id}/reservation")
