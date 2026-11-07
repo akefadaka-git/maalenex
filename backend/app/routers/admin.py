@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Literal
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.domains.audit.models import AuditEvent
 from app.domains.audit.service import record_event
-from app.domains.bookings.models import Booking
 from app.domains.catalog.models import Location, Route, RouteStop, Terminal
 from app.domains.fares.models import Fare, FareVersion
 from app.domains.fares.service import FareConflict, decide_fare, propose_fare, publish_fare, submit_fare
@@ -104,12 +103,12 @@ def _authorize(db: Session, context: StaffContext, permission: str,
 def _audit(db: Session, *, context: StaffContext, event: str,
            resource_type: str, resource_id: UUID, action: str,
            outcome: str = "success", organization_id: UUID | None = None,
-           reason: str | None = None) -> None:
+           reason: str | None = None, metadata: dict | None = None) -> None:
     record_event(
         db, event_type=event, actor_type="staff", actor_id=str(context.user.id),
         actor_role_snapshot=None, resource_type=resource_type,
         resource_id=str(resource_id), action=action, outcome=outcome,
-        organization_id=organization_id, reason_code=reason,
+        organization_id=organization_id, reason_code=reason, metadata=metadata,
     )
 
 
@@ -143,7 +142,8 @@ def review_operator(
         raise HTTPException(status_code=409, detail="Operator is not awaiting review.")
     operator.status = payload.decision
     _audit(db, context=context, event="operator.review.completed", resource_type="organization",
-           resource_id=operator.id, action="review", organization_id=operator.id, reason=payload.reason)
+           resource_id=operator.id, action="review", organization_id=operator.id,
+           reason=f"operator_{payload.decision}", metadata={"review_reason": payload.reason})
     db.commit()
     return {"id": str(operator.id), "status": operator.status}
 
@@ -161,6 +161,8 @@ def assign_operator_role(
     role = db.scalar(select(Role).where(Role.code == payload.role_code))
     if operator is None or user is None or user.status != "active" or role is None:
         raise HTTPException(status_code=404, detail="Operator, active user or role not found.")
+    if operator.status != "approved":
+        raise HTTPException(status_code=409, detail="Operator must be approved before staff assignment.")
     membership = db.scalar(select(OrganizationMembership).where(
         OrganizationMembership.organization_id == organization_id,
         OrganizationMembership.user_id == user.id,
@@ -175,6 +177,7 @@ def assign_operator_role(
         assigned_by=context.user.id,
     )
     db.add(assignment)
+    db.flush()
     _audit(db, context=context, event="organization.role.assigned",
            resource_type="role_assignment", resource_id=assignment.id,
            action="assign", organization_id=organization_id)
@@ -389,7 +392,13 @@ def approve_seat_layout(
     layout = db.scalar(select(SeatLayoutVersion).where(SeatLayoutVersion.id == layout_id).with_for_update())
     if layout is None or layout.status != "draft":
         raise HTTPException(status_code=409, detail="Seat layout is not a draft.")
+    vehicle = db.get(Vehicle, layout.vehicle_id)
+    if vehicle is None or vehicle.review_status != "approved":
+        raise HTTPException(status_code=409, detail="Vehicle must be approved before its seat layout.")
     layout.status = "approved"
+    _audit(db, context=context, event="fleet.seat_layout.approved",
+           resource_type="seat_layout_version", resource_id=layout.id,
+           action="approve", organization_id=vehicle.organization_id)
     db.commit()
     return {"id": str(layout.id), "status": layout.status}
 
@@ -403,6 +412,8 @@ def create_trip(
     _authorize(db, context, "operator.trip.manage", organization_id)
     if payload.departure_at.tzinfo is None or (payload.arrival_estimate_at and payload.arrival_estimate_at.tzinfo is None):
         raise HTTPException(status_code=422, detail="Trip timestamps must include a timezone.")
+    if payload.arrival_estimate_at is not None and payload.arrival_estimate_at <= payload.departure_at:
+        raise HTTPException(status_code=422, detail="Arrival estimate must be later than departure.")
     operator = db.get(Organization, organization_id)
     route = db.get(Route, payload.route_id)
     terminal = db.get(Terminal, payload.boarding_terminal_id)
@@ -414,7 +425,7 @@ def create_trip(
         raise HTTPException(status_code=409, detail="Route is not published.")
     if terminal is None or terminal.status != "published" or terminal.location_id != route.origin_location_id:
         raise HTTPException(status_code=409, detail="Boarding terminal must be published at the route origin.")
-    if vehicle is None or vehicle.organization_id != organization_id or vehicle.review_status != "approved":
+    if vehicle is None or vehicle.organization_id != organization_id or vehicle.status != "active" or vehicle.review_status != "approved":
         raise HTTPException(status_code=409, detail="Vehicle must be approved and belong to this operator.")
     if layout is None or layout.vehicle_id != vehicle.id or layout.status != "approved":
         raise HTTPException(status_code=409, detail="Seat layout must be approved for the selected vehicle.")
@@ -493,7 +504,9 @@ def publish_trip(
         Fare.organization_id == trip.organization_id, Fare.route_id == trip.route_id,
         (Fare.trip_id == trip.id) | (Fare.trip_id.is_(None)),
         FareVersion.status == "published", FareVersion.currency_code == "ETB",
-    ).limit(1))
+        FareVersion.effective_from <= func.now(),
+        (FareVersion.effective_to.is_(None)) | (FareVersion.effective_to > func.now()),
+    ).order_by(Fare.trip_id.is_not(None).desc(), FareVersion.effective_from.desc()).limit(1))
     if fare is None:
         raise HTTPException(status_code=409, detail="A published ETB fare is required before trip publication.")
     trip.status = "published"
