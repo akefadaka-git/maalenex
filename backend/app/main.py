@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.db import model_registry  # noqa: F401
 from app.routers.auth import router as auth_router
+from app.routers.bookings import router as bookings_router
 from app.routers.health import router as health_router
 from app.routers.passenger_catalog import router as passenger_catalog_router
 
@@ -24,6 +25,7 @@ app.add_middleware(
 )
 app.include_router(health_router, prefix=settings.api_prefix)
 app.include_router(auth_router, prefix=settings.api_prefix)
+app.include_router(bookings_router, prefix=settings.api_prefix)
 app.include_router(passenger_catalog_router, prefix=settings.api_prefix)
 
 
