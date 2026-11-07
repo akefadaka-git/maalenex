@@ -47,7 +47,7 @@ def search_published_trips(
     db: Session = Depends(get_db),
 ) -> list[dict]:
     local_start = datetime.combine(travel_date, time.min, timezone(timedelta(hours=3)))
-    local_end = datetime.combine(travel_date, time.max, ZoneInfo("Africa/Addis_Ababa"))
+    local_end = datetime.combine(travel_date, time.max, timezone(timedelta(hours=3)))
     start_utc = local_start.astimezone(timezone.utc)
     end_utc = local_end.astimezone(timezone.utc)
     now = db.scalar(select(func.now()))
