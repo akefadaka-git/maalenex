@@ -9,6 +9,7 @@ from app.domains.bookings.models import (
     SeatAllocation, SeatHold,
 )
 from app.domains.reservations.models import BookingAccessGrant
+from app.domains.organizations.models import OrganizationInvitation
 
 
 def expire_stale_holds(db: Session, *, batch_size: int = 500) -> int:
@@ -55,6 +56,7 @@ def purge_expired_ephemeral_records(db: Session) -> dict[str, int]:
     challenge_cutoff = now - timedelta(days=1)
     grant_cutoff = now - timedelta(days=30)
     rate_limit_cutoff = now - timedelta(days=30)
+    invitation_cutoff = now - timedelta(days=30)
     idempotency_result = db.execute(delete(IdempotencyRecord).where(
         IdempotencyRecord.expires_at <= now,
     ))
@@ -69,11 +71,17 @@ def purge_expired_ephemeral_records(db: Session) -> dict[str, int]:
     rate_limit_result = db.execute(delete(GuestAccessRateLimit).where(
         GuestAccessRateLimit.window_started_at <= rate_limit_cutoff,
     ))
+    invitation_result = db.execute(delete(OrganizationInvitation).where(
+        (OrganizationInvitation.expires_at <= invitation_cutoff)
+        | (OrganizationInvitation.accepted_at <= invitation_cutoff)
+        | (OrganizationInvitation.revoked_at <= invitation_cutoff),
+    ))
     return {
         "idempotency_records": idempotency_result.rowcount or 0,
         "access_challenges": challenge_result.rowcount or 0,
         "access_grants": grant_result.rowcount or 0,
         "guest_rate_limits": rate_limit_result.rowcount or 0,
+        "operator_invitations": invitation_result.rowcount or 0,
     }
 
 
