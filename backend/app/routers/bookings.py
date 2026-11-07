@@ -18,7 +18,7 @@ from app.domains.bookings.models import (
 )
 from app.domains.bookings.service import BookingConflict, accept_reservation, create_seat_hold
 from app.domains.trips.models import TripSeat
-from app.domains.reservations.models import BookingAccessGrant
+from app.domains.reservations.models import BookingAccessGrant, ReservationReference
 
 router = APIRouter(tags=["passenger-bookings"])
 ACCESS_COOKIE = "mnm_booking_access"
@@ -169,6 +169,10 @@ def read_guest_booking(
         raise HTTPException(status_code=404, detail="Booking not found.")
     contact = db.get(BookingContact, booking.booking_contact_id)
     snapshot = db.scalar(select(BookingFareSnapshot).where(BookingFareSnapshot.booking_id == booking.id))
+    reservation = db.scalar(select(ReservationReference).where(
+        ReservationReference.booking_id == booking.id,
+        ReservationReference.status == "active",
+    ).order_by(ReservationReference.created_at.desc()).limit(1))
     passengers = db.execute(
         select(Passenger.display_name, TripSeat.seat_code_snapshot)
         .join(BookingPassenger, BookingPassenger.passenger_id == Passenger.id)
@@ -192,6 +196,15 @@ def read_guest_booking(
         "payment_enabled": False,
         "ticketing_enabled": False,
         "boarding_authorized": False,
+        "reservation": {
+            "reservation_reference": reservation.public_reference,
+            "qr_payload_version": reservation.qr_payload_version,
+            "qr_payload_reference": reservation.qr_payload_reference,
+            "status": reservation.status,
+            "payment_collected": False,
+            "travel_ticket_issued": False,
+            "boarding_authorized": False,
+        } if reservation else None,
     }
 
 
