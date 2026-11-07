@@ -109,7 +109,7 @@ describe("passenger trip search shell", () => {
       .mockResolvedValueOnce({ ok: true, json: async () => cases });
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
-    await waitFor(() => expect(screen.getByText("SYNTHETIC-REF")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("SYN-RESERVATION")).toBeTruthy());
     expect(screen.getByRole("heading", { name: "የድጋፍ ጥያቄ" })).toBeTruthy();
     expect(screen.getByRole("img", { name: "የቦታ ማስያዣ QR ኮድ" })).toBeTruthy();
     expect(screen.getByText("MNM-SUP-TEST")).toBeTruthy();
