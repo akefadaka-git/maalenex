@@ -13,6 +13,7 @@ class Organization(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 class OrganizationMembership(Base):
     __tablename__ = "organization_memberships"
+    __table_args__ = (Index("uq_active_organization_membership", "organization_id", "user_id", unique=True, postgresql_where=text("revoked_at IS NULL")),)
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="CASCADE"), index=True)
