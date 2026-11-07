@@ -77,7 +77,7 @@ def main() -> None:
             db, event_type="staff.synthetic_admin.provisioned", actor_type="system",
             actor_id=None, resource_type="staff_user", resource_id=str(user.id),
             action="provision", outcome="success",
-            metadata={"role": role.code, "login_identifier": login},
+            metadata={"role": role.code},
         )
         db.commit()
         print("Synthetic platform administrator provisioned.")
