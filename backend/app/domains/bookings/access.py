@@ -13,6 +13,7 @@ from app.domains.bookings.models import (
     Booking, BookingAccessChallenge, BookingAccessGrant, BookingContact,
     GuestAccessRateLimit,
 )
+from app.domains.reservations.models import BookingAccessGrant
 from app.domains.identity.security import hash_secret, issue_opaque_token, token_digest, verify_secret
 
 
