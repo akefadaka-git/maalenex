@@ -142,7 +142,7 @@ def verify_booking_access_challenge(
     )
     response.set_cookie(
         CSRF_COOKIE, csrf_token, max_age=2 * 60 * 60,
-        httponly=False, secure=secure_cookie, samesite="lax", path=cookie_path,
+        httponly=False, secure=secure_cookie, samesite="lax", path="/",
     )
     return {"booking_id": str(booking.id), "scope": grant.scope, "expires_at": grant.expires_at.isoformat()}
 
