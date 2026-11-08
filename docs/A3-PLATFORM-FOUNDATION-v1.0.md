@@ -1,6 +1,6 @@
 # A3 — Shared Platform Foundation v1.0
 
-**Status:** IN IMPLEMENTATION  
+**Status:** A3.1–A3.3 IMPLEMENTED — final exact-HEAD verification follows this documentation update  
 **Parent baseline:** Passenger foundation `0a01631a21a823b720337d1d80aa690e5df347bc`  
 **Branch:** `feat/a3-maalenex-shared-platform-foundation`  
 **Scope:** A3.1/A3.2 first bounded increment — platform service registry and geographic availability policy  
@@ -18,6 +18,8 @@ Create a common, explicit registry for the eight frozen MaaleNex service lines a
 - `service_area_availability`: service/area policy, rollout state, enablement and validity window, with uniqueness, foreign keys and database checks.
 - Read-only API `GET /api/v1/platform/services`, optionally filtered by `area_code`.
 - Test-only deterministic seed for eight service lines across Koybe, Jinka, Wolaita Sodo and Addis Ababa.
+- Service-scoped organization role assignments that reuse the existing role/permission catalog and require an active staff principal, approved organization, active membership and exact service scope.
+- Authorization regression coverage for service mismatch, organization mismatch, assignment revocation and membership revocation.
 - Synthetic Transit catalog status only; all other service lines remain planned and disabled.
 - PostgreSQL integration tests for idempotent seeding, all-eight-service enumeration, unknown-area behavior and the prohibition on treating synthetic-test state as live availability.
 - Dedicated GitHub Actions workflow for migration, seed, backend/PostgreSQL tests, Alembic parity, downgrade/re-upgrade and frontend regression gates.
@@ -32,7 +34,7 @@ Create a common, explicit registry for the eight frozen MaaleNex service lines a
 
 ## Next A3 increments
 
-1. Complete cross-service identity, account, organization and role/tenant authorization contracts.
+1. Extend the staff-scoped service-role foundation into a cross-service customer/provider principal model without reusing `staff_users` as customer identity.
 2. Complete trust/verification and document metadata lifecycle.
 3. Add transactional outbox/inbox, idempotent worker and failure observability foundations.
 4. Add consent-bound location-session contracts with synthetic-only location samples.
