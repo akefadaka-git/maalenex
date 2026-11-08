@@ -178,10 +178,13 @@ def verify_identifier(db: Session, *, raw_token: str) -> tuple[PlatformAccount, 
     identifier.verified_at = now
     challenge.consumed_at = now
     account.status = "active"
+    enrollment_token = _issue_challenge(
+        db, account=account, identifier=identifier, purpose="credential_enrollment"
+    )
     _audit(db, event="account.identifier.verified", account_id=account.id,
            action="verify_identifier", outcome="success")
     db.flush()
-    return account
+    return account, enrollment_token
 
 
 def enroll_password(db: Session, *, raw_token: str, password: str) -> UUID:
