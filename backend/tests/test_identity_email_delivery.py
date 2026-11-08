@@ -6,6 +6,7 @@ from app.domains.identity import email_delivery
 
 class FakeSMTP:
     sent_messages = []
+    login_calls = []
 
     def __init__(self, *args, **kwargs):
         self.args = args
@@ -34,6 +35,7 @@ class FakeSMTP:
         return None
 
     def login(self, username, password):
+        self.login_calls.append((username, password))
         return None
 
     def send_message(self, message):
@@ -54,6 +56,7 @@ def _enable_smtp(monkeypatch):
     monkeypatch.setattr(settings, "identity_smtp_use_ssl", False)
     monkeypatch.setattr(settings, "identity_smtp_timeout_seconds", 5)
     FakeSMTP.sent_messages = []
+    FakeSMTP.login_calls = []
     monkeypatch.setattr(email_delivery.smtplib, "SMTP", FakeSMTP)
 
 
@@ -104,5 +107,8 @@ def test_smtp_failure_is_reported_without_raising(monkeypatch):
 
 def test_smtp_connectivity_check_authenticates_without_sending(monkeypatch):
     _enable_smtp(monkeypatch)
+    monkeypatch.setattr(settings, "identity_smtp_username", " test@gmail.com ")
+    monkeypatch.setattr(settings, "identity_smtp_password", " demo test key ")
     email_delivery.check_smtp_connection()
     assert FakeSMTP.sent_messages == []
+    assert FakeSMTP.login_calls == [("test@gmail.com", "demotestkey")]
