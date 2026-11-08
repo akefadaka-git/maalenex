@@ -1,13 +1,13 @@
 """Service-scoped organization role assignments.
 
-Revision ID: 0009_service_scoped_role_assignments
+Revision ID: 0009_service_roles
 Revises: 0008_platform_service_registry
 """
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "0009_service_scoped_role_assignments"
+revision = "0009_service_roles"
 down_revision = "0008_platform_service_registry"
 branch_labels = None
 depends_on = None
