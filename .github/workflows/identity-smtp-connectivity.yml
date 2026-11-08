@@ -59,6 +59,20 @@ jobs:
             echo "::error::Configure MAALENEX_SMTP_PASSWORD as a repository or environment secret."
             exit 1
           fi
+      - name: Validate Gmail App Password format without revealing it
+        shell: bash
+        run: |
+          normalized_password="${IDENTITY_SMTP_PASSWORD//[[:space:]]/}"
+          password_length=${#normalized_password}
+          if [ "$password_length" -ne 16 ]; then
+            echo "::error::The configured SMTP password is $password_length characters after whitespace normalization; a Google App Password is 16 characters. Update the protected secret without sharing it in chat."
+            exit 1
+          fi
+          case "$IDENTITY_SMTP_USERNAME" in
+            *@*) echo "PASS: SMTP username has email-address format; value remains hidden." ;;
+            *) echo "::error::SMTP username is not an email address. Update the protected secret; do not share it in chat."; exit 1 ;;
+          esac
+          echo "PASS: Google App Password format is 16 characters after whitespace normalization; value remains hidden."
       - name: Install backend
         run: python -m pip install .
       - name: Check Gmail SMTP TCP, STARTTLS and authentication without sending email
