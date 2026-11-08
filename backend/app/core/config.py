@@ -11,11 +11,35 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     synthetic_data_only: bool = True
     secure_cookies: bool = False
+    identity_encryption_key: str | None = None
+    identity_lookup_key: str | None = None
+    identity_expose_test_tokens: bool = False
+    identity_email_delivery_enabled: bool = False
+    identity_smtp_host: str | None = None
+    identity_smtp_port: int = 587
+    identity_smtp_username: str | None = None
+    identity_smtp_password: str | None = None
+    identity_smtp_from_email: str | None = None
+    identity_smtp_from_name: str = "MaaleNex"
+    identity_smtp_starttls: bool = True
+    identity_smtp_use_ssl: bool = False
+    identity_smtp_timeout_seconds: int = 10
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @model_validator(mode="after")
     def enforce_development_boundary(self) -> "Settings":
+        if self.identity_smtp_port < 1 or self.identity_smtp_port > 65535:
+            raise ValueError("IDENTITY_SMTP_PORT must be between 1 and 65535.")
+        if self.identity_smtp_timeout_seconds < 1 or self.identity_smtp_timeout_seconds > 30:
+            raise ValueError("IDENTITY_SMTP_TIMEOUT_SECONDS must be between 1 and 30.")
+        if self.identity_email_delivery_enabled:
+            if not self.identity_smtp_host or not self.identity_smtp_from_email:
+                raise ValueError("Enabled email delivery requires SMTP host and sender address.")
+            if self.identity_smtp_use_ssl and self.identity_smtp_starttls:
+                raise ValueError("SMTP implicit SSL and STARTTLS cannot both be enabled.")
+            if bool(self.identity_smtp_username) != bool(self.identity_smtp_password):
+                raise ValueError("SMTP username and password must be configured together.")
         if self.app_env not in {"development", "test"}:
             raise ValueError("Only development/test environments are permitted in this G1 baseline.")
         if not self.synthetic_data_only:
