@@ -20,9 +20,9 @@ jobs:
       matrix:
         include:
           - label: PR-9
-            ref: 7254d992de24d801be1e8a2e16d2114b1241e94c
+            ref: 046926f4b77687455cdd80e15f637c2e671ee272
           - label: PR-10
-            ref: 0eac037e8df52e8422f8bddd89e0a45fd80ce61f
+            ref: 456e15f3b95c53ee389c407b057abad5e572af13
     steps:
       - name: Checkout exact PR HEAD
         uses: actions/checkout@v4
@@ -57,9 +57,9 @@ jobs:
       matrix:
         include:
           - label: PR-9
-            ref: 7254d992de24d801be1e8a2e16d2114b1241e94c
+            ref: 046926f4b77687455cdd80e15f637c2e671ee272
           - label: PR-10
-            ref: 0eac037e8df52e8422f8bddd89e0a45fd80ce61f
+            ref: 456e15f3b95c53ee389c407b057abad5e572af13
     steps:
       - name: Checkout exact PR HEAD
         uses: actions/checkout@v4
