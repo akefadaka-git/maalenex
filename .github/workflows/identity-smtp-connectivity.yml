@@ -40,7 +40,7 @@ jobs:
       - name: Checkout verified A3 identity implementation
         uses: actions/checkout@v4
         with:
-          ref: bb900bdef8ac801f5e3f4679be17e6e546b3679e
+          ref: 94a4ab968ee09f3c7dccf3d2665fc25f5fa160dd
           persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v5
