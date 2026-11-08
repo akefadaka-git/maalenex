@@ -1,6 +1,15 @@
-name: MaaleNex synthetic verification email E2E (manual only)
+name: MaaleNex synthetic verification email E2E (Owner-controlled)
 
 on:
+  # Remote trigger: a narrowly scoped marker commit on main starts one test.
+  # The marker path is deliberately separate from the workflow file so routine
+  # workflow edits cannot accidentally send email.
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/e2e-triggers/identity-email-e2e/**"
+  # Retain the normal GitHub UI/manual option as a fallback.
   workflow_dispatch:
     inputs:
       recipient:
@@ -53,15 +62,15 @@ jobs:
       IDENTITY_SMTP_STARTTLS: "true"
       IDENTITY_SMTP_USE_SSL: "false"
       IDENTITY_SMTP_TIMEOUT_SECONDS: "15"
-      E2E_RECIPIENT: ${{ inputs.recipient }}
+      E2E_RECIPIENT: ${{ github.event_name == 'workflow_dispatch' && inputs.recipient || 'akeayudaka@gmail.com' }}
       E2E_ALLOWED_RECIPIENT: akeayudaka@gmail.com
       PYTHONUNBUFFERED: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
     steps:
-      - name: Checkout isolated test implementation
+      - name: Checkout isolated test implementation at verified SHA
         uses: actions/checkout@v4
         with:
-          ref: feat/a3-synthetic-email-e2e-test
+          ref: c4c5ff31058afcae972078fd4a0a81fe83d7b79f
           persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v5
