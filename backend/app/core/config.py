@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     synthetic_data_only: bool = True
     secure_cookies: bool = False
+    identity_encryption_key: str | None = None
+    identity_lookup_key: str | None = None
+    identity_expose_test_tokens: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
