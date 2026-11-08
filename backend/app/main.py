@@ -7,6 +7,7 @@ from app.routers.admin import router as admin_router
 from app.routers.auth import router as auth_router
 from app.routers.bookings import router as bookings_router
 from app.routers.health import router as health_router
+from app.routers.identity import router as identity_router
 from app.routers.passenger_catalog import router as passenger_catalog_router
 from app.routers.platform import router as platform_router
 
@@ -26,6 +27,7 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-CSRF-Token", "Idempotency-Key"],
 )
 app.include_router(health_router, prefix=settings.api_prefix)
+app.include_router(identity_router, prefix=settings.api_prefix)
 app.include_router(auth_router, prefix=settings.api_prefix)
 app.include_router(admin_router, prefix=settings.api_prefix)
 app.include_router(bookings_router, prefix=settings.api_prefix)
