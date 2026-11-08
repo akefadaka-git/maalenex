@@ -96,10 +96,12 @@ PR #3, PR #9 and PR #10 remain open/draft/unmerged. The default branch was not c
 
 **Automated verification scope:** PASS (all 3 A4 jobs).  
 **A4 application remediation:** no new defects found by these gates; no code remediation required in this pass.  
-**A4 evidence record:** committed on the A4 branch. Its own exact-HEAD workflow run is the final evidence required before marking this report VERIFIED-CLOSED.  
+**A4 evidence record:** committed at `2a85299cd1f7b6d067c3446c96c3bb93e6e4b061`; its exact-HEAD workflow [run #42502875425](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42502875425) passed all three jobs.  
 **Production readiness:** NOT READY / NOT ASSESSED FOR LIVE OPERATION.  
 **A5:** separate stage; NOT AUTHORIZED.
 
-## 8. Immediate next step
+## 8. A4 closure
 
-Verify that the A4 workflow passes on the final report commit, then record that final exact HEAD and run as the A4 closure evidence. Keep all merge, deployment, and production-activation gates separate.
+**A4 full automated verification: VERIFIED-CLOSED** for the scope and checks documented in this report. The report commit itself was checked by workflow run #42502875425, with all three jobs successful. The final closure update is documentation-only and is subject to the same A4 workflow on its resulting exact HEAD.
+
+**Next stage:** A5 deployment and production activation remain separate and are NOT AUTHORIZED. Keep merge, deployment, and production-activation gates separate.
