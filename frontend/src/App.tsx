@@ -489,7 +489,7 @@ export default function App() {
         <section id="test-help" className="booking-panel" aria-labelledby="test-help-title">
           <h2 id="test-help-title">{t.helpTitle}</h2>
           <p>{t.helpBody}</p>
-          <p className="trip-meta">{API_BASE_URL ? `API: ${new URL(API_BASE_URL).host}` : (language === "am" ? "የAPI አድራሻ አልተዋቀረም።" : "API origin is not configured.")}</p>
+          <p className="trip-meta">{API_BASE_URL ? `API: ${API_BASE_URL}` : (language === "am" ? "የAPI አድራሻ አልተዋቀረም።" : "API origin is not configured.")}</p>
         </section>
       </section>
 
