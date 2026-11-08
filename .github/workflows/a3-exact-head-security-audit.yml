@@ -1,0 +1,71 @@
+name: MaaleNex A3 exact-HEAD dependency security audit
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/security-triggers/a3-exact-head-audit/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-dependencies:
+    name: Python dependency vulnerability audit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: PR-9
+            ref: 94a4ab968ee09f3c7dccf3d2665fc25f5fa160dd
+          - label: PR-10
+            ref: 7eb5e0d52400ca655dbe5137cf32d21239b0b16d
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install application and audit tool
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install '.[dev]' pip-audit
+      - name: Audit installed Python dependencies
+        working-directory: backend
+        run: pip-audit --strict
+
+  frontend-dependencies:
+    name: npm dependency vulnerability audit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: PR-9
+            ref: 94a4ab968ee09f3c7dccf3d2665fc25f5fa160dd
+          - label: PR-10
+            ref: 7eb5e0d52400ca655dbe5137cf32d21239b0b16d
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Resolve an ephemeral lockfile without repository mutation
+        working-directory: frontend
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Audit complete frontend dependency tree
+        working-directory: frontend
+        run: npm audit --audit-level=high
