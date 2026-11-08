@@ -26,7 +26,14 @@ type SupportCase = {
   status: string; resolution_code: string | null; resolution_note: string | null;
 };
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\\/+$/, "");\n\nfunction apiUrl(path: string): string {\n  return `${API_BASE_URL}${path}`;\n}\n\nconst copy = {
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+
+function apiUrl(path: string): string {
+  const base = API_BASE_URL.endsWith("/") ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+  return `${base}${path}`;
+}
+
+const copy = {
   am: {
     skip: "ወደ ዋና ይዘት ዝለል",
     eyebrow: "የተሳፋሪ መጓጓዣ", title: "ጉዞዎን ያቅዱ።",
@@ -50,7 +57,9 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\\/+$/, 
     loadingLocations: "የመነሻና መድረሻ ቦታዎች በመጫን ላይ…",
     error: "የጉዞ መረጃን ማግኘት አልተቻለም። እንደገና ይሞክሩ።",
     emptyLocations: "ለሙከራ የታተሙ ቦታዎች ገና የሉም።",
-    language: "Switch language to English",\n    navHome: "Home", navSearch: "Find trips", navHelp: "Help", helpTitle: "Test information", helpBody: "This is a test application. Trip listings are supplied by the configured test API.",\n    navHome: "መነሻ", navSearch: "ጉዞ ፈልግ", navHelp: "እገዛ", helpTitle: "የሙከራ መረጃ", helpBody: "ይህ የሙከራ መተግበሪያ ነው። የጉዞ ዝርዝሮች ከሙከራ አገልጋይ ይመጣሉ።",
+    language: "Switch language to English",
+    navHome: "Home", navSearch: "Find trips", navHelp: "Help", helpTitle: "Test information", helpBody: "This is a test application. Trip listings are supplied by the configured test API.",
+    navHome: "መነሻ", navSearch: "ጉዞ ፈልግ", navHelp: "እገዛ", helpTitle: "የሙከራ መረጃ", helpBody: "ይህ የሙከራ መተግበሪያ ነው። የጉዞ ዝርዝሮች ከሙከራ አገልጋይ ይመጣሉ።",
     revokeAccess: "Revoke booking access",
     accessRevoked: "Booking access was revoked.",
     support: "የድጋፍ ጥያቄ",
@@ -83,7 +92,8 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\\/+$/, 
     loadingLocations: "Loading origin and destination locations…",
     error: "Could not load trip information. Please try again.",
     emptyLocations: "No published locations are available in this synthetic environment yet.",
-    language: "ቋንቋውን ወደ አማርኛ ቀይር",\n    navHome: "Home", navSearch: "Find trips", navHelp: "Help", helpTitle: "Test information", helpBody: "This is a test application. Trip listings are supplied by the configured test API.",
+    language: "ቋንቋውን ወደ አማርኛ ቀይር",
+    navHome: "Home", navSearch: "Find trips", navHelp: "Help", helpTitle: "Test information", helpBody: "This is a test application. Trip listings are supplied by the configured test API.",
     revokeAccess: "የቦታ ማስያዣ መዳረሻን ዝጋ",
     accessRevoked: "የቦታ ማስያዣ መዳረሻ ተዘግቷል።",
     support: "Support request",
@@ -345,6 +355,11 @@ export default function App() {
           <button className="language" type="button" aria-label={t.language}
             onClick={() => setLanguage(language === "am" ? "en" : "am")}>{language === "am" ? "EN" : "አማ"}</button>
         </div>
+        <nav className="mobile-nav" aria-label={language === "am" ? "ዋና ማውጫ" : "Main navigation"}>
+          <a href="#hero-title">{t.navHome}</a>
+          <a href="#trip-search">{t.navSearch}</a>
+          <a href="#test-help">{t.navHelp}</a>
+        </nav>
       </header>
 
       <section className="hero" aria-labelledby="hero-title">
@@ -458,6 +473,13 @@ export default function App() {
             </li>)}</ul>
           </div>}
         </section>}
+      </section>
+
+        <section id="test-help" className="booking-panel" aria-labelledby="test-help-title">
+          <h2 id="test-help-title">{t.helpTitle}</h2>
+          <p>{t.helpBody}</p>
+          <p className="trip-meta">{API_BASE_URL ? `API: ${new URL(API_BASE_URL).host}` : (language === "am" ? "የAPI አድራሻ አልተዋቀረም።" : "API origin is not configured.")}</p>
+        </section>
       </section>
 
       <footer><span>{t.footer}</span><span>© MaaleNex Moto · 2026</span></footer>
