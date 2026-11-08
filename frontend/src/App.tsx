@@ -50,7 +50,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\\/+$/, 
     loadingLocations: "የመነሻና መድረሻ ቦታዎች በመጫን ላይ…",
     error: "የጉዞ መረጃን ማግኘት አልተቻለም። እንደገና ይሞክሩ።",
     emptyLocations: "ለሙከራ የታተሙ ቦታዎች ገና የሉም።",
-    language: "Switch language to English",\n    navHome: "መነሻ", navSearch: "ጉዞ ፈልግ", navHelp: "እገዛ", helpTitle: "የሙከራ መረጃ", helpBody: "ይህ የሙከራ መተግበሪያ ነው። የጉዞ ዝርዝሮች ከሙከራ አገልጋይ ይመጣሉ።",
+    language: "Switch language to English",\n    navHome: "Home", navSearch: "Find trips", navHelp: "Help", helpTitle: "Test information", helpBody: "This is a test application. Trip listings are supplied by the configured test API.",\n    navHome: "መነሻ", navSearch: "ጉዞ ፈልግ", navHelp: "እገዛ", helpTitle: "የሙከራ መረጃ", helpBody: "ይህ የሙከራ መተግበሪያ ነው። የጉዞ ዝርዝሮች ከሙከራ አገልጋይ ይመጣሉ።",
     revokeAccess: "Revoke booking access",
     accessRevoked: "Booking access was revoked.",
     support: "የድጋፍ ጥያቄ",
@@ -432,7 +432,7 @@ export default function App() {
           <p><strong>{t.reservationRef}:</strong> {reservation.reservation_reference}</p>
           <p><strong>{t.qrRef}:</strong> <code>{reservation.qr_payload_reference}</code></p>
           {booking && <img
-            src={`/api/v1/bookings/${booking.booking_id}/reservation/qr.svg`}
+            src={apiUrl(`/api/v1/bookings/${booking.booking_id}/reservation/qr.svg`)}
             alt={t.qrCode}
             width={180}
             height={180}
