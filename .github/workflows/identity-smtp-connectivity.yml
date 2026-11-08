@@ -2,6 +2,10 @@ name: MaaleNex Gmail SMTP connectivity (manual, non-sending)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/identity-smtp-connectivity.yml
 
 permissions:
   contents: read
