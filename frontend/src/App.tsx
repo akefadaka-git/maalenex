@@ -26,7 +26,7 @@ type SupportCase = {
   status: string; resolution_code: string | null; resolution_note: string | null;
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+const API_BASE_URL = (import.meta as ImportMeta & { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL ?? "";
 
 function apiUrl(path: string): string {
   const base = API_BASE_URL.endsWith("/") ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
