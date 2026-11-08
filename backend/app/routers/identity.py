@@ -17,7 +17,7 @@ from app.domains.identity.accounts import AccountIdentifier, AccountSession
 from app.domains.identity.account_service import (
     AccountAuthenticationError, AccountRateLimited, authenticate_account,
     complete_password_recovery, enroll_password, register_account,
-    request_password_recovery, resolve_account_session, revoke_account_sessions,
+    request_password_recovery, resend_account_challenge, resolve_account_session, revoke_account_sessions,
     verify_identifier, decrypt_identifier, normalize_identifier,
 )
 from app.domains.identity.email_delivery import deliver_account_challenge
@@ -33,6 +33,12 @@ class RegistrationRequest(BaseModel):
     identifier_type: Literal["email", "phone"]
     identifier_value: str = Field(min_length=3, max_length=254)
     preferred_locale: str = Field(default="am-ET", min_length=2, max_length=16)
+
+
+class ResendChallengeRequest(BaseModel):
+    identifier_type: Literal["email", "phone"]
+    identifier_value: str = Field(min_length=3, max_length=254)
+    purpose: Literal["identifier_verification", "credential_enrollment", "password_recovery"]
 
 
 class ChallengeRequest(BaseModel):
@@ -333,4 +339,49 @@ def finish_password_recovery(
         "account_id": str(account_id),
         "recovery": "completed",
         "sessions_revoked": True,
+    }
+
+
+@router.post("/challenges/resend", status_code=status.HTTP_202_ACCEPTED)
+def resend_identity_challenge(
+    payload: ResendChallengeRequest, request: Request, db: Session = Depends(get_db)
+) -> dict:
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        result = resend_account_challenge(
+            db, identifier_type=payload.identifier_type,
+            identifier_value=payload.identifier_value, purpose=payload.purpose,
+            client_ip=client_ip,
+        )
+        db.commit()
+    except (ValueError, RuntimeError):
+        db.rollback()
+        result = None
+    if result is not None:
+        _account, token = result
+        try:
+            delivery = deliver_account_challenge(
+                identifier_type=payload.identifier_type,
+                destination=normalize_identifier(payload.identifier_type, payload.identifier_value),
+                purpose=payload.purpose, token=token,
+            )
+            if delivery != "sent":
+                logger.warning(
+                    "account_challenge_delivery_not_sent purpose=%s result=%s",
+                    payload.purpose, delivery,
+                )
+        except (ValueError, RuntimeError):
+            logger.warning(
+                "account_challenge_delivery_not_sent purpose=%s result=error",
+                payload.purpose,
+            )
+        return {
+            "message": "If the account is eligible, a fresh challenge will be sent.",
+            "status": "accepted",
+            "development_challenge_token": _test_token(token),
+        }
+    return {
+        "message": "If the account is eligible, a fresh challenge will be sent.",
+        "status": "accepted",
+        "development_challenge_token": None,
     }
