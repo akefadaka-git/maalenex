@@ -228,7 +228,7 @@ class AccountChallenge(Base):
     __tablename__ = "account_challenges"
     __table_args__ = (
         CheckConstraint(
-            "purpose IN ('identifier_verification', 'password_recovery')",
+            "purpose IN ('identifier_verification', 'credential_enrollment', 'password_recovery')",
             name="ck_account_challenge_purpose",
         ),
         Index("ix_account_challenges_account_id", "account_id"),
