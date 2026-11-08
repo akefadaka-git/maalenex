@@ -363,7 +363,7 @@ Do not claim superiority or global ranking without independent, comparable perfo
 
 ## 9. Immediate execution order
 
-1. Review the expanded A1 specification v1.1 at `docs/BIKER-FIRST-PLATFORM-A1-v1.0.md` on PR #6; the document now covers all eight MaaleNex service lines, roles, lifecycles, architecture, safety, financial controls and acceptance criteria.
+1. Review the expanded A1 specification v1.1 at `docs/MAALENEX-PLATFORM-A1-v1.1.md` on PR #6; the document now covers all eight MaaleNex service lines, roles, lifecycles, architecture, safety, financial controls and acceptance criteria.
 2. Resolve the Owner decisions listed in A1 v1.1 and explicitly approve or revise the proposed service order and boundaries.
 3. Record the Owner's explicit A1 freeze decision. A1 remains DRAFT / NOT FROZEN until that decision is recorded.
 4. After A1 approval, perform the authorized read-only A2 repository/PR reconciliation against exact current main and branch SHAs.
