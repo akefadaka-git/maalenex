@@ -90,3 +90,9 @@ def test_smtp_failure_is_reported_without_raising(monkeypatch):
         identifier_type="email", destination="person@example.invalid",
         purpose="password_recovery", token="synthetic-token",
     ) == "failed"
+
+
+def test_smtp_connectivity_check_authenticates_without_sending(monkeypatch):
+    _enable_smtp(monkeypatch)
+    email_delivery.check_smtp_connection()
+    assert FakeSMTP.sent_messages == []
