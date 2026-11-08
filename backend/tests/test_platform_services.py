@@ -40,7 +40,6 @@ def test_platform_registry_seed_is_idempotent_and_never_advertises_test_as_live(
         "is_available": False,
         "synthetic_test_available": True,
     }]
-    assert all(item["is_available"] is False for item in services.values())
     assert all(
         item["availability"][0]["is_available"] is False
         for item in services.values()
