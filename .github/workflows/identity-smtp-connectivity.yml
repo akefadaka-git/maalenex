@@ -32,8 +32,10 @@ jobs:
       IDENTITY_SMTP_USE_SSL: "false"
       IDENTITY_SMTP_TIMEOUT_SECONDS: "10"
     steps:
-      - name: Checkout selected branch commit
+      - name: Checkout verified A3 identity implementation
         uses: actions/checkout@v4
+        with:
+          ref: cf3e86c72477a39320b90cff4c0488999e4fc177
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
