@@ -19,8 +19,8 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.domains.audit.service import record_event
 from app.domains.identity.accounts import (
-    AccountChallenge, AccountCredential, AccountIdentifier, AccountLoginAttempt,
-    AccountSession, PlatformAccount,
+    AccountChallenge, AccountChallengeRequest, AccountCredential, AccountIdentifier,
+    AccountLoginAttempt, AccountSession, PlatformAccount,
 )
 from app.domains.identity.security import hash_secret, issue_opaque_token, token_digest, verify_secret
 
@@ -352,3 +352,88 @@ def complete_password_recovery(db: Session, *, raw_token: str, new_password: str
            action="recover_password", outcome="success")
     db.flush()
     return account.id
+
+
+def resend_account_challenge(
+    db: Session, *, identifier_type: str, identifier_value: str,
+    purpose: str, client_ip: str,
+) -> tuple[PlatformAccount, str] | None:
+    """Issue a fresh challenge only within per-identifier/IP cooldown and hourly limits.
+
+    Returns None for unknown/ineligible identifiers and throttled requests. Callers
+    must use the same generic response for all None cases to prevent enumeration.
+    """
+    if purpose not in {"identifier_verification", "credential_enrollment", "password_recovery"}:
+        raise ValueError("Unsupported challenge purpose.")
+    normalized = normalize_identifier(identifier_type, identifier_value)
+    digest = identifier_digest(identifier_type, normalized)
+    identifier = db.scalar(select(AccountIdentifier).where(
+        AccountIdentifier.identifier_type == identifier_type,
+        AccountIdentifier.lookup_digest == digest,
+        AccountIdentifier.revoked_at.is_(None),
+    ).with_for_update())
+    account = db.scalar(select(PlatformAccount).where(
+        PlatformAccount.id == identifier.account_id
+    ).with_for_update()) if identifier else None
+    if identifier is None or account is None:
+        return None
+    if purpose == "identifier_verification":
+        eligible = account.status == "pending" and identifier.verified_at is None
+    elif purpose == "credential_enrollment":
+        enrolled = db.scalar(select(AccountCredential.id).where(
+            AccountCredential.account_id == account.id,
+            AccountCredential.credential_type == "password",
+            AccountCredential.status == "active",
+            AccountCredential.revoked_at.is_(None),
+        ).limit(1))
+        eligible = account.status == "active" and identifier.verified_at is not None and enrolled is None
+    else:
+        eligible = account.status == "active" and identifier.verified_at is not None
+    if not eligible:
+        return None
+
+    now = _now(db)
+    throttle_key = hmac.new(
+        _key_material(settings.identity_lookup_key, "IDENTITY_LOOKUP_KEY"),
+        f"challenge:{purpose}:{digest}:{client_ip}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    throttle = db.scalar(select(AccountChallengeRequest).where(
+        AccountChallengeRequest.key_digest == throttle_key
+    ).with_for_update())
+    if throttle is None:
+        try:
+            with db.begin_nested():
+                throttle = AccountChallengeRequest(
+                    key_digest=throttle_key, window_started_at=now,
+                    request_count=0, last_requested_at=now,
+                )
+                db.add(throttle)
+                db.flush()
+        except IntegrityError:
+            throttle = db.scalar(select(AccountChallengeRequest).where(
+                AccountChallengeRequest.key_digest == throttle_key
+            ).with_for_update())
+    if throttle is None:
+        return None
+    if throttle.locked_until and _utc(throttle.locked_until) > now:
+        return None
+    if _utc(throttle.window_started_at) <= now - timedelta(hours=1):
+        throttle.window_started_at = now
+        throttle.request_count = 0
+        throttle.locked_until = None
+    if throttle.request_count >= 5:
+        throttle.locked_until = now + timedelta(hours=1)
+        return None
+    if throttle.request_count and _utc(throttle.last_requested_at) > now - timedelta(seconds=60):
+        return None
+
+    throttle.request_count += 1
+    throttle.last_requested_at = now
+    token = _issue_challenge(
+        db, account=account, identifier=identifier, purpose=purpose
+    )
+    _audit(db, event="account.challenge.resent", account_id=account.id,
+           action="resend_challenge", outcome="success", reason=purpose)
+    db.flush()
+    return account, token
