@@ -168,7 +168,7 @@ def _locked_challenge(db: Session, *, raw_token: str, purpose: str) -> tuple[Acc
     return challenge, identifier, account
 
 
-def verify_identifier(db: Session, *, raw_token: str) -> PlatformAccount:
+def verify_identifier(db: Session, *, raw_token: str) -> tuple[PlatformAccount, str]:
     challenge, identifier, account = _locked_challenge(
         db, raw_token=raw_token, purpose="identifier_verification"
     )
@@ -184,25 +184,14 @@ def verify_identifier(db: Session, *, raw_token: str) -> PlatformAccount:
     return account
 
 
-def enroll_password(db: Session, *, identifier_type: str, identifier_value: str,
-                    password: str) -> UUID:
+def enroll_password(db: Session, *, raw_token: str, password: str) -> UUID:
     if len(password) < 14 or len(password) > 256:
         raise ValueError("Password must contain 14 to 256 characters.")
-    normalized = normalize_identifier(identifier_type, identifier_value)
-    digest = identifier_digest(identifier_type, normalized)
-    identifier = db.scalar(select(AccountIdentifier).where(
-        AccountIdentifier.identifier_type == identifier_type,
-        AccountIdentifier.lookup_digest == digest,
-        AccountIdentifier.verified_at.is_not(None),
-        AccountIdentifier.revoked_at.is_(None),
-    ).with_for_update())
-    if identifier is None:
+    challenge, identifier, account = _locked_challenge(
+        db, raw_token=raw_token, purpose="credential_enrollment"
+    )
+    if account.status != "active" or identifier.verified_at is None or identifier.revoked_at is not None:
         raise ValueError("A verified identifier is required before credential enrollment.")
-    account = db.scalar(select(PlatformAccount).where(
-        PlatformAccount.id == identifier.account_id
-    ).with_for_update())
-    if account is None or account.status != "active":
-        raise ValueError("Account is not eligible for credential enrollment.")
     current = db.scalar(select(AccountCredential.id).where(
         AccountCredential.account_id == account.id,
         AccountCredential.credential_type == "password",
@@ -211,152 +200,12 @@ def enroll_password(db: Session, *, identifier_type: str, identifier_value: str,
     ).limit(1))
     if current is not None:
         raise ValueError("A password credential is already enrolled.")
+    challenge.consumed_at = _now(db)
     db.add(AccountCredential(
         account_id=account.id, credential_type="password",
         verifier=hash_secret(password), status="active",
     ))
     _audit(db, event="account.credential.enrolled", account_id=account.id,
            action="enroll_password", outcome="success")
-    db.flush()
-    return account.id
-
-
-def authenticate_account(db: Session, *, identifier_type: str, identifier_value: str,
-                         password: str, client_ip: str) -> tuple[PlatformAccount, AccountSession, str, str]:
-    normalized = normalize_identifier(identifier_type, identifier_value)
-    digest = identifier_digest(identifier_type, normalized)
-    now = _now(db)
-    attempt_key = hashlib.sha256(f"{digest}|{client_ip}".encode("utf-8")).hexdigest()
-    attempt = db.scalar(select(AccountLoginAttempt).where(
-        AccountLoginAttempt.key_digest == attempt_key
-    ).with_for_update())
-    if attempt is None:
-        try:
-            with db.begin_nested():
-                attempt = AccountLoginAttempt(
-                    key_digest=attempt_key, window_started_at=now, failed_count=0
-                )
-                db.add(attempt)
-                db.flush()
-        except IntegrityError:
-            attempt = db.scalar(select(AccountLoginAttempt).where(
-                AccountLoginAttempt.key_digest == attempt_key
-            ).with_for_update())
-    if attempt is None:
-        raise AccountRateLimited()
-    if _utc(attempt.window_started_at) < now - timedelta(minutes=15):
-        attempt.window_started_at, attempt.failed_count, attempt.locked_until = now, 0, None
-    if attempt.locked_until and _utc(attempt.locked_until) > now:
-        raise AccountRateLimited()
-
-    identifier = db.scalar(select(AccountIdentifier).where(
-        AccountIdentifier.identifier_type == identifier_type,
-        AccountIdentifier.lookup_digest == digest,
-        AccountIdentifier.verified_at.is_not(None),
-        AccountIdentifier.revoked_at.is_(None),
-    ))
-    account = db.get(PlatformAccount, identifier.account_id) if identifier else None
-    credentials = db.scalars(select(AccountCredential).where(
-        AccountCredential.account_id == account.id if account else False,
-        AccountCredential.credential_type == "password",
-        AccountCredential.status == "active",
-        AccountCredential.revoked_at.is_(None),
-    ).order_by(AccountCredential.created_at.desc())).all() if account else []
-    credential = credentials[0] if credentials else None
-    valid = account is not None and account.status == "active" and credential is not None
-    valid = bool(valid and (credential.expires_at is None or _utc(credential.expires_at) > now)
-                 and verify_secret(password, credential.verifier))
-    if not valid:
-        attempt.failed_count += 1
-        if attempt.failed_count >= 5:
-            attempt.locked_until = now + timedelta(minutes=15)
-        _audit(db, event="account.authentication.failed", account_id=None,
-               action="login", outcome="denied", reason="invalid_credentials")
-        raise AccountAuthenticationError()
-    attempt.failed_count, attempt.locked_until = 0, None
-    session_token, csrf_token = issue_opaque_token(), issue_opaque_token()
-    session = AccountSession(
-        account_id=account.id, secret_digest=token_digest(session_token),
-        csrf_digest=token_digest(csrf_token), expires_at=now + timedelta(hours=12),
-    )
-    db.add(session)
-    _audit(db, event="account.authentication.succeeded", account_id=account.id,
-           action="login", outcome="success")
-    db.flush()
-    return account, session, session_token, csrf_token
-
-
-def resolve_account_session(db: Session, raw_token: str | None) -> tuple[PlatformAccount, AccountSession]:
-    if not raw_token:
-        raise AccountAuthenticationError()
-    now = _now(db)
-    session = db.scalar(select(AccountSession).where(
-        AccountSession.secret_digest == token_digest(raw_token),
-        AccountSession.revoked_at.is_(None), AccountSession.expires_at > now,
-    ))
-    account = db.get(PlatformAccount, session.account_id) if session else None
-    if session is None or account is None or account.status != "active":
-        raise AccountAuthenticationError()
-    session.last_seen_at = now
-    return account, session
-
-
-def revoke_account_sessions(db: Session, *, account_id: UUID, session_id: UUID | None = None) -> int:
-    now = _now(db)
-    query = AccountSession.__table__.update().where(
-        AccountSession.account_id == account_id, AccountSession.revoked_at.is_(None)
-    )
-    if session_id is not None:
-        query = query.where(AccountSession.id == session_id)
-    result = db.execute(query.values(revoked_at=now))
-    _audit(db, event="account.session.revoked", account_id=account_id,
-           action="revoke_session" if session_id else "revoke_all_sessions",
-           outcome="success")
-    return result.rowcount or 0
-
-
-def request_password_recovery(db: Session, *, identifier_type: str,
-                              identifier_value: str) -> str | None:
-    normalized = normalize_identifier(identifier_type, identifier_value)
-    digest = identifier_digest(identifier_type, normalized)
-    identifier = db.scalar(select(AccountIdentifier).where(
-        AccountIdentifier.identifier_type == identifier_type,
-        AccountIdentifier.lookup_digest == digest,
-        AccountIdentifier.verified_at.is_not(None),
-        AccountIdentifier.revoked_at.is_(None),
-    ).with_for_update())
-    account = db.get(PlatformAccount, identifier.account_id) if identifier else None
-    if account is None or account.status != "active":
-        return None
-    raw = _issue_challenge(db, account=account, identifier=identifier,
-                           purpose="password_recovery")
-    _audit(db, event="account.recovery.requested", account_id=account.id,
-           action="request_recovery", outcome="success")
-    db.flush()
-    return raw
-
-
-def complete_password_recovery(db: Session, *, raw_token: str, new_password: str) -> UUID:
-    if len(new_password) < 14 or len(new_password) > 256:
-        raise ValueError("Password must contain 14 to 256 characters.")
-    challenge, identifier, account = _locked_challenge(
-        db, raw_token=raw_token, purpose="password_recovery"
-    )
-    if account.status != "active" or identifier.verified_at is None:
-        raise ValueError("The challenge is invalid or expired.")
-    now = _now(db)
-    challenge.consumed_at = now
-    db.execute(AccountCredential.__table__.update().where(
-        AccountCredential.account_id == account.id,
-        AccountCredential.credential_type == "password",
-        AccountCredential.status == "active",
-    ).values(status="revoked", revoked_at=now))
-    db.add(AccountCredential(
-        account_id=account.id, credential_type="password",
-        verifier=hash_secret(new_password), status="active",
-    ))
-    revoked = revoke_account_sessions(db, account_id=account.id)
-    _audit(db, event="account.recovery.completed", account_id=account.id,
-           action="recover_password", outcome="success")
     db.flush()
     return account.id
