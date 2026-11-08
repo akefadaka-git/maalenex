@@ -1,0 +1,41 @@
+name: Generate and validate frontend lockfile
+
+on:
+  push:
+    branches:
+      - feat/a3-maalenex-shared-platform-foundation
+      - feat/a3-synthetic-email-e2e-test
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile:
+    if: "!contains(github.event.head_commit.message, 'chore(frontend): commit npm lockfile')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Generate lockfile from package.json
+        working-directory: frontend
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Validate reproducible clean installation
+        working-directory: frontend
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Commit lockfile to the same branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/package-lock.json
+          if git diff --cached --quiet; then
+            echo "Lockfile is already current."
+          else
+            git commit -m "chore(frontend): commit npm lockfile"
+            git push
+          fi
