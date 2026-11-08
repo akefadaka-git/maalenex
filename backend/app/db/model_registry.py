@@ -9,3 +9,4 @@ from app.domains.fares import models as fare_models  # noqa: F401
 from app.domains.bookings import models as booking_models  # noqa: F401
 from app.domains.reservations import models as reservation_models  # noqa: F401
 from app.domains.support import models as support_models  # noqa: F401
+from app.domains.platform import models as platform_models  # noqa: F401
