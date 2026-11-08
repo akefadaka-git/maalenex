@@ -2,6 +2,7 @@
 
 These routes are intentionally separate from /auth staff/operator authentication.
 """
+import logging
 from typing import Literal
 from uuid import UUID
 
@@ -21,6 +22,7 @@ from app.domains.identity.account_service import (
 )
 from app.domains.identity.email_delivery import deliver_account_challenge
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/identity", tags=["account-identity"])
 SESSION_COOKIE = "mnm_account_session"
 CSRF_COOKIE = "mnm_account_csrf"
@@ -295,14 +297,19 @@ def start_password_recovery(payload: RecoveryRequest, db: Session = Depends(get_
         token = None
     if token:
         try:
-            deliver_account_challenge(
+            delivery_status = deliver_account_challenge(
                 identifier_type=payload.identifier_type,
                 destination=normalize_identifier(payload.identifier_type, payload.identifier_value),
                 purpose="password_recovery",
                 token=token,
             )
+            if delivery_status != "sent":
+                logger.warning(
+                    "account_challenge_delivery_not_sent purpose=password_recovery result=%s",
+                    delivery_status,
+                )
         except (ValueError, RuntimeError):
-            pass
+            logger.warning("account_challenge_delivery_not_sent purpose=password_recovery result=error")
     return {
         "message": "If the verified identifier matches an active account, recovery instructions will be sent.",
         "delivery_status": "accepted",
