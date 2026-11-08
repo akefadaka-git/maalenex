@@ -17,8 +17,9 @@ from app.domains.identity.account_service import (
     AccountAuthenticationError, AccountRateLimited, authenticate_account,
     complete_password_recovery, enroll_password, register_account,
     request_password_recovery, resolve_account_session, revoke_account_sessions,
-    verify_identifier,
+    verify_identifier, decrypt_identifier, normalize_identifier,
 )
+from app.domains.identity.email_delivery import deliver_account_challenge
 
 router = APIRouter(prefix="/identity", tags=["account-identity"])
 SESSION_COOKIE = "mnm_account_session"
@@ -294,14 +295,14 @@ def start_password_recovery(payload: RecoveryRequest, db: Session = Depends(get_
         token = None
     if token:
         try:
-            delivery_status = deliver_account_challenge(
+            deliver_account_challenge(
                 identifier_type=payload.identifier_type,
                 destination=normalize_identifier(payload.identifier_type, payload.identifier_value),
                 purpose="password_recovery",
                 token=token,
             )
         except (ValueError, RuntimeError):
-            delivery_status = "failed"
+            pass
     else:
         delivery_status = "not_sent"
     return {
