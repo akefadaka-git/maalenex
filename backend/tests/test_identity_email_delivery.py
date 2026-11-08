@@ -17,6 +17,16 @@ class FakeSMTP:
     def __exit__(self, *_args):
         return False
 
+    def connect(self, host, port):
+        self.connected_to = (host, port)
+        return 220, b"synthetic SMTP greeting"
+
+    def quit(self):
+        return 221, b"closing connection"
+
+    def close(self):
+        return None
+
     def ehlo(self):
         return None
 
