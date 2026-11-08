@@ -4,7 +4,7 @@ The script deliberately never prints the recipient, challenge token, message bod
 SMTP credentials, identifier ciphertext, or raw database rows.
 """
 import os
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -57,7 +57,7 @@ def main() -> None:
         raise SystemExit("FAIL: registration response omitted synthetic account ID.")
 
     with SessionLocal() as db:
-        account = db.get(PlatformAccount, account_id)
+        account = db.get(PlatformAccount, UUID(account_id))
         if account is None or account.status != "pending":
             raise SystemExit("FAIL: synthetic account was not persisted in pending state.")
         identifier = db.scalar(select(AccountIdentifier).where(
