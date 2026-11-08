@@ -2,20 +2,19 @@ name: MaaleNex Gmail SMTP connectivity (manual, non-sending)
 
 on:
   workflow_dispatch:
-    inputs:
-      confirm_check:
-        description: Confirm a non-sending Gmail SMTP connection/TLS/authentication check
-        required: true
-        type: boolean
-        default: false
 
 permissions:
   contents: read
 
+concurrency:
+  group: maalenex-gmail-smtp-connectivity
+  cancel-in-progress: false
+
 jobs:
   smtp-connectivity:
-    if: ${{ inputs.confirm_check == true }}
+    name: Verify Gmail SMTP transport and authentication
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     defaults:
       run:
         working-directory: backend
@@ -31,15 +30,20 @@ jobs:
       IDENTITY_SMTP_STARTTLS: "true"
       IDENTITY_SMTP_USE_SSL: "false"
       IDENTITY_SMTP_TIMEOUT_SECONDS: "10"
+      PYTHONUNBUFFERED: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
     steps:
       - name: Checkout verified A3 identity implementation
         uses: actions/checkout@v4
         with:
           ref: cf3e86c72477a39320b90cff4c0488999e4fc177
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
       - name: Validate protected Gmail SMTP credentials exist
         shell: bash
         run: |
@@ -53,5 +57,5 @@ jobs:
           fi
       - name: Install backend
         run: python -m pip install .
-      - name: Check Gmail SMTP TCP, TLS and authentication without sending email
+      - name: Check Gmail SMTP TCP, STARTTLS and authentication without sending email
         run: python scripts/check_identity_smtp.py
