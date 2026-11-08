@@ -156,10 +156,13 @@ def verify_booking_access_challenge(
             client_ip=_client_ip(request),
         )
         db.commit()
+    except BookingAccessRateLimited:
+        db.commit()
+        raise HTTPException(status_code=429, detail="Too many verification attempts. Try again later.")
     except BookingAccessError:
         db.commit()
         raise HTTPException(status_code=401, detail="Invalid or expired booking verification.")
-    secure_cookie = request.url.scheme == "https"
+    secure_cookie = settings.should_use_secure_cookies(request.url.scheme)
     cookie_path = f"{settings.api_prefix}/bookings/{booking.id}"
     response.set_cookie(
         ACCESS_COOKIE, access_token, max_age=2 * 60 * 60,
