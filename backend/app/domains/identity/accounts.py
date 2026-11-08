@@ -257,3 +257,15 @@ class AccountLoginAttempt(Base):
     window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     failed_count: Mapped[int] = mapped_column(default=0, nullable=False)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AccountChallengeRequest(Base):
+    """Privacy-preserving resend throttle keyed by a digest of identifier, purpose and IP."""
+
+    __tablename__ = "account_challenge_requests"
+
+    key_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    request_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    last_requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
