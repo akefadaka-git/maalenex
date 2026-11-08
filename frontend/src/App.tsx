@@ -93,7 +93,6 @@ const copy = {
     emptyLocations: "No published locations are available in this synthetic environment yet.",
     language: "ቋንቋውን ወደ አማርኛ ቀይር",
     navHome: "Home", navSearch: "Find trips", navHelp: "Help", helpTitle: "Test information", helpBody: "This is a test application. Trip listings are supplied by the configured test API.",
-    navHome: "Home", navSearch: "Find trips", navHelp: "Help", helpTitle: "Test information", helpBody: "This is a test application. Trip listings are supplied by the configured test API.",
     revokeAccess: "የቦታ ማስያዣ መዳረሻን ዝጋ",
     accessRevoked: "የቦታ ማስያዣ መዳረሻ ተዘግቷል።",
     support: "Support request",
