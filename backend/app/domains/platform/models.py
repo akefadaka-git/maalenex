@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String,
+    Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String,
     UniqueConstraint, Uuid, func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -50,6 +50,12 @@ class ServiceAreaAvailability(Base):
             "availability_status IN ('planned', 'synthetic_test', 'pilot', 'active', 'suspended')",
             name="ck_service_area_availability_status",
         ),
+        CheckConstraint(
+            "valid_until IS NULL OR valid_from IS NULL OR valid_until > valid_from",
+            name="ck_service_area_validity_window",
+        ),
+        Index("ix_service_area_availability_area_code", "area_code"),
+        Index("ix_service_area_availability_service_code", "service_code"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
