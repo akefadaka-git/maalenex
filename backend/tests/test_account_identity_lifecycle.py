@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from uuid import uuid4
 
 import pytest
@@ -124,7 +125,7 @@ def test_challenge_resend_cooldown_hourly_limit_and_token_rotation(monkeypatch):
 
         key = db.query(AccountChallengeRequest).one()
         for _ in range(4):
-            key.last_requested_at = _now(db) - __import__("datetime").timedelta(seconds=61)
+            key.last_requested_at = _now(db) - timedelta(seconds=61)
             db.flush()
             assert resend_account_challenge(
                 db, identifier_type="email", identifier_value=identifier,
