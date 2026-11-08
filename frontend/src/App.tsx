@@ -58,7 +58,7 @@ const copy = {
     error: "የጉዞ መረጃን ማግኘት አልተቻለም። እንደገና ይሞክሩ።",
     emptyLocations: "ለሙከራ የታተሙ ቦታዎች ገና የሉም።",
     language: "Switch language to English",
-    navHome: "መነሻ", navSearch: "ጉዞ ፈልግ", navHelp: "እገዛ", helpTitle: "የሙከራ መረጃ", helpBody: "ይህ የሙከራ መተግበሪያ ነው። የጉዞ ዝርዝሮች ከሙከራ አገልጋይ ይመጣሉ።",
+    navHome: "መነሻ", navSearch: "ጉዞ ፈልግ", navHelp: "እገዛ", helpTitle: "የሙከራ መረጃ", helpBody: "ይህ የሙከራ መተግበሪያ ነው። የጉዞ ዝርዝሮች ከሙከራ አገልጋይ ይመጣሉ።", online: "የኢንተርኔት ግንኙነት አለ", offline: "ኢንተርኔት የለም — የተቀመጠ መረጃ ብቻ ይታያል.",
     revokeAccess: "Revoke booking access",
     accessRevoked: "Booking access was revoked.",
     support: "የድጋፍ ጥያቄ",
@@ -92,7 +92,7 @@ const copy = {
     error: "Could not load trip information. Please try again.",
     emptyLocations: "No published locations are available in this synthetic environment yet.",
     language: "ቋንቋውን ወደ አማርኛ ቀይር",
-    navHome: "Home", navSearch: "Find trips", navHelp: "Help", helpTitle: "Test information", helpBody: "This is a test application. Trip listings are supplied by the configured test API.",
+    navHome: "Home", navSearch: "Find trips", navHelp: "Help", helpTitle: "Test information", helpBody: "This is a test application. Trip listings are supplied by the configured test API.", online: "Internet connection available", offline: "You are offline — only locally available content can be viewed.",
     revokeAccess: "የቦታ ማስያዣ መዳረሻን ዝጋ",
     accessRevoked: "የቦታ ማስያዣ መዳረሻ ተዘግቷል።",
     support: "Support request",
@@ -117,6 +117,7 @@ function csrfCookie(): string {
 
 export default function App() {
   const [language, setLanguage] = useState<Language>("am");
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [originId, setOriginId] = useState("");
   const [destinationId, setDestinationId] = useState("");
@@ -147,6 +148,16 @@ export default function App() {
   const t = copy[language];
 
   useEffect(() => { document.documentElement.lang = language; }, [language]);
+
+  useEffect(() => {
+    const updateOnline = () => setIsOnline(navigator.onLine);
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    return () => {
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -318,7 +329,7 @@ export default function App() {
         }),
       });
       if (!response.ok) throw new Error("support");
-      const casesResponse = await fetch(`/api/v1/bookings/${booking.booking_id}/support-cases`, { credentials: "include" });
+      const casesResponse = await fetch(apiUrl(`/api/v1/bookings/${booking.booking_id}/support-cases`), { credentials: "include" });
       if (!casesResponse.ok) throw new Error("support-list");
       setSupportCases(await casesResponse.json() as SupportCase[]);
       setSupportSubject(""); setSupportMessage("");
@@ -362,6 +373,7 @@ export default function App() {
       </header>
 
       <section className="hero" aria-labelledby="hero-title">
+        <p className={isOnline ? "connection-status online" : "connection-status offline"} role="status">{isOnline ? t.online : t.offline}</p>
         <p className="eyebrow">{t.eyebrow}</p>
         <h1 id="hero-title">{t.title}</h1>
         <p className="subtitle">{t.subtitle}</p>
