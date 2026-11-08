@@ -1,6 +1,7 @@
 """Import all mapped domain models before Alembic reads Base.metadata."""
 from app.domains.audit import models as audit_models  # noqa: F401
 from app.domains.identity import models as identity_models  # noqa: F401
+from app.domains.identity import accounts as platform_account_models  # noqa: F401
 from app.domains.organizations import models as organization_models  # noqa: F401
 from app.domains.catalog import models as catalog_models  # noqa: F401
 from app.domains.fleet import models as fleet_models  # noqa: F401
