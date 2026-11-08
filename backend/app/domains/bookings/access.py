@@ -30,8 +30,10 @@ def _normalize_phone(value: str) -> str:
 
 
 
-def _check_challenge_rate_limit(db: Session, *, client_ip: str, now) -> None:
-    key_hash = hashlib.sha256(("guest-access:" + client_ip).encode("utf-8")).hexdigest()
+def _check_challenge_rate_limit(
+    db: Session, *, client_ip: str, now, key_prefix: str = "guest-access:",
+) -> None:
+    key_hash = hashlib.sha256((key_prefix + client_ip).encode("utf-8")).hexdigest()
     attempt = db.scalar(select(GuestAccessRateLimit).where(
         GuestAccessRateLimit.key_hash == key_hash
     ).with_for_update())
@@ -102,6 +104,11 @@ def verify_access_challenge(
     db: Session, *, challenge_id: UUID, code: str, client_ip: str,
 ) -> tuple[Booking, BookingAccessGrant, str, str]:
     now = db.scalar(select(func.now()))
+    # Verification attempts have their own durable per-IP bucket, independent of
+    # challenge IDs, so requesting another challenge cannot reset the IP budget.
+    _check_challenge_rate_limit(
+        db, client_ip=client_ip, now=now, key_prefix="guest-verification:",
+    )
     challenge = db.scalar(select(BookingAccessChallenge).where(
         BookingAccessChallenge.id == challenge_id
     ).with_for_update())
