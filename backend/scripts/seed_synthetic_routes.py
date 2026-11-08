@@ -137,6 +137,8 @@ def seed() -> None:
             vehicle.status = "published"
             vehicle.review_status = "approved"
 
+        # Flush parent rows before inserting the seat-layout FK dependent.
+        session.flush()
         layout = session.get(SeatLayoutVersion, TEST_LAYOUT_ID)
         if layout is None:
             layout = SeatLayoutVersion(
