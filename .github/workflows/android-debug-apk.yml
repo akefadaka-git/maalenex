@@ -1,0 +1,72 @@
+name: Android Debug APK
+
+on:
+  push:
+    branches:
+      - feat/android-debug-apk
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-debug-apk:
+    name: Build and inspect Android debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact source commit
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build React production assets
+        working-directory: frontend
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Install pinned Capacitor Android toolchain
+        working-directory: frontend
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund \
+            @capacitor/core@6.2.1 \
+            @capacitor/cli@6.2.1 \
+            @capacitor/android@6.2.1
+
+      - name: Generate Android project and sync web assets
+        working-directory: frontend
+        run: |
+          npx --no-install cap add android
+          npx --no-install cap sync android
+
+      - name: Assemble debug APK
+        working-directory: frontend/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Verify APK output
+        working-directory: frontend
+        run: |
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          echo "APK_PATH=$APK"
+          sha256sum "$APK"
+          ls -lh "$APK"
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: maalenex-moto-android-debug
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
