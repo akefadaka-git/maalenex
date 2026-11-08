@@ -51,7 +51,7 @@ jobs:
         run: python -m pip install -e ".[dev]"
       - name: Apply database migrations
         run: alembic upgrade head
-      - name: Seed synthetic locations and routes twice (idempotency)
+      - name: Seed synthetic catalog and passenger inventory twice (idempotency)
         run: |
           python -m scripts.seed_synthetic_routes
           python -m scripts.seed_synthetic_routes
@@ -70,15 +70,19 @@ jobs:
             cat /tmp/maalenex-test-api.log
             exit 1
           fi
-      - name: Verify seeded public catalog
+      - name: Verify catalog and Jinka–Wolaita–Addis passenger search
         run: |
           python - <<'PY'
           import json
-          import urllib.request
+          from datetime import datetime, timedelta
+          from urllib.parse import urlencode
+          from urllib.request import urlopen
+          from zoneinfo import ZoneInfo
+
           base = "http://127.0.0.1:8000/api/v1"
-          with urllib.request.urlopen(base + "/catalog/locations") as response:
+          with urlopen(base + "/catalog/locations") as response:
               locations = json.load(response)
-          with urllib.request.urlopen(base + "/catalog/routes") as response:
+          with urlopen(base + "/catalog/routes") as response:
               routes = json.load(response)
           assert {item["name"] for item in locations} >= {"Koybe", "Jinka", "Wolaita Sodo", "Addis Ababa"}
           assert len(routes) >= 7
@@ -87,5 +91,23 @@ jobs:
               and item["destination"]["name"] == "Addis Ababa"
               for item in routes
           )
-          print(f"PASS: {len(locations)} published locations and {len(routes)} published synthetic routes")
+
+          tomorrow = datetime.now(ZoneInfo("Africa/Addis_Ababa")).date() + timedelta(days=1)
+          query = urlencode({
+              "origin_id": "10000000-0000-4000-8000-000000000002",
+              "destination_id": "10000000-0000-4000-8000-000000000004",
+              "travel_date": tomorrow.isoformat(),
+              "passenger_count": 1,
+          })
+          with urlopen(base + "/trips/search?" + query) as response:
+              trips = json.load(response)
+          assert trips, "Expected synthetic Jinka-to-Addis trips for tomorrow"
+          assert trips[0]["available_seats"] >= 1
+          assert trips[0]["fare"]["currency_code"] == "ETB"
+          assert trips[0]["reservation_only"] is True
+          assert trips[0]["payment_enabled"] is False
+          print(
+              f"PASS: {len(locations)} locations, {len(routes)} routes, "
+              f"{len(trips)} synthetic Jinka–Addis departures on {tomorrow}"
+          )
           PY
