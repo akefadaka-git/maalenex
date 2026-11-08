@@ -120,7 +120,6 @@ def register_account(db: Session, *, display_name: str, identifier_type: str,
                      identifier_value: str, preferred_locale: str = "am-ET") -> tuple[PlatformAccount, str]:
     normalized = normalize_identifier(identifier_type, identifier_value)
     digest = identifier_digest(identifier_type, normalized)
-    now = _now(db)
     existing = db.scalar(select(AccountIdentifier).where(
         AccountIdentifier.identifier_type == identifier_type,
         AccountIdentifier.lookup_digest == digest,
