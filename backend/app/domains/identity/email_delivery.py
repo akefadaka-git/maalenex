@@ -71,7 +71,10 @@ class SmtpEmailDelivery:
                 client.starttls(context=context)
                 client.ehlo()
             if settings.identity_smtp_username:
-                client.login(settings.identity_smtp_username, settings.identity_smtp_password)
+                client.login(
+                    settings.identity_smtp_username.strip(),
+                    "".join(settings.identity_smtp_password.split()),
+                )
             refused = client.send_message(message)
             if refused:
                 raise DeliveryUnavailable("SMTP server refused one or more recipients.")
@@ -158,8 +161,8 @@ def check_smtp_connection(
         if settings.identity_smtp_username:
             stage = "smtp_authentication"
             client.login(
-                settings.identity_smtp_username,
-                settings.identity_smtp_password,
+                settings.identity_smtp_username.strip(),
+                "".join(settings.identity_smtp_password.split()),
             )
     except Exception as exc:
         raise SmtpConnectivityError(stage, type(exc).__name__) from None
