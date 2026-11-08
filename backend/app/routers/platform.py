@@ -33,13 +33,14 @@ def list_platform_services(
         availability_query = availability_query.where(ServiceAreaAvailability.area_code == area_code)
     rows = db.execute(availability_query).all()
     by_service: dict[str, list[dict]] = {}
+    enabled_services = {service.code: service.is_enabled for service in services}
     now = datetime.now(timezone.utc)
     for policy, area in rows:
         in_window = (policy.valid_from is None or policy.valid_from <= now) and (
             policy.valid_until is None or policy.valid_until > now
         )
         enabled = policy.is_enabled and in_window
-        service_is_enabled = next((item.is_enabled for item in services if item.code == policy.service_code), False)
+        service_is_enabled = enabled_services.get(policy.service_code, False)
         by_service.setdefault(policy.service_code, []).append({
             "area_code": area.code,
             "area_name": area.name,
