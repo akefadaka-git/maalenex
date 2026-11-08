@@ -41,6 +41,8 @@ jobs:
           java-version: "17"
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-35 build-tools;35.0.0
       - name: Install Capacitor Android toolchain
         run: npm install --no-save @capacitor/core@6.2.1 @capacitor/cli@6.2.1 @capacitor/android@6.2.1
       - name: Generate and sync Android project
