@@ -95,27 +95,74 @@ def deliver_account_challenge(
 
 
 
-def check_smtp_connection() -> None:
-    """Validate TCP, TLS and optional authentication without sending an email."""
-    if not settings.identity_email_delivery_enabled or not settings.identity_smtp_host:
-        raise DeliveryUnavailable("SMTP delivery is not configured.")
+class SmtpConnectivityError(RuntimeError):
+    """Sanitized SMTP connectivity failure with a safe stage identifier."""
+
+    def __init__(self, stage: str, cause_type: str) -> None:
+        self.stage = stage
+        self.cause_type = cause_type
+        super().__init__(f"SMTP check failed during {stage} ({cause_type}).")
+
+
+def check_smtp_connection(
+    *,
+    host: str | None = None,
+    port: int | None = None,
+    use_ssl: bool | None = None,
+    starttls: bool | None = None,
+) -> None:
+    """Validate TCP, TLS and optional authentication without sending an email.
+
+    Optional transport overrides allow the diagnostic to check Gmail's two
+    documented secure submission modes without changing application settings.
+    Error details are reduced to a stage and exception class; credentials and
+    provider response text are never returned.
+    """
+    smtp_host = host or settings.identity_smtp_host
+    smtp_port = port or settings.identity_smtp_port
+    ssl_enabled = settings.identity_smtp_use_ssl if use_ssl is None else use_ssl
+    starttls_enabled = settings.identity_smtp_starttls if starttls is None else starttls
+
+    if not settings.identity_email_delivery_enabled or not smtp_host:
+        raise SmtpConnectivityError("configuration", "DeliveryUnavailable")
+
     context = ssl.create_default_context()
-    if settings.identity_smtp_use_ssl:
-        with smtplib.SMTP_SSL(
-            settings.identity_smtp_host, settings.identity_smtp_port,
-            timeout=settings.identity_smtp_timeout_seconds, context=context,
-        ) as client:
+    client = None
+    stage = "tcp_connect"
+    try:
+        if ssl_enabled:
+            client = smtplib.SMTP_SSL(
+                timeout=settings.identity_smtp_timeout_seconds,
+                context=context,
+            )
+            client.connect(smtp_host, smtp_port)
+        else:
+            client = smtplib.SMTP(timeout=settings.identity_smtp_timeout_seconds)
+            client.connect(smtp_host, smtp_port)
+
+        stage = "smtp_greeting"
+        client.ehlo()
+
+        if starttls_enabled and not ssl_enabled:
+            stage = "starttls"
+            client.starttls(context=context)
+            stage = "post_tls_ehlo"
             client.ehlo()
-            if settings.identity_smtp_username:
-                client.login(settings.identity_smtp_username, settings.identity_smtp_password)
-    else:
-        with smtplib.SMTP(
-            settings.identity_smtp_host, settings.identity_smtp_port,
-            timeout=settings.identity_smtp_timeout_seconds,
-        ) as client:
-            client.ehlo()
-            if settings.identity_smtp_starttls:
-                client.starttls(context=context)
-                client.ehlo()
-            if settings.identity_smtp_username:
-                client.login(settings.identity_smtp_username, settings.identity_smtp_password)
+
+        if settings.identity_smtp_username:
+            stage = "smtp_authentication"
+            client.login(
+                settings.identity_smtp_username,
+                settings.identity_smtp_password,
+            )
+    except Exception as exc:
+        raise SmtpConnectivityError(stage, type(exc).__name__) from None
+    finally:
+        if client is not None:
+            try:
+                client.quit()
+            except Exception:
+                try:
+                    client.close()
+                except Exception:
+                    pass
