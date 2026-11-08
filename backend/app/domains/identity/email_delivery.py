@@ -130,15 +130,21 @@ def check_smtp_connection(
     client = None
     stage = "tcp_connect"
     try:
+        # Supply host/port to the constructor so smtplib retains the hostname
+        # for SNI and certificate verification during STARTTLS.
         if ssl_enabled:
             client = smtplib.SMTP_SSL(
+                smtp_host,
+                smtp_port,
                 timeout=settings.identity_smtp_timeout_seconds,
                 context=context,
             )
-            client.connect(smtp_host, smtp_port)
         else:
-            client = smtplib.SMTP(timeout=settings.identity_smtp_timeout_seconds)
-            client.connect(smtp_host, smtp_port)
+            client = smtplib.SMTP(
+                smtp_host,
+                smtp_port,
+                timeout=settings.identity_smtp_timeout_seconds,
+            )
 
         stage = "smtp_greeting"
         client.ehlo()
