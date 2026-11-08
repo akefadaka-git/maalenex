@@ -1,6 +1,6 @@
 # MaaleNex Platform — A1 Product Scope and Architecture Specification v1.1
 
-**Status:** Revised A1 draft — submitted for Owner review; NOT FROZEN  
+**Status:** OWNER-APPROVED — A1 v1.1 FROZEN on 2026-11-08  
 **Product:** MaaleNex  
 **Tagline:** Move. Deliver. Connect. Grow.  
 **Platform category:** Mobility • Logistics • Commerce • Business  
@@ -9,7 +9,7 @@
 **Revision date:** 2026-11-08  
 **Supersedes:** Biker-First Mobility Platform A1 v1.0
 
-> This document expands the approved mobility direction into a unified platform scope. It is a requirements and architecture specification only. It does not claim that the described services are implemented, freeze A1, authorize new A3 work, authorize merging, or authorize production activity.
+> This document expands the approved mobility direction into a unified platform scope. It is a requirements and architecture specification only. It does not claim that the described services are implemented or authorize merging, production hosting, live GPS, live payments or commercial activity. A3 implementation is authorized only after completion and closure of the read-only A2 reconciliation.
 
 ---
 
