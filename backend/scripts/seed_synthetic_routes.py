@@ -121,6 +121,8 @@ def seed() -> None:
         else:
             test_user.status = "active"
 
+        # Flush the organization/user parents before their FK-dependent vehicle.
+        session.flush()
         vehicle = session.get(Vehicle, TEST_VEHICLE_ID)
         if vehicle is None:
             vehicle = Vehicle(
