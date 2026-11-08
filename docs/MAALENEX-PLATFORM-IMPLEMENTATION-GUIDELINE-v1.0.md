@@ -1,6 +1,6 @@
 # MaaleNex Platform — Implementation Guideline v1.0
 
-**Document status:** Owner-direction implementation guideline; proposed baseline pending formal A1 scope freeze  
+**Document status:** Owner-approved implementation guideline; A1 v1.1 frozen 2026-11-08  
 **Product:** MaaleNex  
 **Tagline:** Move. Deliver. Connect. Grow.  
 **Platform description:** Mobility • Logistics • Commerce • Business  
@@ -134,7 +134,7 @@ Each phase has an entry condition, bounded work, exit evidence and a governance 
 
 **Exit evidence:** A1 requirements pack, architecture decision record, risk register, acceptance matrix, dependency map and prioritized backlog.
 
-**Gate:** Owner approval of the A1 scope freeze. Until then, this guideline remains proposed direction.
+**Gate:** PASS — Owner approved and froze A1 v1.1 on 2026-11-08.
 
 ### P1 — A2 read-only technical reconciliation
 
@@ -372,4 +372,4 @@ Do not claim superiority or global ranking without independent, comparable perfo
 7. Add live payment rails only after provider onboarding and financial/security gates.
 8. Complete A4 evidence and closure; obtain separate A5 approval before any production deployment.
 
-**Current status:** the expanded A1 v1.1 specification has been prepared on PR #6 and is awaiting Owner review. This guideline does not freeze A1 or authorize implementation beyond already approved scope.
+**Current status:** A1 v1.1 is OWNER-APPROVED / FROZEN (2026-11-08). A2 read-only reconciliation is underway. A3 implementation is authorized after A2 closure; merge, production deployment, live GPS, live payments and commercial launch remain separately gated.
