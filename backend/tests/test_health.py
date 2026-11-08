@@ -19,7 +19,7 @@ def test_root_discloses_development_and_synthetic_only_status() -> None:
     assert response.status_code == 200
     assert response.json() == {
         "name": "MaaleNex Moto",
-        "environment": "development",
+        "environment": "test",
         "status": "development",
         "synthetic_data_only": True,
     }
