@@ -363,13 +363,13 @@ Do not claim superiority or global ranking without independent, comparable perfo
 
 ## 9. Immediate execution order
 
-1. Complete and freeze the expanded A1 product requirements and acceptance matrix.
-2. Run the read-only A2 repository/PR reconciliation against exact current main and branch SHAs.
-3. Approve an ordered integration register and migration plan.
-4. Implement P2 shared foundation before broad service expansion.
-5. Deliver Move and Transit in bounded, independently verifiable increments.
-6. Add Delivery, Cargo, Market, Business and Fleet through shared contracts, not duplicated foundations.
+1. Review the expanded A1 specification v1.1 at `docs/BIKER-FIRST-PLATFORM-A1-v1.0.md` on PR #6; the document now covers all eight MaaleNex service lines, roles, lifecycles, architecture, safety, financial controls and acceptance criteria.
+2. Resolve the Owner decisions listed in A1 v1.1 and explicitly approve or revise the proposed service order and boundaries.
+3. Record the Owner's explicit A1 freeze decision. A1 remains DRAFT / NOT FROZEN until that decision is recorded.
+4. After A1 approval, perform the authorized read-only A2 repository/PR reconciliation against exact current main and branch SHAs.
+5. Produce the ordered integration register, migration-collision register, security findings and R1 acceptance matrix.
+6. Begin P2 shared foundation and subsequent service increments only after separate A3 authorization.
 7. Add live payment rails only after provider onboarding and financial/security gates.
 8. Complete A4 evidence and closure; obtain separate A5 approval before any production deployment.
 
-**Current next action:** revise the existing A1 specification to incorporate the complete MaaleNex service portfolio, then submit the expanded A1 package for Owner review. This guideline itself does not freeze A1 or authorize implementation beyond already approved scope.
+**Current status:** the expanded A1 v1.1 specification has been prepared on PR #6 and is awaiting Owner review. This guideline does not freeze A1 or authorize implementation beyond already approved scope.
