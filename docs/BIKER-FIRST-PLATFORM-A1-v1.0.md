@@ -1,7 +1,7 @@
 # MaaleNex Moto — Biker-First Mobility Platform A1
 
 **Status:** Owner-requested direction; A1 specification draft for review.  
-**Product hierarchy:** (1) Biker mobility and dispatch, (2) passenger transport, (3) intercity bus connections.  
+**Product hierarchy:** (1) Combined biker/operator and passenger local-mobility platform, (2) Jinka → Wolaita Sodo → Addis Ababa intercity bus connection.  
 **Current implementation baseline:** Passenger MVP only. This document does not claim new capabilities are implemented.
 
 ## 1. Product vision
