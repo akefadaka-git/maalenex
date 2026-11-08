@@ -303,8 +303,6 @@ def start_password_recovery(payload: RecoveryRequest, db: Session = Depends(get_
             )
         except (ValueError, RuntimeError):
             pass
-    else:
-        delivery_status = "not_sent"
     return {
         "message": "If the verified identifier matches an active account, recovery instructions will be sent.",
         "delivery_status": "accepted",
