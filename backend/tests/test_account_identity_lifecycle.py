@@ -94,3 +94,45 @@ def test_identifier_normalization_and_ethiopian_phone_format(monkeypatch):
     assert normalize_identifier("phone", "+251 911-234-567") == "+251911234567"
     with pytest.raises(ValueError):
         normalize_identifier("phone", "not-a-number")
+
+
+def test_challenge_resend_cooldown_hourly_limit_and_token_rotation(monkeypatch):
+    from app.domains.identity.accounts import AccountChallengeRequest
+    from app.domains.identity.account_service import resend_account_challenge, _now
+
+    _configure_identity_keys(monkeypatch)
+    identifier = f"resend-{uuid4().hex}@maalenex.invalid"
+    with SessionLocal.begin() as db:
+        account, original_token = register_account(
+            db, display_name="Synthetic resend account", identifier_type="email",
+            identifier_value=identifier,
+        )
+        first = resend_account_challenge(
+            db, identifier_type="email", identifier_value=identifier,
+            purpose="identifier_verification", client_ip="192.0.2.10",
+        )
+        assert first is not None
+        assert first[0].id == account.id
+        rotated_token = first[1]
+        assert rotated_token != original_token
+
+        # Immediate resend is blocked by the 60-second cooldown.
+        assert resend_account_challenge(
+            db, identifier_type="email", identifier_value=identifier,
+            purpose="identifier_verification", client_ip="192.0.2.10",
+        ) is None
+
+        key = db.query(AccountChallengeRequest).one()
+        for _ in range(4):
+            key.last_requested_at = _now(db) - __import__("datetime").timedelta(seconds=61)
+            db.flush()
+            assert resend_account_challenge(
+                db, identifier_type="email", identifier_value=identifier,
+                purpose="identifier_verification", client_ip="192.0.2.10",
+            ) is not None
+        key.last_requested_at = _now(db) - __import__("datetime").timedelta(seconds=61)
+        db.flush()
+        assert resend_account_challenge(
+            db, identifier_type="email", identifier_value=identifier,
+            purpose="identifier_verification", client_ip="192.0.2.10",
+        ) is None
