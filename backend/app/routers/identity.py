@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.domains.identity.accounts import AccountSession
+from app.domains.identity.accounts import AccountIdentifier, AccountSession
 from app.domains.identity.account_service import (
     AccountAuthenticationError, AccountRateLimited, authenticate_account,
     complete_password_recovery, enroll_password, register_account,
@@ -98,10 +98,16 @@ def create_account_registration(payload: RegistrationRequest, db: Session = Depe
     except RuntimeError:
         db.rollback()
         raise HTTPException(status_code=503, detail="Identity encryption is not configured.")
+    delivery_status = deliver_account_challenge(
+        identifier_type=payload.identifier_type,
+        destination=normalize_identifier(payload.identifier_type, payload.identifier_value),
+        purpose="identifier_verification",
+        token=token,
+    )
     return {
         "account_id": str(account.id),
         "status": account.status,
-        "delivery_status": "not_configured",
+        "delivery_status": delivery_status,
         "development_challenge_token": _test_token(token),
         "message": "Complete identifier verification before enrolling a password.",
     }
@@ -111,15 +117,31 @@ def create_account_registration(payload: RegistrationRequest, db: Session = Depe
 def confirm_identifier(payload: ChallengeRequest, db: Session = Depends(get_db)) -> dict:
     try:
         account, enrollment_token = verify_identifier(db, raw_token=payload.token)
+        identifier = db.scalar(select(AccountIdentifier).where(
+            AccountIdentifier.account_id == account.id,
+            AccountIdentifier.verified_at.is_not(None),
+            AccountIdentifier.revoked_at.is_(None),
+        ).order_by(AccountIdentifier.created_at.desc()).limit(1))
+        if identifier is None:
+            raise ValueError("Verified identifier is unavailable.")
+        destination = decrypt_identifier(identifier.identifier_type, identifier.encrypted_value)
+        identifier_type = identifier.identifier_type
         db.commit()
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Identity delivery is not configured.") from exc
+    delivery_status = deliver_account_challenge(
+        identifier_type=identifier_type, destination=destination,
+        purpose="credential_enrollment", token=enrollment_token,
+    )
     return {
         "account_id": str(account.id),
         "status": account.status,
         "credential_enrollment_token": _test_token(enrollment_token),
-        "delivery_status": "not_configured",
+        "delivery_status": delivery_status,
         "next_step": "enroll_password",
     }
 
@@ -270,9 +292,21 @@ def start_password_recovery(payload: RecoveryRequest, db: Session = Depends(get_
     except (ValueError, RuntimeError):
         db.rollback()
         token = None
+    if token:
+        try:
+            delivery_status = deliver_account_challenge(
+                identifier_type=payload.identifier_type,
+                destination=normalize_identifier(payload.identifier_type, payload.identifier_value),
+                purpose="password_recovery",
+                token=token,
+            )
+        except (ValueError, RuntimeError):
+            delivery_status = "failed"
+    else:
+        delivery_status = "not_sent"
     return {
         "message": "If the verified identifier matches an active account, recovery instructions will be sent.",
-        "delivery_status": "not_configured",
+        "delivery_status": "accepted",
         "development_challenge_token": _test_token(token) if token else None,
     }
 
