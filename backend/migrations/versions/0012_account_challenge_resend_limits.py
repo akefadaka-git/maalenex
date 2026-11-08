@@ -6,7 +6,7 @@ Revises: 0011_account_identity_lifecycle
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0012_account_challenge_resend_limits"
+revision = "0012_challenge_resend"
 down_revision = "0011_account_identity_lifecycle"
 branch_labels = None
 depends_on = None
