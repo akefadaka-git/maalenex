@@ -96,10 +96,10 @@ describe("passenger trip search shell", () => {
   it("announces offline and online transitions", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => locations }));
     render(<App />);
-    window.dispatchEvent(new Event("offline"));
-    expect(screen.getByRole("status", { name: "ኢንተርኔት የለም — የተቀመጠ መረጃ ብቻ ይታያል." })).toBeTruthy();
-    window.dispatchEvent(new Event("online"));
-    expect(screen.getByRole("status", { name: "የኢንተርኔት ግንኙነት አለ" })).toBeTruthy();
+    fireEvent(window, new Event("offline"));
+    expect(screen.getByText("ኢንተርኔት የለም — የተቀመጠ መረጃ ብቻ ይታያል.")).toBeTruthy();
+    fireEvent(window, new Event("online"));
+    expect(screen.getByText("የኢንተርኔት ግንኙነት አለ")).toBeTruthy();
   });
 
   it("restores a verified booking after refresh and shows its support history", async () => {
