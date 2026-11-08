@@ -491,7 +491,6 @@ export default function App() {
           <p>{t.helpBody}</p>
           <p className="trip-meta">{API_BASE_URL ? `API: ${API_BASE_URL}` : (language === "am" ? "የAPI አድራሻ አልተዋቀረም።" : "API origin is not configured.")}</p>
         </section>
-      </section>
 
       <footer><span>{t.footer}</span><span>© MaaleNex Moto · 2026</span></footer>
     </main>
