@@ -101,19 +101,21 @@ def check_smtp_connection() -> None:
         raise DeliveryUnavailable("SMTP delivery is not configured.")
     context = ssl.create_default_context()
     if settings.identity_smtp_use_ssl:
-        client_factory = lambda: smtplib.SMTP_SSL(
+        with smtplib.SMTP_SSL(
             settings.identity_smtp_host, settings.identity_smtp_port,
             timeout=settings.identity_smtp_timeout_seconds, context=context,
-        )
+        ) as client:
+            client.ehlo()
+            if settings.identity_smtp_username:
+                client.login(settings.identity_smtp_username, settings.identity_smtp_password)
     else:
-        client_factory = lambda: smtplib.SMTP(
+        with smtplib.SMTP(
             settings.identity_smtp_host, settings.identity_smtp_port,
             timeout=settings.identity_smtp_timeout_seconds,
-        )
-    with client_factory() as client:
-        client.ehlo()
-        if settings.identity_smtp_starttls and not settings.identity_smtp_use_ssl:
-            client.starttls(context=context)
+        ) as client:
             client.ehlo()
-        if settings.identity_smtp_username:
-            client.login(settings.identity_smtp_username, settings.identity_smtp_password)
+            if settings.identity_smtp_starttls:
+                client.starttls(context=context)
+                client.ehlo()
+            if settings.identity_smtp_username:
+                client.login(settings.identity_smtp_username, settings.identity_smtp_password)
