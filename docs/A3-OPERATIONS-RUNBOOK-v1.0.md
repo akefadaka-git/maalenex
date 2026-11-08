@@ -4,7 +4,7 @@ Status: A3 implementation reference; development/test synthetic-only.
 
 ## Security and activation boundary
 
-The current repository configuration intentionally permits only local PostgreSQL development/test databases and synthetic data. Do not use real passenger information, real operator identity documents, live payment credentials, production passenger accounts, or production trip publication. Payment collection, travel-ticket issuance and boarding validation remain disabled.
+The current repository configuration intentionally permits only local PostgreSQL development/test databases and synthetic data. `SECURE_COOKIES=true` is the explicit setting for TLS-terminating reverse-proxy environments; verify it in the deployment configuration before exposing any HTTPS endpoint. Do not use real passenger information, real operator identity documents, live payment credentials, production passenger accounts, or production trip publication. Payment collection, travel-ticket issuance and boarding validation remain disabled.
 
 A reservation reference is not a travel ticket and does not authorize boarding.
 
@@ -21,6 +21,9 @@ A reservation reference is not a travel ticket and does not authorize boarding.
 Do not distribute synthetic invitation tokens as real operator onboarding links.
 
 ## Passenger booking access and recovery
+
+- Challenge creation and verification use separate durable per-IP rate-limit buckets. Verification attempts are counted across challenge IDs; requesting another challenge does not reset the verification budget. The verification endpoint returns HTTP 429 when the IP-level window is exhausted.
+- When running behind a TLS-terminating reverse proxy, set `SECURE_COOKIES=true` in the application environment. This forces the `Secure` attribute on staff-session, staff-CSRF, booking-access and booking-CSRF cookies even when the ASGI request scheme is HTTP. Do not rely on untrusted forwarded headers to infer the external scheme. Local HTTP development may leave this setting false; HTTPS requests always receive Secure cookies.
 
 - Booking access is granted only after the booking contact challenge succeeds.
 - Access grants are opaque, stored as hashes, scoped to one booking, expire after two hours and are CSRF-bound.
