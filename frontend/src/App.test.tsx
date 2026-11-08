@@ -81,6 +81,25 @@ describe("passenger trip search shell", () => {
   expect((screen.getByRole("button", { name: "A2" }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(screen.getByRole("button", { name: "A1" }));
   expect(screen.getByRole("button", { name: "A1" }).getAttribute("aria-pressed")).toBe("true");
+  it("provides working in-app navigation anchors and a help destination", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => locations }));
+    render(<App />);
+    const navigation = screen.getByRole("navigation", { name: "ዋና ማውጫ" });
+    expect(navigation.querySelector('a[href="#hero-title"]')).toBeTruthy();
+    expect(navigation.querySelector('a[href="#trip-search"]')).toBeTruthy();
+    expect(navigation.querySelector('a[href="#test-help"]')).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "የሙከራ መረጃ" })).toBeTruthy();
+  });
+
+  it("announces offline and online transitions", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => locations }));
+    render(<App />);
+    window.dispatchEvent(new Event("offline"));
+    expect(screen.getByRole("status", { name: "ኢንተርኔት የለም — የተቀመጠ መረጃ ብቻ ይታያል." })).toBeTruthy();
+    window.dispatchEvent(new Event("online"));
+    expect(screen.getByRole("status", { name: "የኢንተርኔት ግንኙነት አለ" })).toBeTruthy();
+  });
+
 });
   it("restores a verified booking after refresh and shows its support history", async () => {
     sessionStorage.setItem("mnm_active_booking_id", "booking-restore-1");
