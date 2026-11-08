@@ -70,3 +70,35 @@ class ServiceAreaAvailability(Base):
     valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ServiceRoleAssignment(Base):
+    __tablename__ = "service_role_assignments"
+    __table_args__ = (
+        Index(
+            "uq_active_service_role_assignment",
+            "user_id", "organization_id", "service_code", "role_id",
+            unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
+        Index("ix_service_role_assignments_organization_service", "organization_id", "service_code"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="CASCADE"), nullable=False
+    )
+    organization_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    service_code: Mapped[str] = mapped_column(
+        String(32), ForeignKey("platform_services.code", ondelete="RESTRICT"), nullable=False
+    )
+    role_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("access_roles.id", ondelete="RESTRICT"), nullable=False
+    )
+    assigned_by: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="SET NULL"), nullable=True
+    )
+    assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
