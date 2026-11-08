@@ -470,3 +470,20 @@ def test_postgres_booking_idempotency_replays_same_result_and_rejects_changed_pa
             Booking.trip_id == UUID(trip_id)
         ))
         assert count == 1
+
+
+def test_postgres_guest_verification_rate_limit_is_shared_across_challenge_ids():
+    client_ip = "198.51.100.77"
+    client = TestClient(app, client=(client_ip, 54321))
+    for _ in range(10):
+        response = client.post(
+            "/api/v1/passenger-access/challenges/" + str(uuid4()) + "/verify",
+            json={"code": "000000"},
+        )
+        assert response.status_code == 401, response.text
+
+    limited = client.post(
+        "/api/v1/passenger-access/challenges/" + str(uuid4()) + "/verify",
+        json={"code": "000000"},
+    )
+    assert limited.status_code == 429, limited.text
