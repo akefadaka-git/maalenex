@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.db.session import SessionLocal
-from app.domains.identity.accounts import AccountIdentifier, AccountSession
+from app.domains.identity.accounts import AccountIdentifier
 from app.domains.identity.account_service import (
     AccountAuthenticationError, authenticate_account, complete_password_recovery,
     decrypt_identifier, enroll_password, register_account, request_password_recovery,
