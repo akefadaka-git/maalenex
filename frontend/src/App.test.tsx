@@ -96,8 +96,10 @@ describe("passenger trip search shell", () => {
   it("announces offline and online transitions", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => locations }));
     render(<App />);
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
     fireEvent(window, new Event("offline"));
     expect(screen.getByText("ኢንተርኔት የለም — የተቀመጠ መረጃ ብቻ ይታያል.")).toBeTruthy();
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
     fireEvent(window, new Event("online"));
     expect(screen.getByText("የኢንተርኔት ግንኙነት አለ")).toBeTruthy();
   });
