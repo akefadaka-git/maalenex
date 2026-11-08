@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, SecretStr
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -197,7 +197,7 @@ def list_account_sessions(context=Depends(_current_account), db: Session = Depen
     rows = db.scalars(select(AccountSession).where(
         AccountSession.account_id == account.id,
         AccountSession.revoked_at.is_(None),
-        AccountSession.expires_at > __import__('sqlalchemy').func.now(),
+        AccountSession.expires_at > func.now(),
     ).order_by(AccountSession.created_at.desc())).all()
     return [{
         "session_id": str(row.id), "created_at": row.created_at.isoformat(),
