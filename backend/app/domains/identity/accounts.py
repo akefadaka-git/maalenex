@@ -203,3 +203,57 @@ class TrustReviewEvent(Base):
     to_status: Mapped[str] = mapped_column(String(24), nullable=False)
     reason_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AccountSession(Base):
+    __tablename__ = "account_sessions"
+    __table_args__ = (
+        Index("ix_account_sessions_account_id", "account_id"),
+        Index("ix_account_sessions_expires_at", "expires_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    account_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("platform_accounts.id", ondelete="CASCADE"), nullable=False
+    )
+    secret_digest: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    csrf_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AccountChallenge(Base):
+    __tablename__ = "account_challenges"
+    __table_args__ = (
+        CheckConstraint(
+            "purpose IN ('identifier_verification', 'password_recovery')",
+            name="ck_account_challenge_purpose",
+        ),
+        Index("ix_account_challenges_account_id", "account_id"),
+        Index("ix_account_challenges_expires_at", "expires_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    account_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("platform_accounts.id", ondelete="CASCADE"), nullable=False
+    )
+    identifier_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("account_identifiers.id", ondelete="CASCADE"), nullable=False
+    )
+    purpose: Mapped[str] = mapped_column(String(32), nullable=False)
+    token_digest: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    failed_attempts: Mapped[int] = mapped_column(default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AccountLoginAttempt(Base):
+    __tablename__ = "account_login_attempts"
+
+    key_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    failed_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
