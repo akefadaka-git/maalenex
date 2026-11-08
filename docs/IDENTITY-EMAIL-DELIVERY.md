@@ -55,3 +55,30 @@ SMTP username/password are optional only when the authorized SMTP relay permits 
 Synthetic tests use a fake SMTP transport and never contact an external mail server. A real end-to-end delivery test requires an explicitly authorized sender and recipient, a configured SMTP endpoint, and a controlled test account.
 
 This repository's current G1 guardrails still enforce development/test mode and synthetic-only data. SMTP support does not authorize production operation, merge, deployment or live customer onboarding.
+
+
+## Challenge resend and abuse controls
+
+The authenticated account-independent resend endpoint is:
+
+    POST /api/v1/identity/challenges/resend
+
+Request fields are identifier_type (email or phone), identifier_value, and purpose (identifier_verification, credential_enrollment or password_recovery). The endpoint returns the same generic accepted message for eligible, unknown and throttled accounts to reduce account enumeration.
+
+Resend controls are persisted in PostgreSQL using a keyed digest of the identifier digest, purpose and client IP; raw identifiers and IP addresses are not stored in the throttle key table:
+
+- 60-second cooldown per identifier/purpose/client-IP combination;
+- maximum five issued resend challenges in a rolling one-hour window;
+- one-hour lock after the hourly limit is reached;
+- each accepted resend invalidates outstanding challenges of the same purpose and issues a fresh expiring token;
+- no raw challenge value is written to logs.
+
+These controls are server-side and survive process restarts. They do not replace edge/WAF-level IP rate limiting, provider-side sending limits, monitoring or CAPTCHA/risk controls if abuse patterns warrant them.
+
+## Non-sending SMTP connectivity test
+
+A manual GitHub Actions workflow is provided at .github/workflows/identity-smtp-connectivity.yml. It checks SMTP TCP connectivity, TLS negotiation and configured authentication only. It does not send an email and does not require a synthetic recipient mailbox.
+
+To use it, configure the following GitHub Actions secrets: MAALENEX_SMTP_HOST and MAALENEX_SMTP_FROM_EMAIL; optionally MAALENEX_SMTP_PORT, MAALENEX_SMTP_USERNAME, MAALENEX_SMTP_PASSWORD, MAALENEX_SMTP_STARTTLS and MAALENEX_SMTP_USE_SSL. Then manually dispatch the workflow with confirm_check=true. Missing secrets cause a safe failure before attempting a connection. Secret values are not printed.
+
+A successful connection check proves transport/TLS/authentication only. It does not prove message acceptance or inbox delivery. A real message test must be a separate, explicitly authorized test to a controlled mailbox.
