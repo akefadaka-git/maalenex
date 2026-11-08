@@ -63,7 +63,9 @@ def _test_token(token: str) -> str | None:
 
 def _current_account(request: Request, db: Session = Depends(get_db)):
     try:
-        return resolve_account_session(db, request.cookies.get(SESSION_COOKIE))
+        context = resolve_account_session(db, request.cookies.get(SESSION_COOKIE))
+        db.commit()
+        return context
     except AccountAuthenticationError:
         raise HTTPException(status_code=401, detail="Authentication required.")
 
@@ -159,6 +161,9 @@ def create_account_session(
     except AccountAuthenticationError:
         db.commit()
         raise HTTPException(status_code=401, detail="Invalid credentials.")
+    except RuntimeError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Identity lookup is not configured.") from exc
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=401, detail="Invalid credentials.") from exc
