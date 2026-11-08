@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://localhost:5432/maalenex_dev"
     cors_origins: str = "http://localhost:5173"
     synthetic_data_only: bool = True
+    secure_cookies: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -27,6 +28,10 @@ class Settings(BaseSettings):
         if database.database != "maalenex_dev":
             raise ValueError("G1 database name must be maalenex_dev.")
         return self
+
+    def should_use_secure_cookies(self, request_scheme: str) -> bool:
+        """Honor explicit proxy/TLS deployment configuration without trusting forwarded headers."""
+        return self.secure_cookies or request_scheme.lower() == "https"
 
     @property
     def allowed_origins(self) -> list[str]:
