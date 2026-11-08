@@ -41,7 +41,7 @@ def upgrade() -> None:
         sa.Column("failed_attempts", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.CheckConstraint(
-            "purpose IN ('identifier_verification', 'password_recovery')",
+            "purpose IN ('identifier_verification', 'credential_enrollment', 'password_recovery')",
             name="ck_account_challenge_purpose",
         ),
     )
