@@ -78,15 +78,20 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: backend/pyproject.toml
-      - name: Generate ephemeral identity encryption keys
+      - name: Generate and mask ephemeral identity encryption keys
         shell: bash
         run: |
           set +x
-          python - <<'PY' >> "$GITHUB_ENV"
+          python - <<'PY' > "$RUNNER_TEMP/identity-ephemeral-keys"
           import secrets
           print("IDENTITY_ENCRYPTION_KEY=" + secrets.token_urlsafe(48))
           print("IDENTITY_LOOKUP_KEY=" + secrets.token_urlsafe(48))
           PY
+          while IFS= read -r entry; do
+            printf '::add-mask::%s\n' "${entry#*=}"
+            printf '%s\n' "$entry" >> "$GITHUB_ENV"
+          done < "$RUNNER_TEMP/identity-ephemeral-keys"
+          rm -f "$RUNNER_TEMP/identity-ephemeral-keys"
       - name: Validate protected Gmail secrets without revealing values
         shell: bash
         run: |
