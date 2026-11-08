@@ -126,7 +126,7 @@ def create_staff_session(
         db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
 
-    secure_cookie = request.url.scheme == "https"
+    secure_cookie = settings.should_use_secure_cookies(request.url.scheme)
     response.set_cookie(
         SESSION_COOKIE, issued.session_token, max_age=8 * 60 * 60,
         httponly=True, secure=secure_cookie, samesite="lax", path="/",
