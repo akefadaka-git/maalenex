@@ -20,9 +20,9 @@ jobs:
       matrix:
         include:
           - label: PR-9
-            ref: 94a4ab968ee09f3c7dccf3d2665fc25f5fa160dd
+            ref: 7254d992de24d801be1e8a2e16d2114b1241e94c
           - label: PR-10
-            ref: 7eb5e0d52400ca655dbe5137cf32d21239b0b16d
+            ref: 0eac037e8df52e8422f8bddd89e0a45fd80ce61f
     steps:
       - name: Checkout exact PR HEAD
         uses: actions/checkout@v4
@@ -40,7 +40,7 @@ jobs:
           python -m pip install '.[dev]' pip-audit
       - name: Audit installed Python dependencies
         working-directory: backend
-        run: pip-audit --strict
+        run: pip-audit --strict --skip-editable
 
   frontend-dependencies:
     name: npm dependency vulnerability audit
@@ -50,9 +50,9 @@ jobs:
       matrix:
         include:
           - label: PR-9
-            ref: 94a4ab968ee09f3c7dccf3d2665fc25f5fa160dd
+            ref: 7254d992de24d801be1e8a2e16d2114b1241e94c
           - label: PR-10
-            ref: 7eb5e0d52400ca655dbe5137cf32d21239b0b16d
+            ref: 0eac037e8df52e8422f8bddd89e0a45fd80ce61f
     steps:
       - name: Checkout exact PR HEAD
         uses: actions/checkout@v4
@@ -62,7 +62,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22.12.0"
       - name: Resolve an ephemeral lockfile without repository mutation
         working-directory: frontend
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
