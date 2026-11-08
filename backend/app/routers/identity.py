@@ -197,7 +197,7 @@ def list_account_sessions(context=Depends(_current_account), db: Session = Depen
     rows = db.scalars(select(AccountSession).where(
         AccountSession.account_id == account.id,
         AccountSession.revoked_at.is_(None),
-        AccountSession.expires_at > current.created_at,
+        AccountSession.expires_at > __import__('sqlalchemy').func.now(),
     ).order_by(AccountSession.created_at.desc())).all()
     return [{
         "session_id": str(row.id), "created_at": row.created_at.isoformat(),
