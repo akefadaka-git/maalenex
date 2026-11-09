@@ -64,10 +64,12 @@ It is scoped to pushes on this A5 branch and runs:
 2. Frontend lockfile install, tests, TypeScript, production build and npm audit.
 3. Python dependency audit and Bandit high-severity scan.
 
-**Exact tested HEAD:** pending workflow run.  
-**Backend/PostgreSQL result:** NOT RUN at time this report was authored.  
-**Frontend result:** NOT RUN at time this report was authored.  
-**Dependency/static security result:** NOT RUN at time this report was authored.
+**Exact tested HEAD:** `22db26fac66789a6fd742eda589739e91be1deb1`.  
+**Workflow run:** [#42559070282 — A5.1-A5.2 Readiness Verification](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42559070282)  
+**Backend/PostgreSQL result:** PASS — compile, Ruff, migrations, service registry idempotency, full backend/PostgreSQL integration suite, Alembic parity and full downgrade/re-upgrade all succeeded.  
+**Frontend result:** PASS — clean `npm ci`, frontend tests, TypeScript, Vite build and npm audit all succeeded.  
+**Dependency/static security result:** PASS — pip-audit and Bandit high-severity scan succeeded.  
+All three workflow jobs completed successfully. This is automated verification of the A5 branch's inherited application code and does not establish production readiness.
 
 The workflow does not send email, use SMTP secrets, contact external providers, process real personal data, perform payment actions, or deploy.
 
