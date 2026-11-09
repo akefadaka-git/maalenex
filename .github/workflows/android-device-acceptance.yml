@@ -92,7 +92,7 @@ jobs:
               const value = process.env.VITE_API_BASE_URL;
               const url = new URL(value);
               if (url.protocol !== "https:" || url.username || url.password || url.pathname !== "/" || url.search || url.hash ||
-                  /YOUR-TEST-API-HOST|example\\.(com|org|net)|\\.invalid$|\\.example$|\\.test$/i.test(url.hostname)) {
+                  /YOUR-TEST-API-HOST|example\.(com|org|net)|\.invalid$|\.example$|\.test$/i.test(url.hostname)) {
                 throw new Error("MAALENEX_TEST_API_BASE_URL must be a real HTTPS origin without path, credentials, query, fragment or placeholders.");
               }
               console.log("Configured HTTPS API origin:", url.origin);
@@ -139,7 +139,7 @@ jobs:
         working-directory: .
         run: |
           set -Eeuo pipefail
-          printf 'no\\n' | avdmanager create avd --force --name maalenex-ci --package "system-images;android-30;default;x86_64" --device "pixel_2"
+          printf 'no\n' | avdmanager create avd --force --name maalenex-ci --package "system-images;android-30;default;x86_64" --device "pixel_2"
           adb start-server
           nohup "$ANDROID_HOME/emulator/emulator" -avd maalenex-ci \
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim \
@@ -149,7 +149,7 @@ jobs:
           adb wait-for-device
           booted=""
           for attempt in $(seq 1 180); do
-            booted="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)"
+            booted="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
             if [[ "$booted" == "1" ]]; then
               break
             fi
