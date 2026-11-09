@@ -64,8 +64,10 @@ def _client_ip(request: Request) -> str:
 
 
 def _require_origin(request: Request) -> None:
+    # Guest challenge verification issues cookie credentials, and every
+    # cookie-authenticated booking mutation must reject a missing Origin.
     origin = request.headers.get("origin")
-    if origin and origin not in settings.allowed_origins:
+    if origin is None or origin not in settings.allowed_origins:
         raise HTTPException(status_code=403, detail="Request origin is not allowed.")
 
 
