@@ -171,6 +171,7 @@ R1–R5 describe a validation sequence, not a promise that each area is immediat
 1. South Ethiopia Regional State Office of the President, overview and zone list: https://www.southethiopiarspo.gov.et/overview/
 2. South Ethiopia Regional State Office of the President, administration and zone list: https://www.southethiopiarspo.gov.et/adminstration/
 3. South Ethiopia Tourism Bureau, South Omo Zone overview and district description: https://setourismbureau.gov.et/south-omo-zone-tourist-destination/
+5. 2026 academic article on Aari Zone administrative structure: https://pmc.ncbi.nlm.nih.gov/articles/PMC13475631/ — secondary research on the August 2023 separation and current zonal profile; not an official legal boundary instrument.
 4. IRC, *Scaling up the WASH SDG plan to Semen Ari Woreda: Moving towards zone-wide scale* (17 October 2025): https://www.ircwash.org/news/scaling-wash-sdg-plan-semen-ari-woreda-moving-towards
 5. Frontiers in Public Health, South Omo pastoralist and agrarian communities study (2024), useful historical context but not current administrative authority: https://www.frontiersin.org/journals/public-health/articles/10.3389/fpubh.2024.1482208
 6. Ethiopian Agriculture Datahub, Ethiopian Administrative Boundary: https://data.moa.gov.et/dataset/ethiopian-administrative-boundary
@@ -263,7 +264,7 @@ The Owner has clarified that, in the local administrative history used for this 
 
 - The South Ethiopia Regional State Office of the President currently lists South Omo Zone with Dimeka as its seat and Ari Zone with Jinka as its seat.
 - Contemporary 2022 reporting describes Ari/Jinka as still administered within South Omo while separate zonal status was being demanded/considered. This is evidence of the transition process, not conclusive evidence that the formal division had already taken legal effect in 2022.
-- A 2023 research report states that the split was announced in August 2023, describing a pastoralist South Omo Zone and a separate Aari Zone centred in Jinka. This differs in precision from the Owner's 2022 start date and requires reconciliation against the actual government decision.
+- A 2023 research report states that the split was announced in August 2023, describing a pastoralist South Omo Zone and a separate Aari Zone centred in Jinka. A 2026 academic article further states that Aari remained part of South Omo until August 2023 and describes the current Aari Zone as four woredas and two city administrations. These secondary sources support August 2023 as the reported separation date, while the Owner's 2022 date is retained as the beginning of the restructuring process. The actual government decision and legal effective date still require authoritative confirmation.
 - Accordingly, the product's **current administrative model is two zones**; the **transition start is recorded as 2022 per Owner-provided local history**; the **formal effective date remains UNRESOLVED** pending an authoritative instrument. The request package explicitly asks for the relevant decision date, approval date, effective date, transitional arrangements and historical-to-current unit crosswalk.
 
 Sources for chronology:
