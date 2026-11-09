@@ -214,14 +214,18 @@ def test_cors_middleware_reflects_only_exact_allowed_origin():
     denied = client.get("/probe", headers={"Origin": "https://localhost:5173.attacker.test"})
     assert "access-control-allow-origin" not in denied.headers
 
-def test_trusted_proxy_without_https_metadata_does_not_upgrade_scheme():
-    result = _run_middleware(
-        "10.0.0.15",
-        [(b"host", b"api.example.test")],
-    )
-    assert result["status"] == 204
-    assert result["scope"]["scheme"] == "http"
-    assert settings.should_use_secure_cookies(result["scope"]["scheme"]) is False
+@pytest.mark.parametrize("proto_headers", [
+    [],
+    [(b"x-forwarded-proto", b"")],
+    [(b"x-forwarded-proto", b"http")],
+    [(b"x-forwarded-proto", b"https"), (b"x-forwarded-proto", b"https")],
+    [(b"x-forwarded-proto", b"https,http")],
+])
+def test_trusted_proxy_fails_closed_without_exactly_one_https_metadata(proto_headers):
+    headers = [(b"host", b"api.example.test"), *proto_headers]
+    result = _run_middleware("10.0.0.15", headers)
+    assert result["status"] == 400
+    assert result["scope"] is None
 
 
 def test_canonical_host_configuration_rejects_wildcards():
