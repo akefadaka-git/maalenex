@@ -30,6 +30,7 @@ def _timestamp_is_valid(value: Any) -> bool:
 
 
 def _gate_assertions(gates: dict[str, Any]) -> dict[str, list[str]]:
+    gates = {gate: value if isinstance(value, dict) else {} for gate, value in gates.items()}
     issues: dict[str, list[str]] = {gate: [] for gate in GATE_IDS}
 
     def expect(gate: str, key: str, expected: Any) -> None:
