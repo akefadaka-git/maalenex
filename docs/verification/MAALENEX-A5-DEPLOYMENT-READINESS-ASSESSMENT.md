@@ -493,3 +493,10 @@ The provider-neutral architecture, trust-boundary diagrams, data-flow map, envir
 The design for versioned AES-GCM ciphertext envelopes, key-ID resolution, encryption-key rotation and backfill, HMAC lookup-key dual-index migration, rollback, recovery, revocation and synthetic verification is recorded in [MAALENEX-A5-3-2-VERSIONED-KEY-LIFECYCLE-DESIGN.md](MAALENEX-A5-3-2-VERSIONED-KEY-LIFECYCLE-DESIGN.md).
 
 **Disposition:** Design prepared; Owner review pending. No key material was generated or changed, and no application code, schema, workflow, provider account, infrastructure, DNS, certificate or runtime configuration was modified. Existing synthetic-only and development/test guards remain binding. Overall A5 remains **NOT READY / NO-GO**.
+
+
+### A5.3.3 — TLS termination, trusted-proxy, cookie, CORS and ingress contract
+
+The provider-neutral security contract is recorded in [MAALENEX-A5-3-3-TLS-PROXY-COOKIE-CORS-INGRESS-SECURITY-CONTRACT.md](MAALENEX-A5-3-3-TLS-PROXY-COOKIE-CORS-INGRESS-SECURITY-CONTRACT.md). It defines the target TLS termination boundary, exact trusted-proxy peers and sanitized forwarding metadata, canonical host/scheme validation, secure session and CSRF cookie requirements, exact credentialed CORS allowlists, ingress/network protections, operational runbooks and future synthetic-only verification cases.
+
+**Disposition:** Contract prepared; Owner review pending; no implementation or live verification performed. No DNS, certificates, runtime configuration, application code, secrets, infrastructure, network resources or workflows changed. Existing development/test-only, synthetic-only and local `maalenex_dev` guards remain unchanged. No merge, deployment or production activation occurred. Overall A5 remains **NOT READY / NO-GO**.
