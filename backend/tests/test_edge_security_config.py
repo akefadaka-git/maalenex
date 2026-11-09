@@ -1,4 +1,5 @@
 import asyncio
+import ipaddress
 
 import pytest
 from fastapi import HTTPException
@@ -109,7 +110,7 @@ def _run_middleware(peer, headers):
 
     middleware = TrustedProxyMiddleware(
         app,
-        trusted_proxy_networks=(__import__("ipaddress").ip_network("10.0.0.0/8"),),
+        trusted_proxy_networks=(ipaddress.ip_network("10.0.0.0/8"),),
         canonical_hosts=frozenset({"api.example.test"}),
     )
     scope = {
@@ -158,6 +159,7 @@ def test_trusted_proxy_sets_https_only_after_peer_validation_and_sanitizes_heade
     )
     assert result["status"] == 204
     assert result["scope"]["scheme"] == "https"
+    assert settings.should_use_secure_cookies(result["scope"]["scheme"]) is True
     assert (b"host", b"api.example.test") in result["scope"]["headers"]
     assert not any(key.lower().startswith(b"x-forwarded-")
                    for key, _ in result["scope"]["headers"])
@@ -211,3 +213,22 @@ def test_cors_middleware_reflects_only_exact_allowed_origin():
 
     denied = client.get("/probe", headers={"Origin": "https://localhost:5173.attacker.test"})
     assert "access-control-allow-origin" not in denied.headers
+
+def test_trusted_proxy_without_https_metadata_does_not_upgrade_scheme():
+    result = _run_middleware(
+        "10.0.0.15",
+        [(b"host", b"api.example.test")],
+    )
+    assert result["status"] == 204
+    assert result["scope"]["scheme"] == "http"
+    assert settings.should_use_secure_cookies(result["scope"]["scheme"]) is False
+
+
+def test_canonical_host_configuration_rejects_wildcards():
+    with pytest.raises(ValueError, match="CANONICAL_HOSTS"):
+        _settings(trusted_proxy_ips="10.0.0.10", canonical_hosts="*.example.test")
+
+
+def test_allowed_origins_are_normalized_to_browser_origin_form():
+    configured = _settings(cors_origins="HTTPS://Example.Test:443")
+    assert configured.allowed_origins == ["https://example.test:443"]
