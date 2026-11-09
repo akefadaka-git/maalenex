@@ -1,9 +1,6 @@
 name: A5.3.4 Edge Security Verification
 
 on:
-  push:
-    branches:
-      - a5/a5-3-4-edge-security-hardening
   pull_request:
     branches:
       - a5/deployment-readiness-assessment
