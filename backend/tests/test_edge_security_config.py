@@ -184,3 +184,30 @@ def test_trusted_proxy_rejects_unapproved_forwarded_host():
         ],
     )
     assert result["status"] == 400
+
+def test_cors_middleware_reflects_only_exact_allowed_origin():
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.testclient import TestClient
+
+    app = FastAPI()
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173"],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "DELETE"],
+        allow_headers=["Content-Type", "X-CSRF-Token"],
+    )
+
+    @app.get("/probe")
+    def probe():
+        return {"ok": True}
+
+    client = TestClient(app)
+    allowed = client.get("/probe", headers={"Origin": "http://localhost:5173"})
+    assert allowed.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert allowed.headers["access-control-allow-credentials"] == "true"
+    assert "origin" in allowed.headers.get("vary", "").lower()
+
+    denied = client.get("/probe", headers={"Origin": "https://localhost:5173.attacker.test"})
+    assert "access-control-allow-origin" not in denied.headers
