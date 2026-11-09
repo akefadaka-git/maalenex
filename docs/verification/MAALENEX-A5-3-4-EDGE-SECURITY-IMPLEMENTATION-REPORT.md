@@ -123,3 +123,18 @@ Implementation does not authorize merge, provisioning, deployment or production 
 - Disposition: **COMPLETED — FINDINGS OPEN**. F-01 trusted-proxy missing HTTPS metadata (P1), F-02 proxy client-IP/rate-limit collapse (P2), F-03 optional Origin on login/guest challenge bootstrap (P2), F-04 HSTS/CSP edge hardening (P2).
 - Confirmed positive control: all 26 admin mutation handlers enforce strict Origin plus session-bound CSRF through `_require_mutation()`; staff/account session revocation routes also enforce CSRF.
 - A5.3.4 is **NOT SECURITY-CLOSED** pending F-01 through F-03 remediation and exact-HEAD regression tests. No application-code changes were made during the review.
+
+
+## 8. Focused-review remediation — F-01, F-03 and F-02
+
+The focused-review findings were addressed in the order requested:
+
+1. **F-01 — trusted proxy HTTPS metadata:** trusted immediate peers now require exactly one X-Forwarded-Proto: https. Missing, blank, duplicate, comma-separated and downgraded values fail with HTTP 400 before routing. The prior permissive regression test was replaced with explicit fail-closed cases.
+2. **F-03 — browser Origin enforcement:** staff and account session creation now call the shared strict Origin guard. Guest booking challenge verification and all guest cookie-authenticated booking mutations use the strict guard. The guard inspects raw ASGI headers and rejects missing, duplicate, non-ASCII, comma-list, null and non-allowlisted Origin values. Route-level regression tests exercise staff login, account login, guest challenge verification and guest reservation mutation.
+3. **F-02 — rate-limit client identity:** for a trusted immediate proxy only, the middleware requires one valid IP literal in X-Forwarded-For, treats the final edge as responsible for overwriting that header, maps the validated address into the ASGI client identity used by existing rate-limit call sites, and retains the immediate proxy peer separately in scope["maalenex.proxy_peer"]. Missing, duplicated, comma-separated, blank and invalid values fail closed. Untrusted peers retain their direct socket identity and cannot spoof it with forwarding headers.
+
+The approved ingress contract was clarified to require a single-hop final edge that strips inbound X-Forwarded-For and writes exactly one observed client address. Multi-proxy chains are not supported by this G1 profile.
+
+Regression coverage now includes trusted-proxy scheme failure, client-IP separation across requests, spoof resistance, invalid client-IP rejection, duplicate/malformed Origin rejection and authenticated/browser route Origin gates.
+
+**Verification status:** implementation committed; exact-HEAD CI for the final remediation commit is pending. No production proxy, DNS, certificate, ingress, runtime configuration, secret, email, payment, GPS, merge or deployment action was performed. F-04 (HSTS/CSP ownership and live-edge verification) remains a production-edge acceptance gate.
