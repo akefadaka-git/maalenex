@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - a5/a5-3-4-edge-security-hardening
+  pull_request:
+    branches:
+      - a5/deployment-readiness-assessment
 
 permissions:
   contents: read
