@@ -26,11 +26,11 @@ export function normalizeApiBaseUrl(value: string, allowLocalHttp = true): strin
 
 export const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl, import.meta.env.DEV);
 
-export function apiUrl(path: string): string {
+export function apiUrl(path: string, base = API_BASE_URL): string {
   if (!path.startsWith("/") || path.startsWith("//")) {
     throw new Error("API paths must be absolute-path references on the configured API origin.");
   }
-  return `${API_BASE_URL}${path}`;
+  return `${base}${path}`;
 }
 
 export function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
