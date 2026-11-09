@@ -137,7 +137,7 @@ def test_authenticated_transit_operator_route_rejects_cross_tenant_service_use()
         )
         db.add_all([tenant_a, tenant_b])
         db.flush()
-        session_token, csrf_token, _ = _create_service_principal(
+        session_token, csrf_token = _create_service_principal(
             db, [tenant_a.id, tenant_b.id], ["transit"],
         )
         tenant_a_id, tenant_b_id = tenant_a.id, tenant_b.id
