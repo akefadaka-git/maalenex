@@ -98,8 +98,12 @@ class Settings(BaseSettings):
                 network = ipaddress.ip_network(entry, strict=False)
             except ValueError as exc:
                 raise ValueError("TRUSTED_PROXY_IPS must contain valid IP addresses or CIDRs.") from exc
-            if network.prefixlen == 0:
-                raise ValueError("TRUSTED_PROXY_IPS must never trust an entire address family.")
+            minimum_prefix = 24 if network.version == 4 else 64
+            if network.prefixlen < minimum_prefix:
+                raise ValueError(
+                    "TRUSTED_PROXY_IPS CIDRs are too broad; use IPv4 /24 or narrower "
+                    "and IPv6 /64 or narrower ranges."
+                )
         hosts = [item.strip() for item in self.canonical_hosts.split(",") if item.strip()]
         if bool(proxy_entries) != bool(hosts):
             raise ValueError("TRUSTED_PROXY_IPS and CANONICAL_HOSTS must be configured together.")
