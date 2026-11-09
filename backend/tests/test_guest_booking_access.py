@@ -17,7 +17,7 @@ def test_guest_booking_recovery_support_and_revocation_routes_are_registered():
     assert expected.issubset(paths)
 
 
-def test_passenger_verification_contract_exposes_csrf_token_for_native_webview():
+def test_passenger_verification_route_is_registered_for_native_csrf_bootstrap():
     route = next(
         route for route in app.routes
         if isinstance(route, APIRoute)
