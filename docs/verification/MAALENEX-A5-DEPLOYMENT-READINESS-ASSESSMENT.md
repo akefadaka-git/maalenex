@@ -479,3 +479,10 @@ Key findings:
 - CORS defaults to localhost; production CORS, DNS, certificates, ingress hardening and external TLS scan evidence are absent.
 
 No provider was provisioned, no DNS/certificate was changed, no production key was generated or rotated, no SMTP connection/email was sent, and no production deployment or activation occurred.
+
+
+### A5.3.1 — architecture and network-security design
+
+The provider-neutral architecture, trust-boundary diagrams, data-flow map, environment-separation model, provider-selection criteria and network-security specification are recorded in [MAALENEX-A5-3-1-ARCHITECTURE-TRUST-BOUNDARIES-DATA-FLOWS-NETWORK-SECURITY.md](MAALENEX-A5-3-1-ARCHITECTURE-TRUST-BOUNDARIES-DATA-FLOWS-NETWORK-SECURITY.md).
+
+**Disposition:** Documentation prepared; Owner review pending. No provider, purchase, provisioning, production credentials, DNS/certificate change or deployment is authorized or performed. Existing synthetic-only and development/test runtime guards remain unchanged. Overall A5 remains **NOT READY**.
