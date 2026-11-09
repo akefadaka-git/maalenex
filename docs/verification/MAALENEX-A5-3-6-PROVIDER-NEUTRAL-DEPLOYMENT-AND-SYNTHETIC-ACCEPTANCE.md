@@ -1,6 +1,6 @@
 # MaaleNex A5.3.6 — Provider-Neutral Deployment Specification and Synthetic Edge Acceptance Harness
 
-**Status:** PREPARED — synthetic harness only; no live-edge acceptance  
+**Status:** SPECIFICATION PREPARED; SYNTHETIC HARNESS VERIFIED — no live-edge acceptance  
 **Parent:** A5.3.5 F-04 production-edge design and acceptance contract  
 **Parent commit:** `38be5af657f26335209bf908e3765a6b2e27c67a`  
 **Work branch:** `a5/a5-3-6-provider-neutral-deployment-spec`  
@@ -240,7 +240,7 @@ It has no network step, service container, external endpoint, provider credentia
 | F04-11 | Specified | Assertion only | NOT RUN — no edge |
 | F04-12 | Owner decision required | Always NOT_EVALUATED | PENDING |
 
-**A5.3.6 disposition:** Provider-neutral specification PREPARED; synthetic harness scope PREPARED and subject to exact-HEAD CI. F-04 remains **DESIGN-RESOLVED / OPERATIONAL ACCEPTANCE PENDING**. Overall A5 remains **NOT READY / NO-GO**.
+**A5.3.6 disposition:** Provider-neutral specification PREPARED; synthetic harness and regression suite **VERIFIED** on implementation HEAD `22c26c7f855117327a7d81b8ea74d2c4879f7cd2`; no-network CI run [#42574203977](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42574203977) **PASS**. The companion [implementation and verification report](MAALENEX-A5-3-6-IMPLEMENTATION-AND-VERIFICATION-REPORT.md) records exact evidence. F-04 remains **DESIGN-RESOLVED / OPERATIONAL ACCEPTANCE PENDING**. Overall A5 remains **NOT READY / NO-GO**.
 
 ## 11. Immutable safety and governance invariants
 
@@ -261,7 +261,7 @@ A5.3.6 prepares a provider-neutral specification, an offline synthetic fixture v
 
 No provider was selected, no infrastructure or endpoint was created, no external network request was made, no DNS/certificate/secret/runtime change occurred, and no merge, deployment or production activation was performed.
 
-## 13. Related artifacts
+## 13. Verification report\n\nThe implementation and verification evidence is recorded in [MAALENEX-A5-3-6-IMPLEMENTATION-AND-VERIFICATION-REPORT.md](MAALENEX-A5-3-6-IMPLEMENTATION-AND-VERIFICATION-REPORT.md). The tested implementation HEAD was `22c26c7f855117327a7d81b8ea74d2c4879f7cd2`; workflow [#42574203977](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42574203977) passed the compile, regression and synthetic-fixture steps. This does not constitute operational edge acceptance.\n\n## 14. Related artifacts
 
 - [A5.3.5 F-04 production-edge design and acceptance](MAALENEX-A5-3-5-F04-PRODUCTION-EDGE-DESIGN-AND-ACCEPTANCE.md)
 - [A5.3.4 edge security implementation report](MAALENEX-A5-3-4-EDGE-SECURITY-IMPLEMENTATION-REPORT.md)
