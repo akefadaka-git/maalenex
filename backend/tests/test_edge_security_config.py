@@ -231,4 +231,4 @@ def test_canonical_host_configuration_rejects_wildcards():
 
 def test_allowed_origins_are_normalized_to_browser_origin_form():
     configured = _settings(cors_origins="HTTPS://Example.Test:443")
-    assert configured.allowed_origins == ["https://example.test:443"]
+    assert configured.allowed_origins == ["https://example.test"]
