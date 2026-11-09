@@ -1,7 +1,7 @@
 # MaaleNex A5.3.3 — TLS Termination, Trusted-Proxy, Cookie, CORS and Ingress Security Contract
 
 **Stage:** A5.3.3 design specification only  
-**Status:** CONTRACT PREPARED — Owner review pending; no runtime implementation  
+**Status:** OWNER-APPROVED CONTRACT — A5.3.4 implementation separately authorized; no runtime implementation  
 **Repository:** `akefadaka-git/maalenex-moto`  
 **Branch:** `a5/deployment-readiness-assessment`  
 **Date:** 2026-11-09  
@@ -315,9 +315,9 @@ Each runbook needs an owner, approver, prerequisites, commands/actions, verifica
 | C5 — CORS | Exact environment origin lists, negative and preflight tests | DESIGN PREPARED; NOT IMPLEMENTED |
 | C6 — Ingress | Network isolation, limits, rate controls, headers, log redaction | DESIGN PREPARED; NOT IMPLEMENTED |
 | C7 — Operations | Renewal, DNS, proxy, incident and rollback exercises | NOT EVIDENCED |
-| C8 — Governance | Owner approval, named operators, access reviews, separate production gate | PENDING |
+| C8 — Governance | Owner approval, named operators, access reviews, separate production gate | PARTIAL — Owner approval received; operational ownership and production gate remain pending |
 
-**A5.3.3 result: CONTRACT PREPARED; Owner review pending.** This is not implementation closure, does not prove live TLS/ingress security and does not change the A5 readiness decision. Overall A5 remains **NOT READY / NO-GO**.
+**A5.3.3 result: OWNER-APPROVED CONTRACT.** A5.3.4 implementation and verification are separately gated; the contract does not itself establish live ingress security. This is not implementation closure, does not prove live TLS/ingress security and does not change the A5 readiness decision. Overall A5 remains **NOT READY / NO-GO**.
 
 ## 14. Change record and explicit exclusions
 
