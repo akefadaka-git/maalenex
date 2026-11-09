@@ -302,3 +302,63 @@ def test_trusted_proxy_rejects_missing_or_ambiguous_client_ip(forwarded_for):
     result = _run_middleware("10.0.0.15", headers)
     assert result["status"] == 400
     assert result["scope"] is None
+
+
+def test_origin_guard_rejects_duplicate_and_malformed_raw_headers():
+    from starlette.requests import Request
+
+    def request_with(values):
+        return Request({
+            "type": "http", "http_version": "1.1", "method": "POST",
+            "scheme": "http", "path": "/", "raw_path": b"/",
+            "query_string": b"",
+            "headers": [(b"origin", value) for value in values],
+            "client": ("127.0.0.1", 12345), "server": ("testserver", 80),
+        })
+
+    for values in (
+        [],
+        [b"null"],
+        [b"http://localhost:5173", b"http://localhost:5173"],
+        [b"http://localhost:5173, https://attacker.example"],
+        [b"\\xff"],
+    ):
+        with pytest.raises(HTTPException) as denied:
+            require_allowed_origin(request_with(values))
+        assert denied.value.status_code == 403
+
+
+def test_browser_session_and_guest_cookie_bootstrap_routes_reject_missing_origin():
+    from uuid import uuid4
+    from fastapi.testclient import TestClient
+
+    from app.core.request_security import require_allowed_origin
+    from app.db.session import get_db
+    from app.main import app
+    from app.routers.bookings import current_booking_grant
+
+    app.dependency_overrides[get_db] = lambda: None
+    app.dependency_overrides[current_booking_grant] = lambda booking_id: object()
+    try:
+        client = TestClient(app)
+        requests = [
+            ("POST", "/api/v1/auth/sessions", {
+                "login_identifier": "missing-origin@maalenex.invalid",
+                "password": "synthetic-invalid-password",
+            }),
+            ("POST", "/api/v1/identity/sessions", {
+                "identifier_type": "email",
+                "identifier_value": "missing-origin@maalenex.invalid",
+                "password": "synthetic-invalid-password",
+            }),
+            ("POST", f"/api/v1/passenger-access/challenges/{uuid4()}/verify", {
+                "code": "000000",
+            }),
+            ("POST", f"/api/v1/bookings/{uuid4()}/reservation", {}),
+        ]
+        for method, path, payload in requests:
+            response = client.request(method, path, json=payload)
+            assert response.status_code == 403, (path, response.text)
+    finally:
+        app.dependency_overrides.pop(current_booking_grant, None)
+        app.dependency_overrides.pop(get_db, None)
