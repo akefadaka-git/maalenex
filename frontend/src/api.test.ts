@@ -3,7 +3,7 @@ import { apiUrl, normalizeApiBaseUrl } from "./api";
 
 describe("API origin configuration", () => {
   it("accepts a configured HTTPS origin and removes a trailing slash", () => {
-    expect(normalizeApiBaseUrl("https://api-test.maalenex.example", false)).toBe("https://api-test.maalenex.example");
+    expect(normalizeApiBaseUrl("https://api-test.maalenex.com", false)).toBe("https://api-test.maalenex.com");
   });
 
   it("allows an empty origin for same-origin local development only", () => {
