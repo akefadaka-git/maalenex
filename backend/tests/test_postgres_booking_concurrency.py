@@ -21,6 +21,7 @@ from app.domains.identity.security import issue_opaque_token, token_digest
 from app.domains.identity.models import Credential, Permission, Role, RoleAssignment, RolePermission, StaffSession
 from app.domains.organizations.models import OrganizationInvitation, OrganizationMembership
 from app.domains.support.models import SupportCase
+from app.domains.platform.models import ServiceRoleAssignment
 from fastapi.testclient import TestClient
 from app.main import app
 
@@ -306,7 +307,10 @@ def test_postgres_guest_support_case_and_access_revocation_flow():
     assert denied.status_code == 401
 
 
-def _create_staff_session(db, *, organization_id=None, permission_code="platform.support.manage"):
+def _create_staff_session(
+    db, *, organization_id=None, permission_code="platform.support.manage",
+    service_code=None,
+):
     user = User(
         login_identifier="synthetic-staff-" + uuid4().hex + "@example.test",
         display_name="Synthetic Staff Reviewer", status="active",
@@ -315,13 +319,19 @@ def _create_staff_session(db, *, organization_id=None, permission_code="platform
     permission = Permission(code=permission_code, description="Synthetic test permission")
     db.add_all([user, role, permission])
     db.flush()
-    db.add_all([
-        RolePermission(role_id=role.id, permission_id=permission.id),
-        RoleAssignment(
+    db.add(RolePermission(role_id=role.id, permission_id=permission.id))
+    if service_code is None:
+        db.add(RoleAssignment(
             user_id=user.id, role_id=role.id,
             organization_id=organization_id, assigned_by=user.id,
-        ),
-    ])
+        ))
+    else:
+        if organization_id is None:
+            raise ValueError("A service-scoped staff session requires an organization.")
+        db.add(ServiceRoleAssignment(
+            user_id=user.id, organization_id=organization_id,
+            service_code=service_code, role_id=role.id, assigned_by=user.id,
+        ))
     if organization_id is not None:
         db.add(OrganizationMembership(
             organization_id=organization_id, user_id=user.id,
@@ -420,7 +430,7 @@ def test_postgres_manifest_is_operator_scoped_and_excludes_contact_phone():
         accept_reservation(db, booking_id=booking.id)
         session_token, csrf_token = _create_staff_session(
             db, organization_id=trip.organization_id,
-            permission_code="operator.trip.manifest.read",
+            permission_code="operator.trip.manifest.read", service_code="transit",
         )
         db.commit()
 
