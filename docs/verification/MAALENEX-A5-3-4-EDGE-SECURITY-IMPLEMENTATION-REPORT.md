@@ -115,3 +115,11 @@ This isolated run is not a substitute for the repository's exact-HEAD GitHub Act
 **A5.3.4 disposition: IMPLEMENTED ON ISOLATED BRANCH; automated repository verification pending.**  
 **Overall A5 readiness: NOT READY / NO-GO.**  
 Implementation does not authorize merge, provisioning, deployment or production activation.
+
+## Focused security review
+
+- Review report: [MAALENEX-A5-3-4-FOCUSED-SECURITY-REVIEW.md](MAALENEX-A5-3-4-FOCUSED-SECURITY-REVIEW.md)
+- Reviewed exact application HEAD: `973660973bcdd328d725bf22ef7f3b154eab8d18`.
+- Disposition: **COMPLETED — FINDINGS OPEN**. F-01 trusted-proxy missing HTTPS metadata (P1), F-02 proxy client-IP/rate-limit collapse (P2), F-03 optional Origin on login/guest challenge bootstrap (P2), F-04 HSTS/CSP edge hardening (P2).
+- Confirmed positive control: all 26 admin mutation handlers enforce strict Origin plus session-bound CSRF through `_require_mutation()`; staff/account session revocation routes also enforce CSRF.
+- A5.3.4 is **NOT SECURITY-CLOSED** pending F-01 through F-03 remediation and exact-HEAD regression tests. No application-code changes were made during the review.
