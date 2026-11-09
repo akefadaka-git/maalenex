@@ -500,3 +500,14 @@ The design for versioned AES-GCM ciphertext envelopes, key-ID resolution, encryp
 The provider-neutral security contract is recorded in [MAALENEX-A5-3-3-TLS-PROXY-COOKIE-CORS-INGRESS-SECURITY-CONTRACT.md](MAALENEX-A5-3-3-TLS-PROXY-COOKIE-CORS-INGRESS-SECURITY-CONTRACT.md). It defines the target TLS termination boundary, exact trusted-proxy peers and sanitized forwarding metadata, canonical host/scheme validation, secure session and CSRF cookie requirements, exact credentialed CORS allowlists, ingress/network protections, operational runbooks and future synthetic-only verification cases.
 
 **Disposition:** Contract prepared; Owner review pending; no implementation or live verification performed. No DNS, certificates, runtime configuration, application code, secrets, infrastructure, network resources or workflows changed. Existing development/test-only, synthetic-only and local `maalenex_dev` guards remain unchanged. No merge, deployment or production activation occurred. Overall A5 remains **NOT READY / NO-GO**.
+
+
+### A5.3.3 — Owner approval and A5.3.4 implementation
+
+The TLS termination, trusted-proxy, cookie, CORS and ingress contract is **OWNER-APPROVED**. The approval authorizes the separately scoped A5.3.4 application configuration hardening and synthetic regression tests; it does not authorize production provisioning, DNS/certificate changes, merge or deployment.
+
+A5.3.4 implementation is isolated on [PR #11](https://github.com/akefadaka-git/maalenex-moto/pull/11), branch `a5/a5-3-4-edge-security-hardening`. Its implementation report is [MAALENEX-A5-3-4-EDGE-SECURITY-IMPLEMENTATION-REPORT.md](https://github.com/akefadaka-git/maalenex-moto/blob/a5/a5-3-4-edge-security-hardening/docs/verification/MAALENEX-A5-3-4-EDGE-SECURITY-IMPLEMENTATION-REPORT.md).
+
+**A5.3.4 status:** Implemented on isolated branch; isolated synthetic unit suite passed 21 tests; exact-HEAD GitHub Actions result remains **NOT VERIFIED**. PR #11 is draft and unmerged. No live proxy, public ingress, DNS, certificates or production runtime controls are claimed as implemented.
+
+All existing development/test-only, synthetic-only and local `maalenex_dev` restrictions remain binding. Overall A5 remains **NOT READY / NO-GO**.
