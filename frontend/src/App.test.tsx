@@ -27,6 +27,18 @@ describe("MaaleNex Moto multi-role portal", () => {
     const roleSelect = screen.getByLabelText("የአገልግሎት ሚና ይምረጡ");
     expect(roleSelect.querySelectorAll("option")).toHaveLength(4);
     expect(screen.getByRole("option", { name: "የከባድ ጭነት ተሽከርካሪ ሹፌር" })).toBeTruthy();
+    fireEvent.change(roleSelect, { target: { value: "heavy_load_driver" } });
+    expect(screen.getByLabelText("የጭነት አቅም (ኪ.ግ.)")).toBeTruthy();
+    expect(screen.getByLabelText("የሹፌር ፈቃድ ቁጥር")).toBeTruthy();
+  });
+
+  it("shows a motorcycle driver-specific dashboard preview", () => {
+    render(<App />);
+    fireEvent.click(screen.getAllByRole("button", { name: "መለያ ይፍጠሩ" })[0]);
+    fireEvent.change(screen.getByLabelText("የአገልግሎት ሚና ይምረጡ"), { target: { value: "motorcycle_driver" } });
+    fireEvent.click(screen.getByRole("button", { name: "የእኔ ዳሽቦርድ" }));
+    expect(screen.getByText("የሞተር ሳይክል ሹፌር")).toBeTruthy();
+    expect(screen.getByText("የጉዞ ጥያቄዎች")).toBeTruthy();
   });
 
   it("shows a restricted, non-operational administrator preview", () => {
