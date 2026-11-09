@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.request_security import require_allowed_origin
 from app.db.session import get_db
 from app.domains.identity.models import Credential, RoleAssignment, User
 from app.domains.identity.security import hash_secret, token_digest
@@ -39,6 +40,7 @@ def current_staff_context(request: Request, db: Session = Depends(get_db)) -> St
 
 
 def require_csrf(request: Request, context: StaffContext) -> None:
+    require_allowed_origin(request)
     if not verify_csrf(
         context, cookie_token=request.cookies.get(CSRF_COOKIE),
         header_token=request.headers.get("X-CSRF-Token"),
@@ -109,9 +111,8 @@ def create_staff_session(
     payload: LoginRequest, request: Request, response: Response,
     db: Session = Depends(get_db),
 ) -> dict:
-    origin = request.headers.get("origin")
-    if origin and origin not in settings.allowed_origins:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Request origin is not allowed.")
+    # Browser session creation must be same-origin; missing Origin is not accepted.
+    require_allowed_origin(request)
     client_ip = request.client.host if request.client else "unknown"
     try:
         issued = authenticate_staff(
@@ -171,7 +172,7 @@ def revoke_current_staff_session(
         resource_id=str(context.session.id), action="logout", outcome="success",
     )
     db.commit()
-    response.delete_cookie(SESSION_COOKIE, path="/", samesite="lax")
-    response.delete_cookie(CSRF_COOKIE, path="/", samesite="lax")
+    response.delete_cookie(SESSION_COOKIE, path="/", samesite="lax", secure=settings.should_use_secure_cookies(request.url.scheme))
+    response.delete_cookie(CSRF_COOKIE, path="/", samesite="lax", secure=settings.should_use_secure_cookies(request.url.scheme))
     response.status_code = status.HTTP_204_NO_CONTENT
     return response

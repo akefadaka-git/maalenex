@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "meta": {
+    "evidence_mode": "synthetic-fixture",
+    "environment": "test",
+    "hostname": "edge.example.invalid",
+    "source_commit": "38be5af657f26335209bf908e3765a6b2e27c67a",
+    "config_revision": "synthetic-fixture-v1",
+    "captured_at": "2026-11-09T12:00:00+03:00",
+    "endpoint_contacted": false,
+    "production_data_present": false,
+    "secret_values_included": false,
+    "app_env": "test",
+    "synthetic_data_only": true,
+    "database_host": "127.0.0.1",
+    "database_name": "maalenex_dev"
+  },
+  "gates": {
+    "F04-01": {
+      "hsts_owner": "edge",
+      "csp_owner": "edge",
+      "app_emits_hsts": false,
+      "app_emits_csp": false,
+      "duplicate_policy_headers": false
+    },
+    "F04-02": {
+      "tls_versions": [
+        "1.2",
+        "1.3"
+      ],
+      "certificate_chain_valid": true,
+      "hostname_san_matches": true,
+      "weak_protocols_enabled": false,
+      "weak_ciphers_enabled": false
+    },
+    "F04-03": {
+      "canonical_https_redirect": true,
+      "open_redirect": false,
+      "host_reflection": false,
+      "redirect_loop": false
+    },
+    "F04-04": {
+      "http_has_hsts": false,
+      "https_hsts_header_count": 1,
+      "max_age_seconds": 300,
+      "include_subdomains": false,
+      "preload": false
+    },
+    "F04-05": {
+      "csp_mode": "report-only",
+      "observation_days": 7,
+      "unexplained_first_party_violations": 0,
+      "representative_workflows_exercised": true
+    },
+    "F04-06": {
+      "csp_mode": "enforce",
+      "browser_regression_passed": true,
+      "unsafe_eval": false,
+      "unsafe_inline": false
+    },
+    "F04-07": {
+      "origin_publicly_reachable": false,
+      "origin_access_limited_to_edge": true
+    },
+    "F04-08": {
+      "immediate_peer_allowlist_enforced": true,
+      "forwarding_headers_overwritten": true,
+      "single_hop_only": true,
+      "malformed_metadata_rejected": true,
+      "client_ip_single_value": true
+    },
+    "F04-09": {
+      "allowed_methods": [
+        "GET",
+        "HEAD",
+        "POST",
+        "DELETE",
+        "OPTIONS"
+      ],
+      "request_limits_bounded": true,
+      "timeouts_bounded": true,
+      "rate_controls_enabled": true,
+      "private_response_shared_cache_disabled": true,
+      "unknown_hosts_denied": true
+    },
+    "F04-10": {
+      "sensitive_log_fields_redacted": true,
+      "alert_delivery_tested": true,
+      "synthetic_oncall_reference": "synthetic-oncall-owner"
+    },
+    "F04-11": {
+      "rollback_rehearsed": true,
+      "approved_rto_minutes": 60,
+      "observed_recovery_minutes": 20,
+      "authentication_preserved": true,
+      "csrf_preserved": true,
+      "runtime_guards_preserved": true
+    },
+    "F04-12": {
+      "owner_approval": false,
+      "deployment_authorized": false
+    }
+  }
+}

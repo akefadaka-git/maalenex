@@ -1,0 +1,33 @@
+name: A5.3.6 Synthetic Edge Acceptance Harness
+
+on:
+  push:
+    branches:
+      - a5/a5-3-6-provider-neutral-deployment-spec
+  pull_request:
+    branches:
+      - a5/a5-3-4-edge-security-hardening
+
+permissions:
+  contents: read
+
+jobs:
+  offline-synthetic-acceptance:
+    name: Offline synthetic F-04 evidence validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile harness and tests
+        run: python -m compileall -q scripts/a5_3_6_edge_acceptance.py tests/test_a5_3_6_edge_acceptance.py
+      - name: Run synthetic acceptance regression tests
+        run: python -m unittest discover -s tests -p 'test_a5_3_6_edge_acceptance.py' -v
+      - name: Validate checked-in synthetic fixture
+        run: python scripts/a5_3_6_edge_acceptance.py --manifest tests/fixtures/a5_3_6_edge_acceptance.synthetic.json
