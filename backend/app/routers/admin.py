@@ -17,7 +17,7 @@ from app.domains.catalog.models import Location, Route, RouteStop, Terminal
 from app.domains.fares.models import Fare, FareVersion
 from app.domains.fares.service import FareConflict, decide_fare, propose_fare, publish_fare, submit_fare
 from app.domains.fleet.models import SeatLayoutVersion, Vehicle, VehicleSeat
-from app.domains.identity.authorization import has_permission
+from app.domains.identity.authorization import has_permission, has_service_permission
 from app.domains.identity.models import Role, RoleAssignment, User
 from app.domains.organizations.models import Organization, OrganizationInvitation, OrganizationMembership
 from app.domains.organizations.service import create_candidate_operator
@@ -105,12 +105,30 @@ class FareReview(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
 
+# Route permission -> service boundary. Platform control-plane permissions are
+# deliberately absent and continue to use explicit platform-wide role grants.
+OPERATOR_PERMISSION_SERVICE_MAP: dict[str, str] = {
+    "operator.fleet.manage": "fleet",
+    "operator.trip.manage": "transit",
+    "operator.trip.manifest.read": "transit",
+    "operator.fare.propose": "transit",
+}
+
+
 def _authorize(db: Session, context: StaffContext, permission: str,
                organization_id: UUID | None = None) -> None:
-    if not has_permission(
-        db, user_id=context.user.id, permission_code=permission,
-        organization_id=organization_id,
-    ):
+    service_code = OPERATOR_PERMISSION_SERVICE_MAP.get(permission)
+    if organization_id is not None and service_code is not None:
+        allowed = has_service_permission(
+            db, user_id=context.user.id, organization_id=organization_id,
+            service_code=service_code, permission_code=permission,
+        )
+    else:
+        allowed = has_permission(
+            db, user_id=context.user.id, permission_code=permission,
+            organization_id=organization_id,
+        )
+    if not allowed:
         raise HTTPException(status_code=403, detail="Required permission is missing.")
 
 
