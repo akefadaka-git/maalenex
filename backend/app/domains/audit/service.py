@@ -1,22 +1,35 @@
 from uuid import UUID
+
 from sqlalchemy.orm import Session
+
 from app.domains.audit.models import AuditEvent
 
 _SENSITIVE_KEYS = {"password", "secret", "token", "authorization", "phone", "email", "qr", "credential"}
+_REDACTED = "[REDACTED]"
+
+
+def _redact_value(value):
+    """Recursively redact sensitive mapping keys without flattening JSON arrays."""
+    if isinstance(value, dict):
+        safe = {}
+        for key, item in value.items():
+            normalized_key = str(key).lower().replace("-", "_")
+            if any(marker in normalized_key for marker in _SENSITIVE_KEYS):
+                safe[key] = _REDACTED
+            else:
+                safe[key] = _redact_value(item)
+        return safe
+    if isinstance(value, list):
+        return [_redact_value(item) for item in value]
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)[:160]
+
 
 def redact_metadata(value: dict | None) -> dict:
-    safe = {}
-    for key, item in (value or {}).items():
-        normalized_key = key.lower().replace("-", "_")
-        if any(marker in normalized_key for marker in _SENSITIVE_KEYS):
-            safe[key] = "[REDACTED]"
-        elif isinstance(item, dict):
-            safe[key] = redact_metadata(item)
-        elif isinstance(item, (str, int, float, bool)) or item is None:
-            safe[key] = item
-        else:
-            safe[key] = str(item)[:160]
-    return safe
+    """Return JSON-compatible audit metadata with sensitive keys redacted at any depth."""
+    return _redact_value(value or {})
+
 
 def record_event(
     db: Session, *, event_type: str, actor_type: str, actor_id: str | None,
