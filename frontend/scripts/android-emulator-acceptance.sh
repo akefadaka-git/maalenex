@@ -20,13 +20,42 @@ if [[ "$booted" != "1" ]]; then
   exit 1
 fi
 
-adb shell pm grant com.maalenex.moto android.permission.INTERNET 2>/dev/null || true
 adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 adb shell monkey -p com.maalenex.moto 1
-sleep 12
-adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' | grep -q 'com.maalenex.moto'
-adb shell uiautomator dump /sdcard/maalenex-window.xml >/dev/null
-adb pull /sdcard/maalenex-window.xml ./maalenex-window.xml
+
+# Allow the Capacitor WebView and Android activity to settle before inspection.
+sleep 20
+foreground=""
+for attempt in $(seq 1 12); do
+  foreground="$(adb shell dumpsys activity activities 2>/dev/null || true)"
+  if grep -E 'mResumedActivity|topResumedActivity' <<<"$foreground" | grep -q 'com.maalenex.moto'; then
+    break
+  fi
+  sleep 5
+done
+if ! grep -E 'mResumedActivity|topResumedActivity' <<<"$foreground" | grep -q 'com.maalenex.moto'; then
+  echo "MaaleNex Moto did not remain in the foreground." >&2
+  adb logcat -d -t 3000 > maalenex-emulator-logcat.txt || true
+  exit 1
+fi
+
+# UIAutomator can briefly return a null root while the launcher/WebView settles.
+dumped=""
+for attempt in $(seq 1 6); do
+  if adb shell uiautomator dump /sdcard/maalenex-window.xml >/dev/null 2>&1 &&
+     adb pull /sdcard/maalenex-window.xml ./maalenex-window.xml >/dev/null 2>&1 &&
+     test -s ./maalenex-window.xml; then
+    dumped="yes"
+    break
+  fi
+  sleep 5
+done
+if [[ "$dumped" != "yes" ]]; then
+  adb logcat -d -t 3000 > maalenex-emulator-logcat.txt || true
+  echo "Android UI hierarchy could not be captured after six attempts." >&2
+  exit 1
+fi
+
 grep -q "MAALE NEX MOTO" ./maalenex-window.xml
 adb exec-out screencap -p > maalenex-emulator.png
 
