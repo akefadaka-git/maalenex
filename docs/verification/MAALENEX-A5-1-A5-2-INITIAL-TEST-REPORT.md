@@ -1,6 +1,6 @@
 # MaaleNex — A5.1–A5.2 Initial Readiness Test Report
 
-**Status:** IN PROGRESS — initial source inspection recorded; automated exact-HEAD verification pending  
+**Status:** PARTIAL — A5.1/A5.2 baseline inspection and automated verification completed; focused remediation/regression work remains  
 **Stage:** A5.1 baseline/architecture reconciliation and A5.2 functional/business-logic assessment  
 **Product name:** MaaleNex  
 **Repository identity:** `akefadaka-git/maalenex-moto` (existing GitHub slug; not changed by this work)  
@@ -64,12 +64,12 @@ It is scoped to pushes on this A5 branch and runs:
 2. Frontend lockfile install, tests, TypeScript, production build and npm audit.
 3. Python dependency audit and Bandit high-severity scan.
 
-**Exact tested HEAD:** `22db26fac66789a6fd742eda589739e91be1deb1`.  
-**Workflow run:** [#42559070282 — A5.1-A5.2 Readiness Verification](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42559070282)  
+**First workflow run:** [#42559070282](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42559070282) — PASS on `22db26fac66789a6fd742eda589739e91be1deb1`.  
+**Report-updated exact-HEAD workflow run:** [#42559193051 — A5.1-A5.2 Readiness Verification](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42559193051) — PASS on `f151f2f58020f2dfc23368b0548eed35f0541f17`.  
 **Backend/PostgreSQL result:** PASS — compile, Ruff, migrations, service registry idempotency, full backend/PostgreSQL integration suite, Alembic parity and full downgrade/re-upgrade all succeeded.  
 **Frontend result:** PASS — clean `npm ci`, frontend tests, TypeScript, Vite build and npm audit all succeeded.  
 **Dependency/static security result:** PASS — pip-audit and Bandit high-severity scan succeeded.  
-All three workflow jobs completed successfully. This is automated verification of the A5 branch's inherited application code and does not establish production readiness.
+All three jobs passed on the report-updated exact HEAD. This is automated verification of application code in an isolated synthetic test environment and does not establish production readiness.
 
 The workflow does not send email, use SMTP secrets, contact external providers, process real personal data, perform payment actions, or deploy.
 
@@ -77,7 +77,7 @@ The workflow does not send email, use SMTP secrets, contact external providers, 
 
 - A5.1 architecture/baseline reconciliation: **PARTIAL** — repository and runtime constraints inspected; production topology and operational evidence absent; naming consistency and branch controls need remediation.
 - A5.2 functional/business-logic assessment: **PARTIAL** — foundational workflows are present; important passenger lifecycle capabilities remain missing; audit-redaction regression and route authorization coverage need focused tests.
-- A5.1–A5.2 automated verification: **PENDING / NOT RUN** until the A5 exact-HEAD workflow completes.
+- A5.1–A5.2 automated verification: **PASS** on exact HEAD `f151f2f58020f2dfc23368b0548eed35f0541f17` (run #42559193051).
 - Production readiness: **NOT READY**.
 - Merge, deployment, production secrets, production data processing, live payments, live GPS, real operator onboarding and commercial operation: **NOT AUTHORIZED**.
 
