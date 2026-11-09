@@ -16,7 +16,9 @@ The initial regional coverage envelope is:
 2. **South Omo Zone:** the full zone, all current woredas/town administrations, settlements, service points and inter-woreda road connections.
 3. **Ari Zone:** the full zone, all current woredas/town administrations, settlements, service points and connections to South Omo and other adjacent zones.
 
-The regional government's website lists South Omo Zone and Ari Zone as distinct zones. Available South Omo sources place Maale within South Omo as a woreda/district, not as a separate zone. Accordingly, the application data hierarchy must not create a fictional "Maale Zone". Maale is represented as an administrative area under South Omo, with its exact current level and boundaries verified against the latest competent authority record.
+The current regional government's website lists **South Omo Zone (administrative centre: Dimeka)** and **Ari Zone (administrative centre: Jinka)** as distinct zones. The Owner has supplied a local administrative-history correction that the division dates from 2022. Publicly accessible contemporary reporting, however, describes Ari/Jinka as still within South Omo during 2022 and documents the separate-zone arrangement being announced in August 2023. Therefore, model the current two-zone structure, record **2022 as the reported start of the restructuring/transition**, and leave the legally effective date unresolved until the competent authority supplies the underlying council decision, order or proclamation. Do not silently replace the Owner's local account or present an unverified effective date as settled fact.
+
+Available current sources place Maale within South Omo as a woreda/district, not as a separate zone. Accordingly, the application data hierarchy must not create a fictional "Maale Zone". Maale is represented as an administrative area under South Omo, with its exact current level and boundaries verified against the latest competent authority record.
 
 **Architecture decision:** adopt a versioned, source-attributed, hierarchical regional gazetteer and road-data pipeline. Keep the frontend's active map mode as `schematic`; no geographic coordinates, road geometry, live map endpoint, or operational routing are activated by this scope document.
 
@@ -39,7 +41,9 @@ This is a coverage and data-readiness target. It does not mean every settlement 
 
 ### 2.2 Administrative naming and hierarchy controls
 
-- Treat **South Omo Zone** and **Ari Zone** as separate administrative coverage branches, based on the regional government's current published zone list.
+- Treat **South Omo Zone (Dimeka)** and **Ari Zone (Jinka)** as separate current administrative coverage branches, based on the regional government's current published zone list.
+- Preserve the Owner-provided account that the division began in **2022** as a reported transition milestone; do not assert the formal legal effective date until the relevant 2022/2023 council decision, order or proclamation is obtained.
+- Maintain separate historical and current administrative hierarchies so the 2020 South Omo-only dataset is never mistaken for the current two-zone structure.
 - Treat **Maale** as a priority area within South Omo, not as a zone, unless a newer authoritative legal/administrative instrument establishes a different status.
 - Do not assume that older lists of South Omo woredas remain current after the creation and organization of Ari Zone.
 - Do not merge similarly named units or use transliteration as a unique key.
@@ -244,3 +248,28 @@ Request the following from the South Ethiopia regional administration, South Omo
 - Change history identifying units transferred, renamed, split or newly established since the 2020 snapshot.
 
 Until received and reconciled, use the 2020 records only as historical comparison metadata, never as production boundaries.
+
+
+### 11.5 2022–2023 South Omo / Ari administrative transition
+
+The Owner has clarified that, in the local administrative history used for this project, the former South Omo Zone was divided from 2022 into the present two-zone coverage model:
+
+| Current zone | Administrative centre | MaaleNex geographic branch |
+|---|---|---|
+| South Omo Zone | Dimeka | Includes Maale area, subject to confirmation of current woreda hierarchy |
+| Ari Zone | Jinka | Separate zone branch |
+
+**Evidence reconciliation and date handling:**
+
+- The South Ethiopia Regional State Office of the President currently lists South Omo Zone with Dimeka as its seat and Ari Zone with Jinka as its seat.
+- Contemporary 2022 reporting describes Ari/Jinka as still administered within South Omo while separate zonal status was being demanded/considered. This is evidence of the transition process, not conclusive evidence that the formal division had already taken legal effect in 2022.
+- A 2023 research report states that the split was announced in August 2023, describing a pastoralist South Omo Zone and a separate Aari Zone centred in Jinka. This differs in precision from the Owner's 2022 start date and requires reconciliation against the actual government decision.
+- Accordingly, the product's **current administrative model is two zones**; the **transition start is recorded as 2022 per Owner-provided local history**; the **formal effective date remains UNRESOLVED** pending an authoritative instrument. The request package explicitly asks for the relevant decision date, approval date, effective date, transitional arrangements and historical-to-current unit crosswalk.
+
+Sources for chronology:
+1. South Ethiopia Regional State Office of the President, current zone list: https://www.southethiopiarspo.gov.et/overview/
+2. ACLED, *EPO Monthly: July 2022*, reporting that Ari/Jinka remained within South Omo amid demands for separate zonal administration: https://acleddata.com/update/epo-monthly-july-2022
+3. Rift Valley Institute, *Sugarcoating 'Homegrown' Development in the Periphery* (2023), reporting the announcement of a split in August 2023: https://riftvalley.net/wp-content/uploads/2023/09/Sugar-in-South-Omo_Final-10-Sept-2023-compressed.pdf
+4. South Ethiopia Tourism Bureau, current South Omo Zone overview and Dimeka administrative centre: https://setourismbureau.gov.et/south-omo-zone-tourist-destination/
+
+This chronology is a data-governance note, not a legal opinion. Do not assign official effective dates or successor administrative codes without the competent authority's signed record.
