@@ -185,6 +185,7 @@ def test_trusted_proxy_rejects_unapproved_forwarded_host():
             (b"host", b"internal"),
             (b"x-forwarded-proto", b"https"),
             (b"x-forwarded-host", b"attacker.example"),
+            (b"x-forwarded-for", b"203.0.113.7"),
         ],
     )
     assert result["status"] == 400
@@ -332,7 +333,6 @@ def test_browser_session_and_guest_cookie_bootstrap_routes_reject_missing_origin
     from uuid import uuid4
     from fastapi.testclient import TestClient
 
-    from app.core.request_security import require_allowed_origin
     from app.db.session import get_db
     from app.main import app
     from app.routers.bookings import current_booking_grant
