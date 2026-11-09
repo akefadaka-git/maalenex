@@ -111,9 +111,8 @@ def create_staff_session(
     payload: LoginRequest, request: Request, response: Response,
     db: Session = Depends(get_db),
 ) -> dict:
-    origin = request.headers.get("origin")
-    if origin and origin not in settings.allowed_origins:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Request origin is not allowed.")
+    # Browser session creation must be same-origin; missing Origin is not accepted.
+    require_allowed_origin(request)
     client_ip = request.client.host if request.client else "unknown"
     try:
         issued = authenticate_staff(
