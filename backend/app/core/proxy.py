@@ -45,6 +45,7 @@ class TrustedProxyMiddleware:
         trusted = self._is_trusted_peer(scope)
         forwarded_proto = self._values(headers, b"x-forwarded-proto")
         forwarded_host = self._values(headers, b"x-forwarded-host")
+        forwarded_for = self._values(headers, b"x-forwarded-for")
         host_values = self._values(headers, b"host")
 
         def reject():
@@ -59,8 +60,23 @@ class TrustedProxyMiddleware:
         # A trusted proxy is the sole authority for the external scheme. Missing,
         # duplicated, list-valued, blank, or downgraded metadata is ambiguous and
         # must never result in an HTTP request reaching cookie-issuing routes.
+        client_address = None
         if trusted:
             if len(forwarded_proto) != 1 or forwarded_proto[0].lower() != "https":
+                start, body = reject()
+                await send(start)
+                await send(body)
+                return
+            # The ingress must overwrite X-Forwarded-For with exactly one client
+            # address. Never trust a client-supplied chain or an arbitrary hop.
+            if len(forwarded_for) != 1 or "," in forwarded_for[0] or not forwarded_for[0]:
+                start, body = reject()
+                await send(start)
+                await send(body)
+                return
+            try:
+                client_address = str(ipaddress.ip_address(forwarded_for[0]))
+            except ValueError:
                 start, body = reject()
                 await send(start)
                 await send(body)
@@ -103,6 +119,10 @@ class TrustedProxyMiddleware:
         child_scope = dict(scope)
         child_scope["headers"] = clean_headers
         if trusted:
+            # Retain the immediate proxy peer for diagnostics while exposing only
+            # the edge-validated client address to application rate-limit logic.
+            child_scope["maalenex.proxy_peer"] = scope.get("client")
+            child_scope["client"] = (client_address, scope["client"][1])
             child_scope["scheme"] = "https"
 
         async def send_with_security_headers(message):
