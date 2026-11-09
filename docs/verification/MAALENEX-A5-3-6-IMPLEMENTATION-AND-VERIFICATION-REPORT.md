@@ -56,7 +56,7 @@ This is intentionally not a production edge scanner or provider configuration va
 | Real personal data, email/SMS, payments, GPS | NOT USED |
 | Merge/deployment/production activation | NOT PERFORMED |
 
-PR #13 is draft/open/unmerged and targets the A5.3.4 feature branch. PR #11 remains separate and unmerged. The default branch is not targeted by this PR.
+PR #13 was merged by squash into `a5/a5-3-4-edge-security-hardening` at merge commit `0698dcbe19f71fdaac4793e248ae34f7237f8efa`. PR #13 is closed/merged. PR #11 remains open and unmerged against `a5/deployment-readiness-assessment`. The default branch was not targeted.
 
 ## 5. Disposition
 
@@ -81,3 +81,13 @@ After the implementation report and specification cross-reference were committed
 - Both runs checked out the exact `b6c06ada3d49dfa5313c603bba26c82408302368` head and passed compilation, synthetic regression tests and checked-in fixture validation.
 
 The implementation code's focused run remains [#42574203977](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42574203977) on `22c26c7f855117327a7d81b8ea74d2c4879f7cd2`. No application runtime code was changed in this stage.
+
+
+## 7. Merge and cleanup reconciliation
+
+- PR #13: **MERGED** (squash).
+- Merge commit on `a5/a5-3-4-edge-security-hardening`: `0698dcbe19f71fdaac4793e248ae34f7237f8efa`.
+- PR #13 source branch: `a5/a5-3-6-provider-neutral-deployment-spec`.
+- PR #13 source branch still exists after merge. The available GitHub connector supports PR merge and branch inspection but does not expose a branch-delete operation; the authenticated browser cleanup attempt could not start because the browser automation wallet was unavailable. No payment or top-up is requested. The source branch is therefore **CLEANUP-PENDING**, not falsely reported deleted.
+- PR #11 remains open/unmerged; its new head is the PR #13 merge commit. No merge into the A5 assessment branch or `main` was performed.
+- No deployment or production activation.
