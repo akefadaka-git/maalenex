@@ -137,4 +137,16 @@ The approved ingress contract was clarified to require a single-hop final edge t
 
 Regression coverage now includes trusted-proxy scheme failure, client-IP separation across requests, spoof resistance, invalid client-IP rejection, duplicate/malformed Origin rejection and authenticated/browser route Origin gates.
 
-**Verification status:** implementation committed; exact-HEAD CI for the final remediation commit is pending. No production proxy, DNS, certificate, ingress, runtime configuration, secret, email, payment, GPS, merge or deployment action was performed. F-04 (HSTS/CSP ownership and live-edge verification) remains a production-edge acceptance gate.
+**Verification status:** **PASS — exact-HEAD CI completed** on `3bce5b81c91ad9a573a02e55d3a6e2f6da1a3121` ([workflow #42571302514](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42571302514)). Backend/PostgreSQL suite: **82 passed, 1 warning**; compile, Ruff, migrations, registry seed idempotency, Alembic parity and full downgrade/re-upgrade passed. Frontend tests, TypeScript, Vite build and npm audit passed. pip-audit and Bandit passed. No production proxy, DNS, certificate, ingress, runtime configuration, secret, email, payment, GPS, merge or deployment action was performed. F-04 (HSTS/CSP ownership and live-edge verification) remains a production-edge acceptance gate.
+
+
+## 9. Exact-HEAD verification closure
+
+- Exact source HEAD: `3bce5b81c91ad9a573a02e55d3a6e2f6da1a3121`
+- GitHub Actions: [run #42571302514 — success](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42571302514)
+- Backend/PostgreSQL: 82 passed, 1 warning; compilation, Ruff, migrations, registry seed idempotency, Alembic metadata parity, full downgrade and clean re-upgrade all PASS.
+- Frontend: clean lockfile install, tests, TypeScript typecheck, Vite build and npm audit PASS.
+- Python security: pip-audit and Bandit high-severity scan PASS.
+- The run checked out the exact branch commit; all three jobs completed successfully.
+
+**F-01, F-02 and F-03: VERIFIED-CLOSED for the application-level scope and regression coverage described in this report.** F-04 remains OPEN as a production-edge acceptance gate: HSTS/CSP ownership, actual TLS termination, ingress behavior and external edge verification still require an approved hosting/ingress environment. This does not establish production readiness or authorize merge/deployment.
