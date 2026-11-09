@@ -37,7 +37,7 @@ The terms **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT** and **MAY** are nor
 1. The browser-to-edge connection MUST use authenticated HTTPS. HTTP MUST NOT carry application credentials or session state; it may only redirect to the canonical HTTPS origin at the edge.
 2. The edge MUST be the only public entry point. The application and database MUST NOT be directly internet-reachable.
 3. The application MUST trust proxy metadata only from explicitly enumerated, controlled proxy peers. It MUST NOT infer trust from the presence of a forwarded header.
-4. A trusted proxy MUST remove client-supplied forwarding headers and write its own canonical values. Duplicate, malformed, conflicting or untrusted forwarding metadata MUST be rejected or ignored safely.
+4. A trusted proxy MUST remove client-supplied forwarding headers and write its own canonical values. Duplicate, malformed, conflicting or untrusted forwarding metadata MUST be rejected or ignored safely. For this G1 deployment profile, the final trusted edge MUST overwrite `X-Forwarded-For` with exactly one syntactically valid client IP address; it MUST NOT append or preserve a client-supplied chain.
 5. Session cookies MUST be Secure, HttpOnly and SameSite=Lax (or stricter where compatible); CSRF protection MUST remain active for state-changing browser requests.
 6. Credentialed CORS MUST use an exact, reviewed origin allowlist. Wildcard origins, suffix matching, reflected arbitrary origins and wildcard credentials MUST NOT be used.
 7. Host, scheme, origin, cookie and proxy behavior MUST fail closed. A malformed or untrusted request MUST NOT downgrade transport security or broaden access.
@@ -132,7 +132,7 @@ If proxy metadata is absent or invalid, the app MUST NOT assume HTTPS based on a
 
 ### 5.3 Client IP and multi-proxy chains
 
-The deployment design MUST identify the exact number and order of proxy hops. Rate limiting and audit attribution MUST use the client address extracted from that validated chain, not the leftmost arbitrary value supplied by the client. If the chain cannot be validated, use the direct peer for transport-level controls and record the attribution as unknown; do not grant access or bypass throttling.
+The G1 application contract deliberately narrows this to one final trusted edge: that edge MUST strip any inbound `X-Forwarded-For` value and set exactly one value to the observed client IP. The ASGI application MUST accept that value only when the immediate socket peer is in `TRUSTED_PROXY_IPS`; it MUST reject a missing, duplicated, comma-separated, blank or invalid address. It MUST parse the value as an IP literal, replace the ASGI client host used by rate-limit services with that validated address, and retain the immediate proxy peer separately for diagnostics. Untrusted peers MUST have all forwarding metadata stripped and MUST retain their direct socket address as the rate-limit identity. Multi-proxy chains are not supported by this G1 profile; adding one requires a separately reviewed hop-by-hop trust contract.
 
 ## 6. Cookie, session and CSRF contract
 
