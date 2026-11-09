@@ -12,7 +12,7 @@
 
 MaaleNex Moto is preparing a geographic data baseline for a proposed passenger-mobility service. Before using administrative names, codes, boundaries or road data in a commercial application, the project needs current, authoritative records and written permission for the intended uses.
 
-The South Ethiopia Regional State Office of the President currently lists **South Omo Zone (Dimeka)** and **Ari Zone (Jinka)** as separate zones. The Owner has supplied a local administrative-history correction that the division process dates from 2022. Public reporting from 2022 describes the Ari community's demand for separate zonal administration while Ari/Jinka was still reported within South Omo; a 2023 research report says the split was announced in August 2023. The current two-zone structure is therefore used for the geographic data model, while the exact legal effective date is explicitly requested from the competent authority. The regional office's public administration page identifies its headquarters in Wolaita Sodo and publishes a general contact channel. These public pages are routing context only; they do not substitute for signed administrative records or authoritative boundary data.
+The South Ethiopia Regional State Office of the President currently lists **South Omo Zone (Dimeka)** and **Ari Zone (Jinka)** as separate zones. The Owner identifies 2022 as the beginning of the restructuring process. Public reporting records demands for separate Ari zonal administration in 2022, while a later 2026 academic article states that Ari remained part of South Omo until August 2023. The current two-zone structure is therefore used in the geographic data model; the formal decision and exact legal effective date must still be confirmed from the competent authority. The regional office's public administration page identifies its headquarters in Wolaita Sodo and publishes a general contact channel. These public pages are routing context only; they do not substitute for signed administrative records or authoritative boundary data.
 
 **Recommended submission sequence**
 
@@ -35,7 +35,7 @@ Request the following, as applicable to the recipient's jurisdiction.
 - A clear indication of each unit's status: active, renamed, merged, split, transferred, dissolved, proposed or otherwise.
 - A current list of all subordinate units, including units not represented in older public datasets.
 - The official source instrument or decision (proclamation, regulation, council decision, administrative order or other record) supporting changes since the 2020 historical snapshot.
-- The specific decision(s) and chronology for the South Omo / Ari division: when the proposal or transition process began (including the reported 2022 milestone), when the decision was approved/announced, the legally effective date, any transitional period, and the date on which administrative functions and boundaries were transferred.
+- The specific decision(s) and chronology for the South Omo / Ari division: the reported 2022 start of the restructuring process, the August 2023 separation date reported in later research, the council approval and announcement dates, the legally effective date, any transitional period, and the date on which administrative functions and boundaries were transferred.
 - Confirmation that the current zonal arrangement is **South Omo Zone (Dimeka)** and **Ari Zone (Jinka)**, plus the complete historical-to-current crosswalk for affected woredas, town administrations and kebeles.
 
 ### B. Geospatial boundary data
@@ -103,10 +103,10 @@ I request that your Office:
 1. Identify the regional bureau/office legally or administratively responsible for the current regional, zonal, woreda, town-administration and kebele register, official administrative codes, boundary datasets and data licensing.
 2. Provide, or formally refer this request to the custodian of, the latest approved administrative hierarchy and complete subordinate-unit rosters for **South Omo Zone (Dimeka)** and **Ari Zone (Jinka)**, including the current administrative status and parentage of Maale.
 3. Provide the official instrument and exact chronology for the division process reported to have begun in 2022: proposal/consultation date, council approval date, announcement date, legal effective date, transition arrangements and actual transfer date of administrative functions/boundaries. Please explain any distinction between the 2022 transition milestone and a later formal effective date.
-3. Provide available official boundary datasets for the relevant administrative levels, with CRS, schema, feature identifiers, metadata, effective dates and update history.
-4. Provide the official decisions and a change-history/crosswalk explaining changes since the 2020 historical administrative snapshot, including the current identity and code of Maale and the present status of historical South Ari and Semen Ari records.
-5. Identify the designated technical and licensing focal persons.
-6. Confirm in writing the licence or permission terms for commercial display, derivative datasets, server/device caching, offline use and distribution, including required attribution, fees and restrictions.
+4. Provide available official boundary datasets for the relevant administrative levels, with CRS, schema, feature identifiers, metadata, effective dates and update history.
+5. Provide the official decisions and a change-history/crosswalk explaining changes since the 2020 historical administrative snapshot, including the current identity and code of Maale and the present status of historical South Ari and Semen Ari records.
+6. Identify the designated technical and licensing focal persons.
+7. Confirm in writing the licence or permission terms for commercial display, derivative datasets, server/device caching, offline use and distribution, including required attribution, fees and restrictions.
 
 The requested data will be used initially for internal assessment and verification. No supplied boundary will be published or used for operational routing until its provenance, currency, technical quality and permitted uses have been confirmed.
 
@@ -285,7 +285,7 @@ Do not commit confidential personal information, private correspondence, or rest
    Describes Ari Zone as a distinct zone and Jinka as its administrative centre. This is contextual government-published information, not the required official administrative register.
 4. South Ethiopia Regional State Office of the President — Overview: https://www.southethiopiarspo.gov.et/overview/
 
-No direct official email or postal address for the South Omo Zone Administration, Ari Zone Administration or Maale Woreda Administration has been verified in this package. Do not invent or guess those contacts. Obtain them through the regional office or an official government directory before submission.
+No direct official email or postal address for the South Omo Zone Administration, Ari Zone Administration or Maale Woreda Administration has been verified in this package. Do not invent or guess those contacts. Obtain them through the regional office or an official government directory before submission. The regional office website currently displays phone 0983989625 and an email address whose spelling differs from the website host/domain. Treat the phone and email as published contact leads only; verify the email spelling through the regional office before sending formal or sensitive material.
 
 ## 9. Data-governance decision
 
