@@ -92,7 +92,7 @@ jobs:
               const value = process.env.VITE_API_BASE_URL;
               const url = new URL(value);
               if (url.protocol !== "https:" || url.username || url.password || url.pathname !== "/" || url.search || url.hash ||
-                  /YOUR-TEST-API-HOST|example\.(com|org|net)|\.invalid$|\.example$|\.test$/i.test(url.hostname)) {
+                  /YOUR-TEST-API-HOST|example\\.(com|org|net)|\\.invalid$|\\.example$|\\.test$/i.test(url.hostname)) {
                 throw new Error("MAALENEX_TEST_API_BASE_URL must be a real HTTPS origin without path, credentials, query, fragment or placeholders.");
               }
               console.log("Configured HTTPS API origin:", url.origin);
@@ -107,6 +107,8 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           packages: platform-tools platforms;android-35 build-tools;35.0.0
+      - name: Install Android emulator and stable AOSP image
+        run: sdkmanager "emulator" "system-images;android-30;default;x86_64"
       - name: Install Capacitor Android toolchain
         run: npm install --no-save --no-audit --no-fund @capacitor/core@6.2.1 @capacitor/cli@6.2.1 @capacitor/android@6.2.1
       - name: Generate and sync Android project
@@ -132,18 +134,34 @@ jobs:
             frontend/package-lock.json
           if-no-files-found: error
           retention-days: 14
-      - name: Install and launch on Android emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          # Use the lean AOSP image: Google Play/Google APIs background services
-          # exhausted CPU during UIAutomator evidence collection on hosted runners.
-          target: default
-          arch: x86_64
-          profile: pixel_2
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -wipe-data -no-metrics -camera-back none -camera-front none -memory 2048 -cores 2
-          script: bash frontend/scripts/android-emulator-acceptance.sh
+      - name: Boot isolated Android emulator and run acceptance
+        shell: bash
+        working-directory: .
+        run: |
+          set -Eeuo pipefail
+          printf 'no\\n' | avdmanager create avd --force --name maalenex-ci --package "system-images;android-30;default;x86_64" --device "pixel_2"
+          adb start-server
+          nohup "$ANDROID_HOME/emulator/emulator" -avd maalenex-ci \
+            -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim \
+            -no-snapshot -wipe-data -no-metrics -camera-back none -camera-front none \
+            -memory 4096 -cores 4 > /tmp/maalenex-emulator.log 2>&1 &
+          echo $! > /tmp/maalenex-emulator.pid
+          adb wait-for-device
+          booted=""
+          for attempt in $(seq 1 180); do
+            booted="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)"
+            if [[ "$booted" == "1" ]]; then
+              break
+            fi
+            sleep 5
+          done
+          if [[ "$booted" != "1" ]]; then
+            adb logcat -d -t 3000 > frontend/maalenex-emulator-logcat.txt || true
+            cat /tmp/maalenex-emulator.log
+            echo "Android emulator failed to complete boot within 15 minutes." >&2
+            exit 1
+          fi
+          bash frontend/scripts/android-emulator-acceptance.sh
       - name: Upload emulator acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -153,5 +171,7 @@ jobs:
             frontend/maalenex-window.xml
             frontend/maalenex-emulator.png
             frontend/maalenex-apk.sha256
+            frontend/maalenex-emulator-logcat.txt
+            /tmp/maalenex-emulator.log
           if-no-files-found: warn
           retention-days: 30
