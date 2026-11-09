@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="512" height="512">
+<title>MaaleNex</title>
+<rect width="256" height="256" rx="48" fill="#071B31"/>
+<circle cx="128" cy="105" r="77" fill="none" stroke="#1B5E77" stroke-width="2" opacity=".7"/>
+<path d="M68 115a60 60 0 0 1 120 0" fill="none" stroke="#F5B82E" stroke-width="5" stroke-linecap="round"/>
+<circle cx="128" cy="53" r="12" fill="#F5B82E"/>
+<path d="M31 178 84 84l44 58 43-58 54 94H31Z" fill="#071B31" stroke="#0C4260" stroke-width="2" stroke-linejoin="round"/>
+<path d="m43 174 41-72 44 58 43-58 42 72h-39l-46-57-44 57H43Z" fill="#F5B82E" stroke="#FFE08A" stroke-width="2" stroke-linejoin="round"/>
+<path d="m89 174 39-51 39 51h-78Z" fill="#0D9A72"/>
+<path d="M24 187c42 23 145 27 205-5" fill="none" stroke="#36B8EC" stroke-width="4" stroke-linecap="round"/>
+<circle cx="229" cy="182" r="5" fill="#49D9FF"/>
+</svg>
