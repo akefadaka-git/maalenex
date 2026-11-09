@@ -501,5 +501,6 @@ def test_postgres_guest_verification_rate_limit_is_shared_across_challenge_ids()
     limited = client.post(
         "/api/v1/passenger-access/challenges/" + str(uuid4()) + "/verify",
         json={"code": "000000"},
+        headers={"Origin": "http://localhost:5173"},
     )
     assert limited.status_code == 429, limited.text
