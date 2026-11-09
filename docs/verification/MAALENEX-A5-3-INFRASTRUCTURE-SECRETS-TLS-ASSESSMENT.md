@@ -239,3 +239,10 @@ The normative, provider-neutral contract is prepared in [MAALENEX-A5-3-3-TLS-PRO
 **F-01, F-02 and F-03: VERIFIED-CLOSED for application-level implementation and synthetic regression coverage.** Exact-head CI passed on `3bce5b81c91ad9a573a02e55d3a6e2f6da1a3121` ([run #42571302514](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42571302514)): backend/PostgreSQL 82 passed, 1 warning; compile, Ruff, migrations, seed idempotency, Alembic parity, downgrade/re-upgrade, frontend tests/typecheck/build/npm audit, pip-audit and Bandit all passed.
 
 The A5.3.3 ingress contract now specifies a single trusted final edge that overwrites X-Forwarded-For with exactly one observed client IP; arbitrary multi-hop chains are not supported by this G1 profile. F-04 remains OPEN: HSTS/CSP ownership and actual TLS/ingress verification cannot be closed without an approved hosting and public-edge environment. No DNS, certificates, runtime settings, secrets, production infrastructure, merge or deployment changed. Overall A5 remains **NOT READY / NO-GO**.
+
+
+## F-04 production-edge design update
+
+F-04 design ownership and acceptance requirements are documented in [A5.3.5 F-04 Production-Edge Security Design and Acceptance](MAALENEX-A5-3-5-F04-PRODUCTION-EDGE-DESIGN-AND-ACCEPTANCE.md). HSTS and CSP are assigned to the public edge as their single authoritative owner; the application retains its existing controls. TLS, edge-to-origin encryption, private origin isolation, staged HSTS, CSP report-only/enforcement, evidence collection and rollback are specified.
+
+F-04 is **DESIGN-RESOLVED / OPERATIONAL ACCEPTANCE PENDING**. The current repository contains no approved provider, public hostname, deployed edge or live scan evidence. Do not mark operational acceptance PASS until all F04-01 through F04-12 gates have actual evidence and Owner approval. A5 remains **NOT READY / NO-GO**; runtime hard stops are unchanged.
