@@ -4,7 +4,6 @@ Only the immediate socket peer can establish proxy trust. Forwarded headers are
 removed before the request reaches routing code.
 """
 import ipaddress
-from collections import defaultdict
 
 
 _FORWARDING_HEADERS = {
