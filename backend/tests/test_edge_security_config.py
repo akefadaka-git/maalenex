@@ -137,10 +137,12 @@ def test_untrusted_peer_cannot_spoof_https_or_host():
             (b"host", b"api.example.test"),
             (b"x-forwarded-proto", b"https"),
             (b"x-forwarded-host", b"api.example.test"),
+            (b"x-forwarded-for", b"203.0.113.77"),
         ],
     )
     assert result["status"] == 204
     assert result["scope"]["scheme"] == "http"
+    assert result["scope"]["client"][0] == "198.51.100.20"
     assert all(key.lower() != b"x-forwarded-proto"
                for key, _ in result["scope"]["headers"])
     assert all(key.lower() != b"x-forwarded-host"
@@ -222,7 +224,11 @@ def test_cors_middleware_reflects_only_exact_allowed_origin():
     [(b"x-forwarded-proto", b"https,http")],
 ])
 def test_trusted_proxy_fails_closed_without_exactly_one_https_metadata(proto_headers):
-    headers = [(b"host", b"api.example.test"), *proto_headers]
+    headers = [
+        (b"host", b"api.example.test"),
+        (b"x-forwarded-for", b"203.0.113.7"),
+        *proto_headers,
+    ]
     result = _run_middleware("10.0.0.15", headers)
     assert result["status"] == 400
     assert result["scope"] is None
@@ -252,3 +258,47 @@ def test_proxy_allowlist_accepts_narrow_explicit_proxy_range():
 def test_proxy_allowlist_rejects_broad_private_network():
     with pytest.raises(ValueError, match="too broad"):
         _settings(trusted_proxy_ips="10.0.0.0/8", canonical_hosts="api.example.test")
+
+
+def test_trusted_proxy_uses_single_validated_client_ip_for_rate_limit_identity():
+    first = _run_middleware(
+        "10.0.0.15",
+        [
+            (b"host", b"internal"),
+            (b"x-forwarded-proto", b"https"),
+            (b"x-forwarded-host", b"api.example.test"),
+            (b"x-forwarded-for", b"203.0.113.10"),
+        ],
+    )
+    second = _run_middleware(
+        "10.0.0.15",
+        [
+            (b"host", b"internal"),
+            (b"x-forwarded-proto", b"https"),
+            (b"x-forwarded-host", b"api.example.test"),
+            (b"x-forwarded-for", b"203.0.113.11"),
+        ],
+    )
+    assert first["status"] == second["status"] == 204
+    assert first["scope"]["client"][0] == "203.0.113.10"
+    assert second["scope"]["client"][0] == "203.0.113.11"
+    assert first["scope"]["maalenex.proxy_peer"][0] == "10.0.0.15"
+
+
+@pytest.mark.parametrize("forwarded_for", [
+    [],
+    [(b"x-forwarded-for", b"")],
+    [(b"x-forwarded-for", b"not-an-ip")],
+    [(b"x-forwarded-for", b"203.0.113.10, 10.0.0.2")],
+    [(b"x-forwarded-for", b"203.0.113.10"), (b"x-forwarded-for", b"203.0.113.11")],
+])
+def test_trusted_proxy_rejects_missing_or_ambiguous_client_ip(forwarded_for):
+    headers = [
+        (b"host", b"internal"),
+        (b"x-forwarded-proto", b"https"),
+        (b"x-forwarded-host", b"api.example.test"),
+        *forwarded_for,
+    ]
+    result = _run_middleware("10.0.0.15", headers)
+    assert result["status"] == 400
+    assert result["scope"] is None
