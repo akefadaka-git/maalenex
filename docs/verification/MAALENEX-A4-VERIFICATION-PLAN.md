@@ -2,7 +2,7 @@
 
 **Stage:** A4 — full verification and remediation  
 **A4 branch:** `a4/full-verification-remediation`  
-**Observed branch graph:** PR #10-derived A4 branch is not a fast-forward descendant of PR #9's recorded verified head. The compare endpoint reports A4 branch 18 commits ahead and 7 behind PR #9 head `456e181ffda82403dc6cc9a245f66d47f9a947f4`, with merge base `94a4ab968ee09f3c7dccf3d2665fc25f5fa160dd`.  
+**Reconciliation commit:** `ae7546b29b755973623420d8a887c813c5521edf`. PR #9 head `456e181ffda82403dc6cc9a245f66d47f9a947f4` and PR #10 closure head `0181d48cf27ad3d566cb5a76c7372f12bd199fa7` are both ancestors of this A4 commit. The A4 merge commit has prior A4 as first parent and PR #9 as second parent. PR #10 is retained in the first-parent history.  
 **Prior A4 workflow snapshot:** `791d95796a6d87e99b3299fe7f654001e8b2be92`; all three jobs passed in run [#42502705174](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42502705174).  
 **Governance:** synthetic-only; no PR merge, deployment, production activation, live payments, location tracking, or commercial operation.
 
@@ -12,7 +12,7 @@ PR #3 records earlier passenger-foundation fixes for cross-challenge verificatio
 
 PR #9 records the shared-platform and identity baseline at `456e181ffda82403dc6cc9a245f66d47f9a947f4`. PR #10's later head `0181d48cf27ad3d566cb5a76c7372f12bd199fa7` is not a descendant of that exact PR #9 head: the branch comparison reports 14 commits ahead and 7 behind. Therefore, the prior A4 green run verifies the A4 branch snapshot, not a reconciled combination of the latest PR #9 and PR #10 heads.
 
-A4 remains **PARTIAL** until the branch graph and code state are reconciled without merging PRs or changing the default branch. Do not describe PR #10 as including the latest PR #9 commits until ancestry is proven.
+The A4-only merge commit reconciles both histories. The five PR #9-changed shared files were compared at PR #9, PR #10 and A4 refs and have identical blob SHAs. PR #10 identity/E2E additions and A4 verification files are retained. No original PR was merged.
 
 ## 2. A4 verification gates
 
@@ -45,4 +45,4 @@ A4 can be marked **VERIFIED-CLOSED** only when:
 - the final report identifies checks not run and implications;
 - the A4 evidence record is committed and that commit itself passes exact-HEAD CI.
 
-A green CI run on a branch that omits commits from another required baseline is not sufficient. A5 remains a separate Owner authorization and operational readiness gate.
+A4 final workflow run #42557579829 passed all three jobs on exact reconciliation HEAD `ae7546b29b755973623420d8a887c813c5521edf`. A5 remains a separate Owner authorization and operational readiness gate.
