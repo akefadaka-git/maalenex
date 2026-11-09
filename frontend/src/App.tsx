@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { API_BASE_URL, apiFetch, apiUrl } from "./api";
 
 type Language = "am" | "en";
 type LocationOption = { id: string; name: string; type: string };
@@ -25,13 +26,6 @@ type SupportCase = {
   case_reference: string; category: string; subject: string; message: string;
   status: string; resolution_code: string | null; resolution_note: string | null;
 };
-
-const API_BASE_URL = (import.meta as ImportMeta & { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL ?? "";
-
-function apiUrl(path: string): string {
-  const base = API_BASE_URL.endsWith("/") ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
-  return `${base}${path}`;
-}
 
 const copy = {
   am: {
@@ -138,6 +132,7 @@ export default function App() {
   const [hold, setHold] = useState<HoldResult | null>(null);
   const [challengeId, setChallengeId] = useState("");
   const [syntheticCode, setSyntheticCode] = useState("");
+  const [csrfToken, setCsrfToken] = useState(() => sessionStorage.getItem("mnm_booking_csrf_token") ?? "");
   const [verificationCode, setVerificationCode] = useState("");
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [reservation, setReservation] = useState<ReservationResult | null>(null);
@@ -161,7 +156,7 @@ export default function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(apiUrl("/api/v1/catalog/locations"), { signal: controller.signal })
+    apiFetch("/api/v1/catalog/locations"), { signal: controller.signal })
       .then((response) => { if (!response.ok) throw new Error("locations"); return response.json() as Promise<LocationOption[]>; })
       .then((items) => {
         setLocations(items);
@@ -287,8 +282,12 @@ export default function App() {
         body: JSON.stringify({ code: verificationCode }),
       });
       if (!response.ok) throw new Error("verify");
-      const result = await response.json() as { booking_id: string };
+      const result = await response.json() as { booking_id: string; csrf_token?: string };
       sessionStorage.setItem("mnm_active_booking_id", result.booking_id);
+      if (result.csrf_token) {
+        sessionStorage.setItem("mnm_booking_csrf_token", result.csrf_token);
+        setCsrfToken(result.csrf_token);
+      }
       const detail = await fetch(apiUrl(`/api/v1/bookings/${result.booking_id}`), { credentials: "include" });
       if (!detail.ok) throw new Error("booking");
       const bookingDetails = await detail.json() as BookingDetails;
@@ -306,7 +305,7 @@ export default function App() {
     try {
       const response = await fetch(apiUrl(`/api/v1/bookings/${booking.booking_id}/reservation`), {
         method: "POST", credentials: "include",
-        headers: { "X-CSRF-Token": csrfCookie() },
+        headers: { "X-CSRF-Token": csrfToken || csrfCookie() },
       });
       if (!response.ok) throw new Error("reservation");
       setReservation((await response.json()) as ReservationResult);
@@ -347,6 +346,8 @@ export default function App() {
       });
       if (!response.ok) throw new Error("revoke");
       sessionStorage.removeItem("mnm_active_booking_id");
+      sessionStorage.removeItem("mnm_booking_csrf_token");
+      setCsrfToken("");
       setBooking(null); setReservation(null); setHold(null); setChallengeId(""); setSupportCases([]);
       setSyntheticCode(""); setVerificationCode("");
     } catch { setError("error"); }
