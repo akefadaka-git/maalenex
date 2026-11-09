@@ -15,8 +15,7 @@ export function RouteMapPreview({language,pickup,destination}:Props){
  const [zoom,setZoom]=useState(1); const [geo,setGeo]=useState<GeoState>("idle"); const [online,setOnline]=useState(typeof navigator==="undefined"?true:navigator.onLine);
  const am=language==="am";
  useEffect(()=>{const on=()=>setOnline(true),off=()=>setOnline(false);window.addEventListener("online",on);window.addEventListener("offline",off);return()=>{window.removeEventListener("online",on);window.removeEventListener("offline",off);};},[]);
- const routeKey=useMemo(()=>edges[`${pickup}:${destination}`]?"${pickup}:${destination}":edges[`${destination}:${pickup}`]?"${destination}:${pickup}`:null,[pickup,destination]);
- const routePath=routeKey?edges[routeKey]:null;
+ const routeKey=useMemo(()=>edges[`${pickup}:${destination}`]?`${pickup}:${destination}`:edges[`${destination}:${pickup}`]?`${destination}:${pickup}`:null,[pickup,destination]);
  const requestLocation=()=>{
   if(!("geolocation" in navigator)){setGeo("unsupported");return;}
   setGeo("requesting");
