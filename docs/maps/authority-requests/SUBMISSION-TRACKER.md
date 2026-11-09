@@ -54,4 +54,4 @@ For each recipient, record:
 
 | Date | Event | Evidence |
 |---|---|---|
-| 2026-11-09 | Draft package separated into four recipient-specific letters and a controlled tracker | Git commit to be recorded after verification |
+| 2026-11-09 | Four recipient-specific letters, acquisition README, submission tracker and chronology corrections committed; files re-fetched and checked | Branch implementation HEAD: `0adc4340ae4e454ad26aab587aa2f0d14bda897a` (verification snapshot; this tracker update follows) |
