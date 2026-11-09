@@ -335,3 +335,10 @@ Each runbook needs an owner, approver, prerequisites, commands/actions, verifica
 - [A5.3 infrastructure, secrets and TLS assessment](MAALENEX-A5-3-INFRASTRUCTURE-SECRETS-TLS-ASSESSMENT.md)
 - [A5.3.1 architecture, trust boundaries, data flows and network-security specification](MAALENEX-A5-3-1-ARCHITECTURE-TRUST-BOUNDARIES-DATA-FLOWS-NETWORK-SECURITY.md)
 - [A5.3.2 versioned encryption and lookup-key lifecycle design](MAALENEX-A5-3-2-VERSIONED-KEY-LIFECYCLE-DESIGN.md)
+
+
+## F-04 design decision and acceptance supplement
+
+The normative F-04 design is now recorded in [A5.3.5 F-04 Production-Edge Security Design and Acceptance](MAALENEX-A5-3-5-F04-PRODUCTION-EDGE-DESIGN-AND-ACCEPTANCE.md). The public ingress edge is the sole production owner of HSTS and CSP; the application retains its existing CORS, Origin/CSRF, cookie and trusted-proxy controls. HSTS uses staged activation only after HTTPS readiness; CSP uses report-only observation before enforcement. The edge strips upstream HSTS/CSP and emits exactly one reviewed policy. The origin remains private and reachable only through the approved single-hop trusted edge.
+
+**F-04 disposition: DESIGN-RESOLVED / OPERATIONAL ACCEPTANCE PENDING.** This supplement closes design ownership ambiguity, not live-edge verification. TLS scans, redirect/HSTS/CSP probes, direct-origin bypass tests, CSP observation, alerting and rollback rehearsal remain NOT RUN because no provider, production hostname, staging edge or public endpoint is approved or provisioned. A5 remains NOT READY / NO-GO. Existing development/test-only, synthetic-only and local database hard stops remain unchanged.
