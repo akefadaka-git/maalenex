@@ -37,7 +37,7 @@ export function RouteMapPreview({language,pickup,destination}:Props){
   <div className="mn-map-heading"><div><p className="mn-overline">{am?"የመንገድ እይታ":"ROUTE VISUALIZATION"}</p><h3>{am?"የመንገድ ካርታ":"Route map"}</h3></div><Badge tone="warning">{am?"ምሳሌያዊ ካርታ":"Schematic map"}</Badge></div>
   <div className="mn-map-frame">
    <div className="mn-map-canvas" role="img" aria-label={am?"በኮይቤ፣ ጂንካ፣ ማአሌ ወረዳ እና ወላይታ ሶዶ መካከል ምሳሌያዊ መንገድ":"Illustrative route between Koybe, Jinka, Maale Woreda and Wolaita Sodo"}>
-    <svg viewBox="0 0 520 340" aria-hidden="true" style={{"--mn-map-zoom":zoom} as React.CSSProperties}>
+    <svg viewBox="0 0 520 340" aria-hidden="true" style={{transform:`scale(${zoom})`}}>
      <defs><pattern id="mn-grid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M26 0H0V26" fill="none" stroke="currentColor" strokeOpacity=".08" strokeWidth="1"/></pattern></defs>
      <rect width="520" height="340" fill="url(#mn-grid)"/>
      <path d="M0 45 Q95 10 170 55 T330 45 T520 55 M0 305 Q120 250 220 300 T520 280 M40 0 Q85 100 35 190 T70 340 M470 0 Q410 100 480 180 T450 340" fill="none" stroke="currentColor" strokeOpacity=".10" strokeWidth="2"/>
