@@ -87,6 +87,8 @@ class Settings(BaseSettings):
                     raise ValueError("CORS origin port is invalid.")
             except ValueError as exc:
                 raise ValueError("CORS origin port is invalid.") from exc
+        if len({_canonical_origin(item) for item in origins}) != len(origins):
+            raise ValueError("CORS_ORIGINS must not contain duplicate normalized origins.")
 
         proxy_entries = [item.strip() for item in self.trusted_proxy_ips.split(",") if item.strip()]
         if len({item.lower() for item in proxy_entries}) != len(proxy_entries):
@@ -123,22 +125,10 @@ class Settings(BaseSettings):
 
     @property
     def allowed_origins(self) -> list[str]:
-        normalized = []
-        for item in self.cors_origins.split(","):
-            if not item.strip():
-                continue
-            parsed = urlsplit(item.strip())
-            host = parsed.hostname.lower()
-            if ":" in host and not host.startswith("["):
-                host = f"[{host}]"
-            port = parsed.port
-            if port is not None and not (
-                (parsed.scheme.lower() == "http" and port == 80)
-                or (parsed.scheme.lower() == "https" and port == 443)
-            ):
-                host = f"{host}:{port}"
-            normalized.append(f"{parsed.scheme.lower()}://{host}")
-        return normalized
+        return [
+            _canonical_origin(item)
+            for item in self.cors_origins.split(",") if item.strip()
+        ]
 
     @property
     def trusted_proxy_networks(self) -> tuple:
