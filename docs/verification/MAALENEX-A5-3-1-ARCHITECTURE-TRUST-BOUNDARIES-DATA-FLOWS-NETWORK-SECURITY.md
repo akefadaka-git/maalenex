@@ -384,7 +384,7 @@ No tests or implementation are authorized by this document. When separately appr
 
 ### Next separately gated design work
 
-- A5.3.2: versioned identity-encryption and lookup-key lifecycle design, including migration, rollback and recovery. No key generation.
+- A5.3.2: versioned identity-encryption and lookup-key lifecycle design — PREPARED in [MAALENEX-A5-3-2-VERSIONED-KEY-LIFECYCLE-DESIGN.md](MAALENEX-A5-3-2-VERSIONED-KEY-LIFECYCLE-DESIGN.md); Owner review pending. No key generation.
 - A5.3.3: TLS termination, trusted-proxy, cookie, CORS and ingress contract. No DNS/certificate change.
 - A5.3.4: synthetic-only fail-closed configuration tests only after separate implementation authorization.
 
