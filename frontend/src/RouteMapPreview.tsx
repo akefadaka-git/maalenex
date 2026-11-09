@@ -13,7 +13,6 @@ const nodes: Record<string,{x:number;y:number;am:string;en:string}> = {
 const edges: Record<string,string> = { "koybe:jinka":"M112 170 Q205 80 328 92", "jinka:sodo":"M328 92 Q390 115 420 205", "koybe:maale":"M112 170 Q145 230 210 264", "maale:jinka":"M210 264 Q260 150 328 92" };
 export function RouteMapPreview({language,pickup,destination}:Props){
  const [zoom,setZoom]=useState(1); const [geo,setGeo]=useState<GeoState>("idle"); const [online,setOnline]=useState(typeof navigator==="undefined"?true:navigator.onLine);
- const [position,setPosition]=useState<{latitude:number;longitude:number}|null>(null);
  const am=language==="am";
  useEffect(()=>{const on=()=>setOnline(true),off=()=>setOnline(false);window.addEventListener("online",on);window.addEventListener("offline",off);return()=>{window.removeEventListener("online",on);window.removeEventListener("offline",off);};},[]);
  const routeKey=useMemo(()=>edges[`${pickup}:${destination}`]?"${pickup}:${destination}":edges[`${destination}:${pickup}`]?"${destination}:${pickup}`:null,[pickup,destination]);
@@ -22,7 +21,7 @@ export function RouteMapPreview({language,pickup,destination}:Props){
   if(!("geolocation" in navigator)){setGeo("unsupported");return;}
   setGeo("requesting");
   navigator.geolocation.getCurrentPosition(
-   p=>{setPosition({latitude:p.coords.latitude,longitude:p.coords.longitude});setGeo("granted");},
+   _p=>{setGeo("granted");},
    e=>setGeo(e.code===1?"denied":e.code===2?"unavailable":"error"),
    {enableHighAccuracy:false,timeout:10000,maximumAge:60000}
   );
@@ -38,13 +37,12 @@ export function RouteMapPreview({language,pickup,destination}:Props){
   <div className="mn-map-heading"><div><p className="mn-overline">{am?"የመንገድ እይታ":"ROUTE VISUALIZATION"}</p><h3>{am?"የመንገድ ካርታ":"Route map"}</h3></div><Badge tone="warning">{am?"ምሳሌያዊ ካርታ":"Schematic map"}</Badge></div>
   <div className="mn-map-frame">
    <div className="mn-map-canvas" role="img" aria-label={am?"በኮይቤ፣ ጂንካ፣ ማአሌ ወረዳ እና ወላይታ ሶዶ መካከል ምሳሌያዊ መንገድ":"Illustrative route between Koybe, Jinka, Maale Woreda and Wolaita Sodo"}>
-    <svg viewBox="0 0 520 340" aria-hidden="true">
+    <svg viewBox="0 0 520 340" aria-hidden="true" style={{"--mn-map-zoom":zoom} as React.CSSProperties}>
      <defs><pattern id="mn-grid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M26 0H0V26" fill="none" stroke="currentColor" strokeOpacity=".08" strokeWidth="1"/></pattern></defs>
      <rect width="520" height="340" fill="url(#mn-grid)"/>
      <path d="M0 45 Q95 10 170 55 T330 45 T520 55 M0 305 Q120 250 220 300 T520 280 M40 0 Q85 100 35 190 T70 340 M470 0 Q410 100 480 180 T450 340" fill="none" stroke="currentColor" strokeOpacity=".10" strokeWidth="2"/>
      {Object.entries(edges).map(([key,path])=><path key={key} d={path} fill="none" stroke={routeKey===key||routeKey===key.split(":").reverse().join(":")?"#0D9A72":"#9AAEAA"} strokeOpacity={routeKey===key||routeKey===key.split(":").reverse().join(":")?1:.42} strokeWidth={routeKey===key||routeKey===key.split(":").reverse().join(":")?6:2} strokeLinecap="round" strokeDasharray={routeKey===key||routeKey===key.split(":").reverse().join(":")?"none":"5 7"}/>)}
      {Object.entries(nodes).map(([id,n])=><g key={id} transform={`translate(${n.x} ${n.y})`}><circle r={id===pickup||id===destination?13:7} fill={id===pickup?"#F5B82E":id===destination?"#0D9A72":"#71827B"} stroke="#fff" strokeWidth="3"/><circle r="19" fill="none" stroke={id===pickup?"#F5B82E":id===destination?"#0D9A72":"#71827B"} strokeOpacity=".35"/><text x="0" y="31" textAnchor="middle" fill="currentColor" fontSize="12" fontWeight="700">{am?n.am:n.en}</text></g>)}
-     {position&&<g transform="translate(260 165)"><circle r="15" fill="#1768D9" fillOpacity=".18"/><circle r="6" fill="#1768D9" stroke="white" strokeWidth="3"/></g>}
     </svg>
     <div className="mn-map-zoom" aria-label={am?"የካርታ ማጉያ መቆጣጠሪያዎች":"Map zoom controls"}><Button size="small" variant="secondary" aria-label={am?"አጉላ":"Zoom in"} onClick={()=>setZoom(z=>Math.min(1.6,Number((z+.15).toFixed(2))))}>+</Button><span>{Math.round(zoom*100)}%</span><Button size="small" variant="secondary" aria-label={am?"አሳንስ":"Zoom out"} onClick={()=>setZoom(z=>Math.max(.7,Number((z-.15).toFixed(2))))}>−</Button><Button size="small" variant="quiet" onClick={()=>setZoom(1)}>{am?"ዳግም":"Reset"}</Button></div>
    </div>
