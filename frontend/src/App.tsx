@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Badge, BottomNavigation, Button, Card, Dialog } from "./components/ui";
 import { RouteMapPreview } from "./RouteMapPreview";
+import { PortalPages } from "./PortalPages";
 
 type Language = "am" | "en";
 type Stage = "route" | "review" | "preview";
@@ -18,12 +19,7 @@ export default function App(){
  const start=()=>{setStage("route");dialogRef.current?.showModal();};
  const services=[{number:"01",icon:"↗",title:t.rides,description:t.rideDesc},{number:"02",icon:"✳",title:t.care,description:t.careDesc},{number:"03",icon:"⌁",title:t.drivers,description:t.driverDesc}];
  return <main className="mn-app" lang={language} id="home">
-  <header className="mn-app-header"><a className="mn-app-brand" href="#home" aria-label="MaaleNex Moto home"><span className="mn-app-symbol">M</span><span><strong>{t.brand}</strong><small>{t.product}</small></span></a><div className="mn-header-actions"><Badge tone="info">{t.status}</Badge><Button variant="secondary" size="small" onClick={()=>setLanguage(language==="am"?"en":"am")}>{language==="am"?"EN":"አማ"}</Button></div></header>
-  <section className="mn-hero"><div className="mn-hero-copy"><p className="mn-eyebrow">{t.eyebrow}</p><h1>{t.title}</h1><p className="mn-lead">{t.subtitle}</p><div className="mn-hero-actions"><Button size="large" onClick={start}>{t.action}<span aria-hidden="true">↗</span></Button><span className="mn-action-note">{t.actionNote}</span></div></div><Card className="mn-location-card"><span className="mn-location-orbit" aria-hidden="true">⌖</span><div><span className="mn-overline">{t.pilot}</span><strong>{t.pilotPlace}</strong></div><Badge tone="warning">{t.pilotStatus}</Badge></Card></section>
-  <section className="mn-services" id="services"><div className="mn-section-heading"><div><p className="mn-eyebrow">{language==="am"?"የማአሌኔክስ ሞቶ":"MAALENEX MOTO"}</p><h2>{t.services}</h2></div><span>{t.servicesNote}</span></div><div className="mn-service-grid">{services.map(s=><Card key={s.number} className="mn-service-card"><span className="mn-service-top"><span>{s.number}</span><span className="mn-service-icon" aria-hidden="true">{s.icon}</span></span><div><h3>{s.title}</h3><p>{s.description}</p></div><span className="mn-card-arrow" aria-hidden="true">↗</span></Card>)}</div></section>
-  <section className="mn-community" id="help"><div className="mn-community-mark" aria-hidden="true">M</div><div><h2>{t.how}</h2><p>{t.howDesc}</p></div><Badge tone="success">{language==="am"?"ደህንነት ቅድሚያ":"Safety first"}</Badge></section>
-  <footer className="mn-app-footer"><span>{t.note}</span><span>© MaaleNex Moto · 2026</span></footer>
-  <BottomNavigation label={language==="am"?"ዋና ማሰሻ":"Main navigation"} items={[{href:"#home",label:t.home,icon:"⌂",current:true},{href:"#services",label:t.explore,icon:"▦"},{href:"#help",label:t.help,icon:"?"}]}/>
+  <PortalPages language={language} onLanguageChange={setLanguage} onRidePreview={start}/>
   <Dialog ref={dialogRef} title={stage==="route"?t.rideTitle:stage==="review"?t.reviewTitle:t.previewTitle} onRequestClose={()=>dialogRef.current?.close()} className="mn-ride-dialog">
    {stage==="route"&&<><p className="mn-dialog-intro">{t.rideIntro}</p><div className="mn-route-fields"><label className="mn-field-wrap"><span className="mn-field-label">{t.from}</span><select className="mn-field" value={pickup} onChange={e=>setPickup(e.target.value)}>{places.map(p=><option key={p.id} value={p.id}>{p[language]}</option>)}</select></label><div className="mn-route-swap"><Button size="small" variant="quiet" onClick={()=>{setPickup(destination);setDestination(pickup);}}>{t.swap} ⇅</Button></div><label className="mn-field-wrap"><span className="mn-field-label">{t.to}</span><select className="mn-field" value={destination} onChange={e=>setDestination(e.target.value)}>{places.map(p=><option key={p.id} value={p.id}>{p[language]}</option>)}</select></label></div>
     <RouteMapPreview language={language} pickup={pickup} destination={destination}/>
