@@ -16,9 +16,11 @@ def has_permission(
         select(Permission.id)
         .join(RolePermission, RolePermission.permission_id == Permission.id)
         .join(RoleAssignment, RoleAssignment.role_id == RolePermission.role_id)
+        .join(User, User.id == RoleAssignment.user_id)
         .where(
             RoleAssignment.user_id == user_id,
             RoleAssignment.revoked_at.is_(None),
+            User.status == "active",
             Permission.code == permission_code,
         )
     )
@@ -28,7 +30,21 @@ def has_permission(
             RoleAssignment.organization_id.is_(None), Permission.code.like("platform.%")
         )
     else:
-        statement = statement.where(RoleAssignment.organization_id == organization_id)
+        # Tenant grants require both an exact organization match and a live membership.
+        statement = (
+            statement
+            .join(OrganizationMembership, and_(
+                OrganizationMembership.organization_id == RoleAssignment.organization_id,
+                OrganizationMembership.user_id == RoleAssignment.user_id,
+            ))
+            .join(Organization, Organization.id == RoleAssignment.organization_id)
+            .where(
+                RoleAssignment.organization_id == organization_id,
+                OrganizationMembership.membership_status == "active",
+                OrganizationMembership.revoked_at.is_(None),
+                Organization.status == "approved",
+            )
+        )
     return db.scalar(statement.limit(1)) is not None
 
 
