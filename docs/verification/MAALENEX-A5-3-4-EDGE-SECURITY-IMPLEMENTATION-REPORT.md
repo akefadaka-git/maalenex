@@ -150,3 +150,10 @@ Regression coverage now includes trusted-proxy scheme failure, client-IP separat
 - The run checked out the exact branch commit; all three jobs completed successfully.
 
 **F-01, F-02 and F-03: VERIFIED-CLOSED for the application-level scope and regression coverage described in this report.** F-04 remains OPEN as a production-edge acceptance gate: HSTS/CSP ownership, actual TLS termination, ingress behavior and external edge verification still require an approved hosting/ingress environment. This does not establish production readiness or authorize merge/deployment.
+
+
+## 10. F-04 production-edge design disposition
+
+The Owner-requested F-04 design and acceptance package is recorded in [A5.3.5 F-04 Production-Edge Security Design and Acceptance](MAALENEX-A5-3-5-F04-PRODUCTION-EDGE-DESIGN-AND-ACCEPTANCE.md). It assigns HSTS and CSP exclusively to the public ingress edge, defines TLS termination/private encrypted origin topology, staged HSTS rollout, CSP report-only-to-enforced rollout, exact external evidence IDs, operational rollback and production no-go criteria. No provider, hostname or infrastructure was selected or provisioned; no runtime or application code changed.
+
+**F-04: DESIGN-RESOLVED / OPERATIONAL ACCEPTANCE PENDING.** No live TLS scan, public redirect/header probe, CSP browser observation, origin-bypass test or operational rollback exercise is claimed. Overall production readiness remains NOT READY / NO-GO.
