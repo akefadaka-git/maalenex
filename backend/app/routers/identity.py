@@ -317,8 +317,8 @@ def revoke_all_account_sessions(
     _require_csrf(request, current)
     revoke_account_sessions(db, account_id=account.id)
     db.commit()
-    response.delete_cookie(SESSION_COOKIE, path="/", samesite="lax")
-    response.delete_cookie(CSRF_COOKIE, path="/", samesite="lax")
+    response.delete_cookie(SESSION_COOKIE, path="/", samesite="lax", secure=settings.should_use_secure_cookies(request.url.scheme))
+    response.delete_cookie(CSRF_COOKIE, path="/", samesite="lax", secure=settings.should_use_secure_cookies(request.url.scheme))
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
 
