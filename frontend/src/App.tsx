@@ -17,7 +17,7 @@ export default function App(){
  const km=pickup===destination?0:route?.km??null;const fare=pickup===destination?0:route?.etb??null;
  const placeName=(id:string)=>places.find(p=>p.id===id)?.[language]??id;
  const start=()=>{setStage("route");dialogRef.current?.showModal();};
- return <main className="mn-app" lang={language} id="home">
+ return <div className="mn-app" lang={language} id="home">
   <PortalPages language={language} onLanguageChange={setLanguage} onRidePreview={start}/>
   <Dialog ref={dialogRef} title={stage==="route"?t.rideTitle:stage==="review"?t.reviewTitle:t.previewTitle} onRequestClose={()=>dialogRef.current?.close()} className="mn-ride-dialog">
    {stage==="route"&&<><p className="mn-dialog-intro">{t.rideIntro}</p><div className="mn-route-fields"><label className="mn-field-wrap"><span className="mn-field-label">{t.from}</span><select className="mn-field" value={pickup} onChange={e=>setPickup(e.target.value)}>{places.map(p=><option key={p.id} value={p.id}>{p[language]}</option>)}</select></label><div className="mn-route-swap"><Button size="small" variant="quiet" onClick={()=>{setPickup(destination);setDestination(pickup);}}>{t.swap} ⇅</Button></div><label className="mn-field-wrap"><span className="mn-field-label">{t.to}</span><select className="mn-field" value={destination} onChange={e=>setDestination(e.target.value)}>{places.map(p=><option key={p.id} value={p.id}>{p[language]}</option>)}</select></label></div>
@@ -28,5 +28,5 @@ export default function App(){
    {stage==="review"&&<><p className="mn-dialog-intro">{t.reviewTitle}</p><div className="mn-review-list"><div><span>{t.from}</span><strong>{placeName(pickup)}</strong></div><div><span>{t.to}</span><strong>{placeName(destination)}</strong></div><div><span>{t.distance}</span><strong>~{km} km</strong></div><div><span>{t.fare}</span><strong>~{fare?.toLocaleString()} ETB</strong></div></div><p className="mn-safety-note">{t.safety}</p><div className="mn-dialog-actions"><Button variant="secondary" onClick={()=>setStage("route")}>{t.back}</Button><Button onClick={()=>setStage("preview")}>{t.confirm}</Button></div></>}
    {stage==="preview"&&<><div className="mn-preview-success" aria-hidden="true">✓</div><p className="mn-dialog-intro">{t.previewText}</p><Badge tone="warning">{language==="am"?"ቅድመ እይታ ብቻ":"Preview only"}</Badge><div className="mn-dialog-actions"><Button onClick={()=>{setStage("route");dialogRef.current?.close();}}>{t.reset}</Button></div></>}
   </Dialog>
- </main>;
+ </div>;
 }
