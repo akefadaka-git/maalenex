@@ -179,3 +179,68 @@ R1–R5 describe a validation sequence, not a promise that each area is immediat
 ## 10. Non-goals and safety boundary
 
 This baseline does not activate a live map provider, routing engine, geocoder, dispatch, ETA, fare calculation, turn-by-turn navigation, offline map download or location upload. No candidate coordinate, boundary or road segment is approved for operational use by this document. Existing ride prototype distances and fares remain illustrative only.
+
+## 11. Administrative source reconciliation — 2026-11-09
+
+### 11.1 Direct inspection of historical ArcGIS administrative service
+
+The ArcGIS REST FeatureServer candidate was inspected at layer level and queried for matching South Omo / Ari / Maale records.
+
+- Service: https://services8.arcgis.com/oTalEaSXAuyNT7xf/arcgis/rest/services/Ethiopia_AdminBoundaries/FeatureServer
+- Woreda layer: `/1`; fields include `REGIONNAME`, `ZONENAME`, `WOREDANO_`, `WOREDANAME`.
+- Zone layer: `/2`; fields include `ZONENAME`, `Zone`, `Z4ID`.
+- Kebele layer: `/0`; fields include `R_NAME`, `Z_NAME`, `W_NAME`, `RK_NAME`, `UK_NAME`, `KK_NAME` and corresponding codes.
+- Woreda and kebele layer metadata report last data edit **2020-05-19**. The service is not a current administrative authority for post-2020 boundary changes.
+- The service metadata does not provide a clear licence/copyright statement. Do not redistribute or package its geometries until reuse rights are established.
+
+Targeted query URL (woreda attributes only, no geometries):
+https://services8.arcgis.com/oTalEaSXAuyNT7xf/arcgis/rest/services/Ethiopia_AdminBoundaries/FeatureServer/1/query?where=ZONENAME%20LIKE%20%27%25Omo%25%27%20OR%20ZONENAME%20LIKE%20%27%25Ari%25%27%20OR%20WOREDANAME%20LIKE%20%27%25Maale%25%27&outFields=REGIONNAME%2CZONENAME%2CWOREDANO_%2CWOREDANAME&returnGeometry=false&f=pjson
+
+The query returned eight records under `REGIONNAME = SNNPR` and `ZONENAME = South Omo`:
+
+| Historical woreda label | Historical code |
+|---|---:|
+| South Ari (Bako Gazer) | 070702 |
+| Selamgo | 070701 |
+| Gnangatom | 070708 |
+| Bena Tsemay | 070705 |
+| Hamer | 070704 |
+| Dasenech (Kuraz) | 070706 |
+| Gelila (Semen Ari) | 070703 |
+| Male | 070707 |
+
+The matching query did **not** return a separate Ari Zone record. The historical data instead places South Ari and Semen Ari-labelled units inside South Omo. This is consistent with an older administrative snapshot, not evidence against the regional government's current listing of Ari Zone as a separate zone. The record labelled `Male` is a candidate historical match for Maale, but the name alone is not sufficient to establish identity or current administrative status.
+
+### 11.2 Reconciliation finding
+
+1. **Historical snapshot only:** the service's 2020 data date predates the present regional and zonal organization. It is useful for tracing legacy names/codes and detecting changes, not for asserting current boundaries.
+2. **Ari Zone gap:** the queried service does not model the currently published Ari Zone as a distinct zone. Do not derive Ari's current woreda roster from this layer.
+3. **Maale identity:** preserve `Male` / `Maale` as a possible alias relationship requiring local authority confirmation; do not automatically map historical code `070707` to a current Maale administrative ID.
+4. **South Omo roster:** the eight returned rows are historical candidates only. Do not treat them as the current South Omo inventory.
+5. **Kebele hierarchy:** the layer schema can support historical parent/child tracing, but no current kebele inventory or production geometry has been accepted.
+6. **Licence:** no clear service licence was established; metadata inspection is not permission to redistribute the data.
+
+### 11.3 Current status amendment
+
+| Gate | Status | Evidence / next requirement |
+|---|---|---|
+| Historical South Omo woreda attributes retrieved | PARTIAL | Eight attribute records queried from 2020 service; not current |
+| Historical Ari Zone representation | MISSING | No separate Ari Zone returned by targeted query |
+| Historical Maale candidate record | PARTIAL | `Male`, code 070707; confirm identity and boundary with authorities |
+| Current South Omo roster | UNRESOLVED | Obtain current signed zonal roster and boundary file |
+| Current Ari Zone roster | UNRESOLVED | Obtain current Ari Zone administrative roster and boundary file |
+| Current Maale administrative parent and kebeles | UNRESOLVED | Obtain Maale / South Omo authority confirmation |
+| Historical ArcGIS geometry reuse rights | UNRESOLVED | Service licence/copyright not established |
+| Production boundary activation | BLOCKED | No historical layer is accepted as current or licensed |
+
+### 11.4 Next acquisition action
+
+Request the following from the South Ethiopia regional administration, South Omo Zone administration, Ari Zone administration and Maale woreda administration:
+
+- Current administrative roster with local-script and English names, official codes and effective dates.
+- Current zone, woreda/town-administration and kebele boundaries in GeoPackage, GeoJSON or shapefile, with CRS stated.
+- Signed/official source citation and named data custodian.
+- Licence or written permission covering commercial display, derivative works, caching and offline distribution.
+- Change history identifying units transferred, renamed, split or newly established since the 2020 snapshot.
+
+Until received and reconciled, use the 2020 records only as historical comparison metadata, never as production boundaries.
