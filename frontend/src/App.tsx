@@ -209,7 +209,7 @@ export default function App() {
         origin_id: originId, destination_id: destinationId,
         travel_date: travelDate, passenger_count: String(passengerCount),
       });
-      const response = await apiFetch(`/api/v1/trips/search?${params.toString()}`));
+      const response = await apiFetch(`/api/v1/trips/search?${params.toString()}`);
       if (!response.ok) throw new Error("search");
       setTrips((await response.json()) as TripResult[]);
     } catch { setTrips([]); setError("error"); }
@@ -221,7 +221,7 @@ export default function App() {
     setHold(null); setChallengeId(""); setBooking(null); setReservation(null); setError("");
     setLoadingSeats(true);
     try {
-      const response = await fetch(apiUrl(`/api/v1/trips/${trip.id}/seats`));
+      const response = await apiFetch(`/api/v1/trips/${trip.id}/seats`);
       if (!response.ok) throw new Error("seats");
       setSeats((await response.json()) as SeatOption[]);
     } catch { setError("error"); }
@@ -240,7 +240,7 @@ export default function App() {
         passengerNames.some((name) => !name.trim())) return;
     setWorking(true); setError("");
     try {
-      const response = await fetch(apiUrl("/api/v1/bookings/holds", {
+      const response = await apiFetch("/api/v1/bookings/holds", {
         method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({
           trip_id: selectedTrip.id, booking_contact_name: contactName,
@@ -320,7 +320,7 @@ export default function App() {
     try {
       const response = await apiFetch(`/api/v1/bookings/${booking.booking_id}/support-cases`, {
         method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfCookie() },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken || csrfCookie() },
         body: JSON.stringify({
           category: "reservation_status",
           subject: supportSubject,
@@ -342,7 +342,7 @@ export default function App() {
     try {
       const response = await apiFetch(`/api/v1/bookings/${booking.booking_id}/access/revoke`, {
         method: "POST", credentials: "include",
-        headers: { "X-CSRF-Token": csrfCookie() },
+        headers: { "X-CSRF-Token": csrfToken || csrfCookie() },
       });
       if (!response.ok) throw new Error("revoke");
       sessionStorage.removeItem("mnm_active_booking_id");
