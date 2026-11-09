@@ -44,7 +44,7 @@ def test_cors_rejects_non_exact_or_insecure_origins(origin):
 
 
 def test_proxy_allowlist_rejects_world_wide_network():
-    with pytest.raises(ValueError, match="entire address family"):
+    with pytest.raises(ValueError, match="too broad"):
         _settings(trusted_proxy_ips="0.0.0.0/0", canonical_hosts="api.example.test")
 
 
@@ -236,3 +236,15 @@ def test_allowed_origins_are_normalized_to_browser_origin_form():
 def test_cors_rejects_duplicate_origins_after_default_port_normalization():
     with pytest.raises(ValueError, match="duplicate normalized origins"):
         _settings(cors_origins="https://example.test,https://example.test:443")
+
+def test_proxy_allowlist_accepts_narrow_explicit_proxy_range():
+    configured = _settings(
+        trusted_proxy_ips="10.0.0.0/24",
+        canonical_hosts="api.example.test",
+    )
+    assert str(configured.trusted_proxy_networks[0]) == "10.0.0.0/24"
+
+
+def test_proxy_allowlist_rejects_broad_private_network():
+    with pytest.raises(ValueError, match="too broad"):
+        _settings(trusted_proxy_ips="10.0.0.0/8", canonical_hosts="api.example.test")
