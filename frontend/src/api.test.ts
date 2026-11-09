@@ -27,7 +27,7 @@ describe("API origin configuration", () => {
   });
 
   it("joins only safe absolute API paths", () => {
-    expect(apiUrl("/api/v1/catalog/locations")).toBe("/api/v1/catalog/locations");
+    expect(apiUrl("/api/v1/catalog/locations", "")).toBe("/api/v1/catalog/locations");
   });
 
   it("rejects protocol-relative paths", () => {
