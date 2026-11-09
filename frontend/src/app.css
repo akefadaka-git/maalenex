@@ -21,3 +21,18 @@
 [lang="am"] .mn-app-brand,[lang="am"] .mn-app-brand small,[lang="am"] .mn-app h1,[lang="am"] .mn-app h2,[lang="am"] .mn-app h3{font-family:var(--mn-font-ethiopic)}
 @media(max-width:760px){.mn-app{padding-inline:18px}.mn-hero{grid-template-columns:1fr;min-height:0;padding-top:54px;gap:26px}.mn-location-card{max-width:440px}.mn-service-grid{grid-template-columns:1fr}.mn-service-card{min-height:142px}.mn-section-heading{align-items:start;flex-direction:column;gap:4px}.mn-community{align-items:flex-start;flex-wrap:wrap}.mn-community>div:nth-child(2){min-width:calc(100% - 70px)}.mn-app-footer{flex-direction:column}}
 @media(prefers-reduced-motion:reduce){.mn-service-card{transition:none}.mn-service-card:hover{transform:none}}
+
+/* Ride planner preview — Element 07 */
+.mn-ride-dialog{overflow-y:auto}.mn-dialog-intro{margin:10px 0 20px;color:var(--mn-text-muted);line-height:1.65}
+.mn-route-fields{display:grid;gap:12px}.mn-route-swap{display:flex;justify-content:flex-end;margin-top:-8px;margin-bottom:-8px}
+.mn-estimate-card{margin-top:20px;padding:17px;border:1px solid var(--mn-border);border-radius:var(--mn-radius-md);background:var(--mn-surface-raised)}
+.mn-estimate-route{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:800}.mn-route-line{height:1px;flex:1;background:var(--mn-brand-emerald)}
+.mn-estimate-values{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}.mn-estimate-values>div{display:grid;gap:5px}.mn-estimate-values small{color:var(--mn-text-muted);font-size:11px}.mn-estimate-values strong{font-size:19px;color:var(--mn-text)}
+.mn-estimate-card>p{margin:12px 0 0;color:var(--mn-warning);font-size:11px;font-weight:700}
+.mn-inline-error{padding:10px 12px;border-radius:var(--mn-radius-sm);background:var(--mn-danger-soft,#FCE9E7);color:var(--mn-danger);font-size:13px}
+.mn-route-unavailable{margin-top:14px;color:var(--mn-warning);font-size:12px}
+.mn-dialog-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px;margin-top:22px}
+.mn-review-list{display:grid;gap:0;border:1px solid var(--mn-border);border-radius:var(--mn-radius-md);overflow:hidden}.mn-review-list>div{display:flex;justify-content:space-between;gap:16px;padding:13px 15px;border-bottom:1px solid var(--mn-border)}.mn-review-list>div:last-child{border-bottom:0}.mn-review-list span{color:var(--mn-text-muted);font-size:12px}.mn-review-list strong{text-align:right;font-size:13px}
+.mn-safety-note{margin:16px 0 0;padding:12px;border-left:3px solid var(--mn-brand-gold);background:var(--mn-surface-muted);color:var(--mn-text-muted);font-size:12px;line-height:1.6}
+.mn-preview-success{display:grid;place-items:center;width:54px;height:54px;margin:10px 0 16px;border-radius:50%;background:var(--mn-brand-emerald);color:white;font-size:28px;font-weight:800}
+@media(max-width:480px){.mn-estimate-values{grid-template-columns:1fr 1fr}.mn-dialog-actions{justify-content:stretch}.mn-dialog-actions .mn-button{flex:1}}
