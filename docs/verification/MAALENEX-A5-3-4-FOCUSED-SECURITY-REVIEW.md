@@ -209,3 +209,10 @@ The final edge must strip inbound X-Forwarded-For and set exactly one client IP.
 - Frontend tests, TypeScript, Vite build, npm audit, pip-audit and Bandit PASS.
 
 F-04 remains OPEN and is not remediated by this application change. Actual TLS termination, HSTS/CSP ownership, ingress/network policy, external scan and provider configuration require a separately approved production-edge environment. No penetration test, live TLS scan, merge or deployment is claimed.
+
+
+## F-04 design closure update
+
+The F-04 design ambiguity is resolved by [A5.3.5 F-04 Production-Edge Security Design and Acceptance](MAALENEX-A5-3-5-F04-PRODUCTION-EDGE-DESIGN-AND-ACCEPTANCE.md). The public edge is the sole HSTS/CSP owner; application security controls remain in place. HSTS activation is staged and excludes includeSubDomains/preload absent separate approval. CSP requires report-only observation and browser compatibility evidence before enforcement. Exact TLS, redirect, origin-isolation, header, CSP, logging, alerting and rollback evidence is specified.
+
+**Disposition: DESIGN-RESOLVED / OPERATIONAL ACCEPTANCE PENDING.** The review does not claim a live edge, external scan or production security closure. No provider or endpoint exists in the verified evidence. A5 remains NOT READY / NO-GO.
