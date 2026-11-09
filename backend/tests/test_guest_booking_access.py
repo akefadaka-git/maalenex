@@ -1,4 +1,9 @@
+from datetime import datetime, timezone
+from uuid import uuid4
+
 from fastapi.routing import APIRoute
+
+from app.routers.bookings import _verification_payload
 
 from app.main import app
 
@@ -25,3 +30,19 @@ def test_passenger_verification_route_is_registered_for_native_csrf_bootstrap():
     )
     assert route.methods == {"POST"}
     assert route.response_model is None
+
+def test_native_webview_receives_csrf_token_in_verification_payload():
+    booking_id = uuid4()
+    expiry = datetime(2026, 11, 9, 12, 0, tzinfo=timezone.utc).isoformat()
+    payload = _verification_payload(
+        booking_id=booking_id,
+        scope="manage",
+        expires_at=expiry,
+        csrf_token="synthetic-csrf-token",
+    )
+    assert payload == {
+        "booking_id": str(booking_id),
+        "scope": "manage",
+        "expires_at": expiry,
+        "csrf_token": "synthetic-csrf-token",
+    }
