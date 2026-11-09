@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { Badge, BottomNavigation, Button, Card, Dialog } from "./components/ui";
+import { RouteMapPreview } from "./RouteMapPreview";
 
 type Language = "am" | "en";
 type Stage = "route" | "review" | "preview";
@@ -25,6 +26,7 @@ export default function App(){
   <BottomNavigation label={language==="am"?"ዋና ማሰሻ":"Main navigation"} items={[{href:"#home",label:t.home,icon:"⌂",current:true},{href:"#services",label:t.explore,icon:"▦"},{href:"#help",label:t.help,icon:"?"}]}/>
   <Dialog ref={dialogRef} title={stage==="route"?t.rideTitle:stage==="review"?t.reviewTitle:t.previewTitle} onRequestClose={()=>dialogRef.current?.close()} className="mn-ride-dialog">
    {stage==="route"&&<><p className="mn-dialog-intro">{t.rideIntro}</p><div className="mn-route-fields"><label className="mn-field-wrap"><span className="mn-field-label">{t.from}</span><select className="mn-field" value={pickup} onChange={e=>setPickup(e.target.value)}>{places.map(p=><option key={p.id} value={p.id}>{p[language]}</option>)}</select></label><div className="mn-route-swap"><Button size="small" variant="quiet" onClick={()=>{setPickup(destination);setDestination(pickup);}}>{t.swap} ⇅</Button></div><label className="mn-field-wrap"><span className="mn-field-label">{t.to}</span><select className="mn-field" value={destination} onChange={e=>setDestination(e.target.value)}>{places.map(p=><option key={p.id} value={p.id}>{p[language]}</option>)}</select></label></div>
+    <RouteMapPreview language={language} pickup={pickup} destination={destination}/>
     {pickup===destination?<p className="mn-inline-error" role="alert">{language==="am"?"መነሻና መድረሻ ቦታ የተለያዩ መሆን አለባቸው።":"Pickup and destination must be different."}</p>:!route?<p className="mn-route-unavailable" role="status">{t.routeUnavailable}</p>:<div className="mn-estimate-card"><div className="mn-estimate-route"><span>{placeName(pickup)}</span><span className="mn-route-line"/><span>{placeName(destination)}</span></div><div className="mn-estimate-values"><div><small>{t.distance}</small><strong>{km===null?"—":`~${km} km`}</strong></div><div><small>{t.fare}</small><strong>{fare===null?"—":`~${fare.toLocaleString()} ETB`}</strong></div></div><p>{t.estimate}</p></div>}
     <div className="mn-dialog-actions"><Button variant="secondary" onClick={()=>dialogRef.current?.close()}>{t.close}</Button><Button disabled={pickup===destination||!route} onClick={()=>setStage("review")}>{t.continue}</Button></div>
    </>}
