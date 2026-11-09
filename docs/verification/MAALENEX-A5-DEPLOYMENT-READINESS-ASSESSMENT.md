@@ -486,3 +486,10 @@ No provider was provisioned, no DNS/certificate was changed, no production key w
 The provider-neutral architecture, trust-boundary diagrams, data-flow map, environment-separation model, provider-selection criteria and network-security specification are recorded in [MAALENEX-A5-3-1-ARCHITECTURE-TRUST-BOUNDARIES-DATA-FLOWS-NETWORK-SECURITY.md](MAALENEX-A5-3-1-ARCHITECTURE-TRUST-BOUNDARIES-DATA-FLOWS-NETWORK-SECURITY.md).
 
 **Disposition:** Documentation prepared; Owner review pending. No provider, purchase, provisioning, production credentials, DNS/certificate change or deployment is authorized or performed. Existing synthetic-only and development/test runtime guards remain unchanged. Overall A5 remains **NOT READY**.
+
+
+### A5.3.2 — versioned encryption and lookup-key lifecycle
+
+The design for versioned AES-GCM ciphertext envelopes, key-ID resolution, encryption-key rotation and backfill, HMAC lookup-key dual-index migration, rollback, recovery, revocation and synthetic verification is recorded in [MAALENEX-A5-3-2-VERSIONED-KEY-LIFECYCLE-DESIGN.md](MAALENEX-A5-3-2-VERSIONED-KEY-LIFECYCLE-DESIGN.md).
+
+**Disposition:** Design prepared; Owner review pending. No key material was generated or changed, and no application code, schema, workflow, provider account, infrastructure, DNS, certificate or runtime configuration was modified. Existing synthetic-only and development/test guards remain binding. Overall A5 remains **NOT READY / NO-GO**.
