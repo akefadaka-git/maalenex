@@ -120,11 +120,18 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
-      - name: Upload debug APK
+      - name: Generate APK checksum and dependency lock evidence
+        run: |
+          sha256sum android/app/build/outputs/apk/debug/app-debug.apk | tee maalenex-apk.sha256
+          test -s package-lock.json
+      - name: Upload debug APK and build manifest
         uses: actions/upload-artifact@v4
         with:
           name: maalenex-moto-android-debug
-          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            frontend/android/app/build/outputs/apk/debug/app-debug.apk
+            frontend/maalenex-apk.sha256
+            frontend/package-lock.json
           if-no-files-found: error
           retention-days: 14
       - name: Install and launch on Android emulator
@@ -173,5 +180,6 @@ jobs:
           path: |
             frontend/maalenex-window.xml
             frontend/maalenex-emulator.png
+            frontend/maalenex-apk.sha256
           if-no-files-found: warn
           retention-days: 30
