@@ -35,7 +35,6 @@ const copy = {
 
 export default function App() {
   const [language,setLanguage]=useState<Language>("am");
-  const [notice,setNotice]=useState(false);
   const dialogRef=useRef<HTMLDialogElement>(null);
   const t=copy[language];
   const services=[
@@ -61,6 +60,5 @@ export default function App() {
     <footer className="mn-app-footer"><span>{t.note}</span><span>© MaaleNex Moto · 2026</span></footer>
     <BottomNavigation label={language==="am"?"ዋና ማሰሻ":"Main navigation"} items={[{href:"#home",label:t.home,icon:"⌂",current:true},{href:"#services",label:t.explore,icon:"▦"},{href:"#help",label:t.help,icon:"?"}]}/>
     <Dialog ref={dialogRef} title={t.dialogTitle} onRequestClose={()=>dialogRef.current?.close()}><p>{t.dialogText}</p><Button onClick={()=>dialogRef.current?.close()}>{t.close}</Button></Dialog>
-    {notice&&<span role="status" className="mn-sr-only">{t.note}</span>}
   </main>;
 }
