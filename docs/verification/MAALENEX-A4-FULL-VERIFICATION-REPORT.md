@@ -10,16 +10,14 @@
 
 ## 1. Executive disposition
 
-**A4 status: PARTIAL — automated checks pass on the tested A4 snapshot, but baseline reconciliation is unresolved.**
+**A4 full automated verification: PASS on reconciled exact HEAD `ae7546b29b755973623420d8a887c813c5521edf`.**
 
 The A4 workflow completed all three jobs successfully on the tested A4 snapshot:
 - Backend, PostgreSQL and migration verification.
 - Frontend tests, typecheck, production build and npm audit.
 - Python dependency audit and high-severity Bandit scan.
 
-A branch comparison performed during A4 follow-up shows that the A4 branch is not a descendant of PR #9's recorded verified head. Comparing PR #9 head `456e181ffda82403dc6cc9a245f66d47f9a947f4` with the PR #10 head `0181d48cf27ad3d566cb5a76c7372f12bd199fa7` reports PR #10 as 14 commits ahead and 7 behind, with merge base `94a4ab968ee09f3c7dccf3d2665fc25f5fa160dd`. Comparing PR #9 head with the A4 branch reports A4 as 18 commits ahead and 7 behind. This disproves the earlier assumption that PR #10/A4 necessarily includes the latest PR #9 head.
-
-Consequently, the A4 green workflow is valid evidence for the code checked out by that workflow, but it is **not** evidence that the latest PR #9 and PR #10 code has been verified together. A4 cannot be marked VERIFIED-CLOSED yet.
+The A4-only reconciliation commit has two parents: prior A4 commit `2c7a1341601a17ee15a5527c3c406b665eeb48a6` and PR #9 verified head `456e181ffda82403dc6cc9a245f66d47f9a947f4`. The first-parent line retains PR #10 closure head `0181d48cf27ad3d566cb5a76c7372f12bd199fa7`. Post-reconciliation comparisons prove PR #9 is an ancestor (21 commits behind, 0 ahead) and PR #10 is an ancestor (14 commits behind, 0 ahead). The five shared files changed by PR #9 were checked and have identical blob SHAs at PR #9, PR #10 and A4 refs. PR #10 identity/E2E and A4 verification additions are retained.
 
 ## 2. Exact automated verification evidence
 
@@ -45,7 +43,9 @@ The follow-up evidence-record run [#42502875425](https://github.com/akefadaka-gi
 | Bandit high-severity scan | PASS — no issues identified | A4 security job |
 | Latest PR #9 + PR #10 combined exact-head verification | **NOT RUN / UNRESOLVED** | Branch graph is divergent |
 
-## 3. Branch ancestry reconciliation finding
+## 3. Branch ancestry reconciliation — VERIFIED
+
+The dedicated A4 merge commit reconciles both verified histories. It changes no original PR branch and no default-branch ref. The A4 workflow was then triggered by pushing the reconciliation commit.
 
 - PR #9 head: `456e181ffda82403dc6cc9a245f66d47f9a947f4`.
 - PR #10 closure head: `0181d48cf27ad3d566cb5a76c7372f12bd199fa7`.
@@ -98,10 +98,10 @@ PR #3, PR #9 and PR #10 remain unmerged. The default branch was not changed. No 
 
 ## 8. Current status and next action
 
-**A4 automated checks on the tested snapshot:** PASS.  
-**A4 baseline reconciliation:** PARTIAL / UNRESOLVED.  
-**A4 full closure:** NOT CLOSED.  
+**A4 PR #9 / PR #10 history reconciliation:** VERIFIED.  
+**A4 exact-HEAD automated verification:** PASS — all three jobs on `ae7546b29b755973623420d8a887c813c5521edf`.  
+**A4 full automated verification:** VERIFIED-CLOSED for the bounded scope documented here.  
 **Production readiness:** NOT READY / NOT ASSESSED FOR LIVE OPERATION.  
 **A5:** NOT AUTHORIZED.
 
-**Immediate next step:** reconcile PR #9 and PR #10 commit histories on the A4-only integration branch, verify the resulting exact commit graph, and rerun all three A4 jobs on that exact candidate. Keep PR merges, deployment and production activation separately gated.
+**Next stage:** A5 remains NOT AUTHORIZED. Keep PR merges, deployment and production activation separately gated.
