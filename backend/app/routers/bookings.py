@@ -69,6 +69,15 @@ def _require_origin(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Request origin is not allowed.")
 
 
+def _verification_payload(booking_id: UUID, scope: str, expires_at: str, csrf_token: str) -> dict:
+    return {
+        "booking_id": str(booking_id),
+        "scope": scope,
+        "expires_at": expires_at,
+        "csrf_token": csrf_token,
+    }
+
+
 def current_booking_grant(
     booking_id: UUID, request: Request, db: Session = Depends(get_db),
 ) -> BookingAccessGrant:
@@ -172,15 +181,14 @@ def verify_booking_access_challenge(
         CSRF_COOKIE, csrf_token, max_age=2 * 60 * 60,
         httponly=False, secure=secure_cookie, samesite="none" if secure_cookie else "lax", path="/",
     )
-    return {
-        "booking_id": str(booking.id),
-        "scope": grant.scope,
-        "expires_at": grant.expires_at.isoformat(),
-        # The native Capacitor WebView is a different origin from the API host;
-        # it cannot read the API host-scoped CSRF cookie via document.cookie.
-        # Return the non-secret CSRF token to the same app session for the header.
-        "csrf_token": csrf_token,
-    }
+    # The CSRF token is not an authentication credential. The native WebView
+    # cannot read the API host-scoped CSRF cookie via document.cookie.
+    return _verification_payload(
+        booking_id=booking.id,
+        scope=grant.scope,
+        expires_at=grant.expires_at.isoformat(),
+        csrf_token=csrf_token,
+    )
 
 
 @router.get("/bookings/{booking_id}")
