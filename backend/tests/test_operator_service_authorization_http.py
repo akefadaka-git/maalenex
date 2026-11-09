@@ -1,10 +1,10 @@
+import os
 from datetime import timedelta
 from uuid import uuid4
 
-import os
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
 from app.domains.identity.models import Permission, Role, RolePermission, StaffSession, User
@@ -66,7 +66,7 @@ def _create_service_principal(db, organization_ids, service_codes):
                 service_code=service_code,
                 role_id=role.id,
             )) if organization_id == organization_ids[0] else None
-    now = db.scalar(select(__import__("sqlalchemy").func.now()))
+    now = db.scalar(select(func.now()))
     session_token = issue_opaque_token()
     csrf_token = issue_opaque_token()
     db.add(StaffSession(
@@ -76,7 +76,7 @@ def _create_service_principal(db, organization_ids, service_codes):
         expires_at=now + timedelta(hours=8),
     ))
     db.flush()
-    return session_token, csrf_token, permissions
+    return session_token, csrf_token
 
 
 def test_authenticated_fleet_operator_route_enforces_service_and_tenant_boundary():
@@ -95,7 +95,7 @@ def test_authenticated_fleet_operator_route_enforces_service_and_tenant_boundary
         )
         db.add_all([tenant_a, tenant_b])
         db.flush()
-        session_token, csrf_token, _ = _create_service_principal(
+        session_token, csrf_token = _create_service_principal(
             db, [tenant_a.id, tenant_b.id], ["fleet"],
         )
         tenant_a_id, tenant_b_id = tenant_a.id, tenant_b.id
