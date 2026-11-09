@@ -211,3 +211,10 @@ No production key should be generated or requested during A5.3.
 5. Reassess external provider/account evidence only when supplied through an authorized, secure channel. Do not request or place secrets in chat or Git.
 
 A5.3 closure requires verified design artifacts and evidence for the scoped controls; it does not itself authorize production provisioning or deployment. Production activation remains a separate approval gate.
+
+
+## A5.3.1 architecture and trust-boundary specification
+
+The provider-neutral architecture decision record, logical architecture and trust-boundary diagrams, data-flow map, current/future environment separation model, provider-selection criteria and network-security specification are prepared in [MAALENEX-A5-3-1-ARCHITECTURE-TRUST-BOUNDARIES-DATA-FLOWS-NETWORK-SECURITY.md](MAALENEX-A5-3-1-ARCHITECTURE-TRUST-BOUNDARIES-DATA-FLOWS-NETWORK-SECURITY.md).
+
+**A5.3.1 disposition: DOCUMENTATION PREPARED; Owner review pending.** No provider was selected, no account or infrastructure was purchased or provisioned, no secrets/keys were generated or changed, and no DNS, certificate, network, runtime, deployment or production activation occurred. Existing development/test-only, synthetic-only and local `maalenex_dev` restrictions remain binding. Overall A5 remains NOT READY / NO-GO.
