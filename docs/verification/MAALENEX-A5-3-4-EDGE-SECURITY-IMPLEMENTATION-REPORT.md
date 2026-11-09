@@ -46,7 +46,7 @@ The implementation does not claim to configure or secure a real public ingress. 
 
 - No proxy trust is configured by default.
 - `TRUSTED_PROXY_IPS` and `CANONICAL_HOSTS` must be configured together.
-- Entire address-family CIDRs such as `0.0.0.0/0` and `::/0` are rejected.
+- Overly broad CIDRs are rejected: IPv4 must be `/24` or narrower and IPv6 `/64` or narrower; entire address-family trust is impossible.
 - Untrusted forwarded headers are stripped and cannot upgrade the ASGI scheme.
 - Trusted peers must provide one unambiguous `X-Forwarded-Proto: https` value to establish HTTPS.
 - Forwarded host values must exactly match configured canonical hosts.
@@ -58,7 +58,7 @@ The implementation does not claim to configure or secure a real public ingress. 
 - Secure is true for direct HTTPS or a scheme normalized by the trusted-proxy middleware; an explicit `SECURE_COOKIES=true` can force Secure in a controlled environment.
 - Cookie deletion now retains the Secure attribute decision.
 - Cookie-authenticated session revocation requires an exact configured Origin and the existing double-submit plus server-stored CSRF digest check.
-- Existing admin mutation routes invoke the same CSRF guard; the A5.2 operator HTTP test fixtures already supply the exact development Origin and CSRF cookie/header.
+- Existing admin mutation routes invoke the same CSRF guard; all 26 implemented admin mutation routes invoke the CSRF guard, and the 3 account-session revocation routes invoke the same Origin-plus-CSRF guard; A5.2 operator HTTP fixtures supply the exact development Origin and CSRF cookie/header.
 
 ### CORS and SMTP
 
@@ -72,9 +72,9 @@ The implementation does not claim to configure or secure a real public ingress. 
 
 A local isolated test run using the implementation and test source copied from this branch completed:
 
-- **21 tests passed**
+- **23 tests passed**
 - Python runtime: 3.13.5
-- Covered SMTP TLS fail-closed validation, exact CORS validation and response behavior, duplicate/default-port normalization, proxy allowlist restrictions, Origin validation, trusted/untrusted peer behavior, forwarded-header stripping, host spoofing rejection, secure-scheme derivation and response security headers.
+- Covered SMTP TLS fail-closed validation, exact CORS validation and response behavior, duplicate/default-port normalization, narrow proxy CIDR validation, Origin validation, trusted/untrusted peer behavior, forwarded-header stripping, host spoofing rejection, secure-scheme derivation and response security headers.
 
 This isolated run is not a substitute for the repository's exact-HEAD GitHub Actions workflow or the full PostgreSQL integration suite.
 
