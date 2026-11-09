@@ -56,13 +56,11 @@ class TrustedProxyMiddleware:
                             (b"content-length", str(len(body)).encode("ascii"))],
             }, {"type": "http.response.body", "body": body}
 
-        if trusted and forwarded_proto:
-            if len(forwarded_proto) != 1 or "," in forwarded_proto[0]:
-                start, body = reject()
-                await send(start)
-                await send(body)
-                return
-            if forwarded_proto[0].lower() != "https":
+        # A trusted proxy is the sole authority for the external scheme. Missing,
+        # duplicated, list-valued, blank, or downgraded metadata is ambiguous and
+        # must never result in an HTTP request reaching cookie-issuing routes.
+        if trusted:
+            if len(forwarded_proto) != 1 or forwarded_proto[0].lower() != "https":
                 start, body = reject()
                 await send(start)
                 await send(body)
@@ -104,7 +102,7 @@ class TrustedProxyMiddleware:
 
         child_scope = dict(scope)
         child_scope["headers"] = clean_headers
-        if trusted and forwarded_proto:
+        if trusted:
             child_scope["scheme"] = "https"
 
         async def send_with_security_headers(message):
