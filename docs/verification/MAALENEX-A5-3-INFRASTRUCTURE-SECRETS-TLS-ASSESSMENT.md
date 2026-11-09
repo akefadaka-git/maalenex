@@ -206,7 +206,7 @@ No production key should be generated or requested during A5.3.
 
 1. A5.3.1 — prepare a production architecture decision record and trust-boundary/data-flow diagram, without selecting or purchasing a provider.
 2. A5.3.2 — prepare a versioned identity-encryption and lookup-key lifecycle design, including migration, rollback and recovery test specifications. No keys are to be generated.
-3. A5.3.3 — specify a TLS termination, trusted-proxy, cookie, CORS and ingress security contract. No DNS or certificate changes.
+3. A5.3.3 — CONTRACT PREPARED in [MAALENEX-A5-3-3-TLS-PROXY-COOKIE-CORS-INGRESS-SECURITY-CONTRACT.md](MAALENEX-A5-3-3-TLS-PROXY-COOKIE-CORS-INGRESS-SECURITY-CONTRACT.md); Owner review pending. No DNS, certificate or runtime changes.
 4. A5.3.4 — add safe configuration validation and synthetic tests for fail-closed SMTP TLS and proxy/cookie behavior only after the Owner separately authorizes implementation.
 5. Reassess external provider/account evidence only when supplied through an authorized, secure channel. Do not request or place secrets in chat or Git.
 
@@ -225,3 +225,10 @@ The provider-neutral architecture decision record, logical architecture and trus
 The versioned AES-GCM encryption envelope, key-ID resolver, encryption-key rotation/backfill, HMAC lookup-key dual-index migration, rollback, recovery, revocation and synthetic verification plan are documented in [MAALENEX-A5-3-2-VERSIONED-KEY-LIFECYCLE-DESIGN.md](MAALENEX-A5-3-2-VERSIONED-KEY-LIFECYCLE-DESIGN.md).
 
 **A5.3.2 disposition: DESIGN PREPARED; Owner review pending.** No keys were generated, retrieved, rotated, revoked or destroyed. No code, schema, runtime configuration or workflow changed. Overall A5 remains NOT READY / NO-GO.
+
+
+## A5.3.3 TLS termination, trusted-proxy, cookie, CORS and ingress contract
+
+The normative, provider-neutral contract is prepared in [MAALENEX-A5-3-3-TLS-PROXY-COOKIE-CORS-INGRESS-SECURITY-CONTRACT.md](MAALENEX-A5-3-3-TLS-PROXY-COOKIE-CORS-INGRESS-SECURITY-CONTRACT.md). It defines HTTPS termination, exact proxy-peer trust and forwarded-header sanitization, canonical host/scheme handling, Secure/HttpOnly/SameSite session cookies, CSRF protections, exact credentialed CORS origins, ingress isolation/limits, security headers, operational runbooks and a synthetic verification matrix.
+
+**A5.3.3 disposition: CONTRACT PREPARED; Owner review pending; NOT IMPLEMENTED / NOT TESTED.** No DNS, certificates, runtime configuration, application code, secrets, infrastructure or network resources changed. No live hostname or external TLS scan was performed. The existing development/test-only, synthetic-only and local `maalenex_dev` restrictions remain binding. Overall A5 remains **NOT READY / NO-GO**.
