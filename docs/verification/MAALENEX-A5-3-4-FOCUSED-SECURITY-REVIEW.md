@@ -186,3 +186,16 @@ This inventory is based on the registered FastAPI routers at the reviewed HEAD. 
 - PR #11 remains draft/open/unmerged.
 - No changes were made to application code, database schema, runtime environment, production settings, secrets, DNS, certificates, hosting, ingress or network resources during this review.
 - No merge, deployment, live payment, GPS, real-data processing or production activation was performed.
+
+
+## Remediation follow-up — implementation review
+
+The three application findings in this review were remediated on the isolated PR #11 branch, in the requested order:
+
+- **F-01 — REMEDIATED IN CODE; CI PENDING:** trusted proxies now fail closed unless exactly one HTTPS forwarded-proto value is present. Missing, empty, duplicate, comma-list and HTTP downgrade cases have regression tests.
+- **F-03 — REMEDIATED IN CODE; CI PENDING:** browser staff/account session creation, guest challenge verification and guest cookie-authenticated booking mutations now require exactly one exact allowlisted Origin. The shared guard rejects missing, duplicate, malformed, non-ASCII, comma-list and null values. Route-level tests cover session and guest-booking endpoints.
+- **F-02 — REMEDIATED IN CODE; CI PENDING:** trusted-proxy client IP is accepted only from a single valid edge-overwritten X-Forwarded-For value. The ASGI client identity used by rate-limit call sites is set to that parsed IP; the immediate proxy peer is retained separately. Untrusted peers cannot alter their rate-limit identity.
+
+The final edge must strip inbound X-Forwarded-For and set exactly one client IP. This single-hop trust profile is documented; arbitrary multi-proxy chains remain unsupported.
+
+**Current disposition:** F-01/F-02/F-03 are implementation-remediated but not yet VERIFIED-CLOSED until exact-HEAD CI passes. F-04 remains open as an ingress/hosting acceptance gate; no HSTS policy is enabled without confirmed universal HTTPS, and CSP must be finalized against the deployed frontend. This focused source review is not an independent penetration test, external SAST/DAST assessment, or live TLS scan.
