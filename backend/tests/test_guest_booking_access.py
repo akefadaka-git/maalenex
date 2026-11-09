@@ -16,3 +16,12 @@ def test_guest_booking_recovery_support_and_revocation_routes_are_registered():
     }
     assert expected.issubset(paths)
 
+
+def test_passenger_verification_contract_exposes_csrf_token_for_native_webview():
+    route = next(
+        route for route in app.routes
+        if isinstance(route, APIRoute)
+        and route.path == "/api/v1/passenger-access/challenges/{challenge_id}/verify"
+    )
+    assert route.methods == {"POST"}
+    assert route.response_model is None
