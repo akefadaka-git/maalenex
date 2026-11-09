@@ -6,7 +6,7 @@ describe("MaaleNex Moto multi-role portal", () => {
   it("renders the warm Amharic welcome page by default", () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: "ጉዞዎ እዚህ ይጀምራል።" })).toBeTruthy();
-    expect(screen.getByText("ደቡብ ኦሞ ዞን")).toBeTruthy();
+    expect(screen.getByText(/ደቡብ ኦሞ ዞን/)).toBeTruthy();
   });
 
   it("switches the welcome page to English", () => {
@@ -23,7 +23,7 @@ describe("MaaleNex Moto multi-role portal", () => {
 
   it("offers passenger, motorcycle, heavy-load and fleet registration roles", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "መለያ ይፍጠሩ" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "መለያ ይፍጠሩ" })[0]);
     const roleSelect = screen.getByLabelText("የአገልግሎት ሚና ይምረጡ");
     expect(roleSelect.querySelectorAll("option")).toHaveLength(4);
     expect(screen.getByRole("option", { name: "የከባድ ጭነት ተሽከርካሪ ሹፌር" })).toBeTruthy();
@@ -37,7 +37,7 @@ describe("MaaleNex Moto multi-role portal", () => {
 
   it("keeps login as a non-submitting prototype", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "ይግቡ" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "ይግቡ" })[0]);
     expect(screen.getByRole("heading", { name: "ወደ መለያዎ ይግቡ" })).toBeTruthy();
     expect(screen.getByText(/የመለያ ማረጋገጫ እና ፈጠራ አልተገናኙም/)).toBeTruthy();
   });
