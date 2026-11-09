@@ -166,13 +166,21 @@ def verify_booking_access_challenge(
     cookie_path = f"{settings.api_prefix}/bookings/{booking.id}"
     response.set_cookie(
         ACCESS_COOKIE, access_token, max_age=2 * 60 * 60,
-        httponly=True, secure=secure_cookie, samesite="lax", path=cookie_path,
+        httponly=True, secure=secure_cookie, samesite="none" if secure_cookie else "lax", path=cookie_path,
     )
     response.set_cookie(
         CSRF_COOKIE, csrf_token, max_age=2 * 60 * 60,
-        httponly=False, secure=secure_cookie, samesite="lax", path="/",
+        httponly=False, secure=secure_cookie, samesite="none" if secure_cookie else "lax", path="/",
     )
-    return {"booking_id": str(booking.id), "scope": grant.scope, "expires_at": grant.expires_at.isoformat()}
+    return {
+        "booking_id": str(booking.id),
+        "scope": grant.scope,
+        "expires_at": grant.expires_at.isoformat(),
+        # The native Capacitor WebView is a different origin from the API host;
+        # it cannot read the API host-scoped CSRF cookie via document.cookie.
+        # Return the non-secret CSRF token to the same app session for the header.
+        "csrf_token": csrf_token,
+    }
 
 
 @router.get("/bookings/{booking_id}")
