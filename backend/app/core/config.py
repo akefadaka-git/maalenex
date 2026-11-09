@@ -123,10 +123,22 @@ class Settings(BaseSettings):
 
     @property
     def allowed_origins(self) -> list[str]:
-        return [
-            f"{urlsplit(item.strip()).scheme.lower()}://{urlsplit(item.strip()).netloc.lower()}"
-            for item in self.cors_origins.split(",") if item.strip()
-        ]
+        normalized = []
+        for item in self.cors_origins.split(","):
+            if not item.strip():
+                continue
+            parsed = urlsplit(item.strip())
+            host = parsed.hostname.lower()
+            if ":" in host and not host.startswith("["):
+                host = f"[{host}]"
+            port = parsed.port
+            if port is not None and not (
+                (parsed.scheme.lower() == "http" and port == 80)
+                or (parsed.scheme.lower() == "https" and port == 443)
+            ):
+                host = f"{host}:{port}"
+            normalized.append(f"{parsed.scheme.lower()}://{host}")
+        return normalized
 
     @property
     def trusted_proxy_networks(self) -> tuple:
