@@ -1,9 +1,6 @@
 name: Android device acceptance build
 
 on:
-  push:
-    branches:
-      - fix/android-device-acceptance-emulator
   pull_request:
     branches:
       - main
@@ -13,6 +10,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: android-device-acceptance-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   backend-postgres:
