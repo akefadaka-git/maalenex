@@ -101,3 +101,44 @@ Every accepted place/segment record should carry:
 ## 8. Non-goals and safety boundary
 
 This baseline does not authorize or implement a live map provider, geocoder, route engine, navigation, dispatch, ETA, fare calculation, offline map download, or location upload. The schematic preview remains the only active map mode. All distances and fares currently shown in the ride prototype remain illustrative samples, not validated geographic or commercial data.
+
+
+## 9. Follow-up source acquisition review — 2026-11-09
+
+### Preferred inspection source: Geofabrik Ethiopia OSM extract
+
+Geofabrik's official Ethiopia download page lists `ethiopia-latest.osm.pbf`, a 133 MB PBF extract containing OSM data through **2026-11-06T21:21:21Z** at the time of review. The same page identifies OpenStreetMap contributors as the data source and links the data to the Open Database Licence (ODbL 1.0).
+
+- Dataset page: https://download.geofabrik.de/africa/ethiopia.html
+- Exact file: https://download.geofabrik.de/africa/ethiopia-latest.osm.pbf
+- Format: OSM PBF
+- Snapshot timestamp reported by listing: 2026-11-06T21:21:21Z
+- Listed size: 133 MB
+- Data licence: ODbL 1.0 (review attribution and share-alike obligations before redistribution or derivative database publication)
+
+**Acquisition result in this work session:** the download was attempted but did not complete in the available execution environment. The PBF has therefore **not** been locally parsed, clipped, hashed, or inspected. This is a source-discovery result only, not road-coverage evidence.
+
+### Other national road layers — limitations identified
+
+- The Agriculture Datahub also lists an ERA-sourced *ETHIOPIA ROAD* layer with a 2020 publication reference and no licence specified. Its national bounding box and available GeoJSON/shapefile formats do not establish local freshness or commercial/offline rights.
+- A WFP *Ethiopia Road Network (main roads)* catalogue entry describes an OSM-derived main-road extraction and explicitly says streets and pathways are published separately. Its dataset reference date is 2017. It is not a sufficient sole source for local access roads or last-mile pickup validation.
+
+### Updated source-selection decision
+
+1. Use the Geofabrik OSM PBF as the leading **inspection candidate**, subject to ODbL compliance review and successful local acquisition.
+2. Do not use the Agriculture Datahub ERA layer or the WFP main-roads layer as a production routing source until their lineage, age, schema, coverage and licence are independently resolved.
+3. Do not import a national layer wholesale into the application. Clip a bounded pilot-area working copy, preserve upstream source IDs/tags, record the extract timestamp and SHA-256, and keep the source file outside the frontend bundle.
+4. Validate local road continuity and access with field/operator evidence. OSM road classification or a connected graph alone does not prove seasonal passability or motorcycle suitability.
+
+### Gate status amendment
+
+| Gate | Updated status | Evidence / next requirement |
+|---|---|---|
+| Current OSM national extract identified | PARTIAL | Geofabrik page lists a 2026-11-06 snapshot; successful acquisition and checksum still required |
+| OSM PBF locally acquired and parsed | NOT RUN | Download attempt did not complete in this execution environment |
+| ODbL obligations identified | PARTIAL | Geofabrik links ODbL 1.0; legal/attribution/share-alike review required |
+| Agriculture Datahub ERA layer licence | UNRESOLVED | Catalogue says no licence specified |
+| WFP main-road layer suitability | LIMITED | 2017 reference date; streets/pathways are a separate dataset |
+| Koybe–Jinka road graph coverage | NOT VERIFIED | Requires bounded extraction and GIS inspection |
+| Live map/routing activation | BLOCKED | Schematic mode remains mandatory |
+
