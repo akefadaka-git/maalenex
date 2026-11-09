@@ -2,63 +2,34 @@ import { useRef, useState } from "react";
 import { Badge, BottomNavigation, Button, Card, Dialog } from "./components/ui";
 
 type Language = "am" | "en";
+type Stage = "route" | "review" | "preview";
 const copy = {
-  am: {
-    brand: "ማአሌኔክስ", product: "ሞቶ", eyebrow: "የአካባቢ ተንቀሳቃሽነት · በአካባቢው የተገነባ",
-    title: "ጉዞዎን በቀላሉ ያቅዱ።", subtitle: "ለማአሌ ማህበረሰብ የተዘጋጀ የሞተር ተንቀሳቃሽነትና አገልግሎት መድረክ።",
-    status: "የልማት አካባቢ", pilot: "የሙከራ አካባቢ", pilotPlace: "ኮይቤ · ጂንካ",
-    action: "የጉዞ ጥያቄ ይጀምሩ", actionNote: "የሙከራ ቅድመ እይታ · ትክክለኛ ጉዞ አይመዘገብም",
-    services: "አገልግሎቶች", servicesNote: "የሚያስፈልግዎትን ይምረጡ",
-    rides: "የጉዞ ጥያቄ", rideDesc: "የጉዞ አማራጮችን ያስሱ።",
-    care: "የሞተር ጥገና", careDesc: "የጥገናና የእንክብካቤ መረጃ።",
-    drivers: "የሹፌር አገልግሎት", driverDesc: "ለአገልግሎት ሰጪዎች መረጃ።",
-    how: "አካባቢያዊ አገልግሎት፣ በኃላፊነት", howDesc: "በመጀመሪያ የአካባቢ ፍላጎትን እና ደህንነትን እናስቀድማለን።",
-    home: "መነሻ", explore: "አገልግሎቶች", help: "እገዛ",
-    dialogTitle: "የሙከራ ቅድመ እይታ", dialogText: "የጉዞ ጥያቄ ባህሪው ገና አልተከፈተም። ይህ ስሪት ለዲዛይንና ለሙከራ ብቻ ነው፤ ትክክለኛ ተሳፋሪ፣ ሹፌር፣ ክፍያ ወይም ጉዞ መረጃ አይቀበልም።",
-    close: "ዝጋ", note: "የልማት ስሪት · ሰው ወይም የጉዞ መረጃ አይሰበስብም"
-  },
-  en: {
-    brand: "MAALENEX", product: "MOTO", eyebrow: "LOCAL MOBILITY · BUILT WITH COMMUNITY",
-    title: "Make your journey simpler.", subtitle: "A locally grounded motorcycle mobility and services platform designed around Maale community needs.",
-    status: "Development environment", pilot: "Pilot area", pilotPlace: "Koybe · Jinka",
-    action: "Explore a ride request", actionNote: "Preview only · no real trips are created",
-    services: "Services", servicesNote: "Explore what you need",
-    rides: "Ride requests", rideDesc: "Explore future ride options.",
-    care: "Motorcycle care", careDesc: "Maintenance and care information.",
-    drivers: "Driver services", driverDesc: "Information for service providers.",
-    how: "Local service, responsibly", howDesc: "Community needs and safety come first.",
-    home: "Home", explore: "Services", help: "Help",
-    dialogTitle: "Development preview", dialogText: "Ride requesting is not enabled yet. This build is for design and testing only; it does not accept real passenger, driver, payment, or trip information.",
-    close: "Close", note: "Development build · no personal or trip data collected"
-  }
+ am:{brand:"ማአሌኔክስ",product:"ሞቶ",eyebrow:"የአካባቢ ተንቀሳቃሽነት · በአካባቢው የተገነባ",title:"ጉዞዎን በቀላሉ ያቅዱ።",subtitle:"ለማአሌ ማህበረሰብ የተዘጋጀ የሞተር ተንቀሳቃሽነትና አገልግሎት መድረክ።",status:"የልማት አካባቢ",pilot:"የሙከራ አካባቢ",pilotPlace:"ኮይቤ · ጂንካ",action:"የጉዞ ጥያቄ ይጀምሩ",actionNote:"የሙከራ ቅድመ እይታ · ትክክለኛ ጉዞ አይመዘገብም",services:"አገልግሎቶች",servicesNote:"የሚያስፈልግዎትን ይምረጡ",rides:"የጉዞ ጥያቄ",rideDesc:"የጉዞ አማራጮችን ያስሱ።",care:"የሞተር ጥገና",careDesc:"የጥገናና የእንክብካቤ መረጃ።",drivers:"የሹፌር አገልግሎት",driverDesc:"ለአገልግሎት ሰጪዎች መረጃ።",how:"አካባቢያዊ አገልግሎት፣ በኃላፊነት",howDesc:"በመጀመሪያ የአካባቢ ፍላጎትን እና ደህንነትን እናስቀድማለን።",home:"መነሻ",explore:"አገልግሎቶች",help:"እገዛ",close:"ዝጋ",rideTitle:"የጉዞ እቅድ ቅድመ እይታ",rideIntro:"የመነሻና መድረሻ ቦታዎችን ይምረጡ።",from:"መነሻ ቦታ",to:"መድረሻ ቦታ",choose:"ቦታ ይምረጡ",swap:"ቦታዎችን ቀይር",route:"መንገድ",distance:"ግምታዊ ርቀት",fare:"ምሳሌያዊ የዋጋ ግምት",estimate:"ምሳሌ ብቻ · የተረጋገጠ ታሪፍ አይደለም",continue:"ግምገማ ቀጥል",back:"ተመለስ",reviewTitle:"የጉዞ ዝርዝር ይገምግሙ",previewTitle:"የሙከራ ቅድመ እይታ ተጠናቋል",previewText:"ይህ የማሳያ ሂደት ብቻ ነው። ምንም የጉዞ ትዕዛዝ አልተፈጠረም፣ መረጃም ወደ ሰርቨር አልተላከም።",confirm:"የሙከራ ግምገማ አረጋግጥ",reset:"አዲስ ቅድመ እይታ",safety:"የሙከራ ውሂብ ብቻ። እውነተኛ ተሳፋሪ፣ ሹፌር፣ ክፍያ ወይም ጉዞ አይመዘገብም።",note:"የልማት ስሪት · ሰው ወይም የጉዞ መረጃ አይሰበስብም",pilotStatus:"በዝግጅት ላይ"},
+ en:{brand:"MAALENEX",product:"MOTO",eyebrow:"LOCAL MOBILITY · BUILT WITH COMMUNITY",title:"Make your journey simpler.",subtitle:"A locally grounded motorcycle mobility and services platform designed around Maale community needs.",status:"Development environment",pilot:"Pilot area",pilotPlace:"Koybe · Jinka",action:"Explore a ride request",actionNote:"Preview only · no real trips are created",services:"Services",servicesNote:"Explore what you need",rides:"Ride requests",rideDesc:"Explore future ride options.",care:"Motorcycle care",careDesc:"Maintenance and care information.",drivers:"Driver services",driverDesc:"Information for service providers.",how:"Local service, responsibly",howDesc:"Community needs and safety come first.",home:"Home",explore:"Services",help:"Help",close:"Close",rideTitle:"Ride planner preview",rideIntro:"Choose a sample pickup and destination.",from:"Pickup",to:"Destination",choose:"Choose a place",swap:"Swap locations",route:"Route",distance:"Estimated distance",fare:"Illustrative fare estimate",estimate:"Example only · not an approved fare",continue:"Continue to review",back:"Back",reviewTitle:"Review your trip details",previewTitle:"Preview completed",previewText:"This is a demonstration only. No ride request was created and no information was sent to a server.",confirm:"Confirm preview",reset:"Start another preview",safety:"Synthetic preview only. No real passenger, driver, payment or trip is recorded.",note:"Development build · no personal or trip data collected",pilotStatus:"Preparing"}
 } as const;
-
-export default function App() {
-  const [language,setLanguage]=useState<Language>("am");
-  const dialogRef=useRef<HTMLDialogElement>(null);
-  const t=copy[language];
-  const services=[
-    {number:"01",icon:"↗",title:t.rides,description:t.rideDesc},
-    {number:"02",icon:"✳",title:t.care,description:t.careDesc},
-    {number:"03",icon:"⌁",title:t.drivers,description:t.driverDesc}
-  ];
-  return <main className="mn-app" lang={language} id="home">
-    <header className="mn-app-header">
-      <a className="mn-app-brand" href="#home" aria-label="MaaleNex Moto home"><span className="mn-app-symbol">M</span><span><strong>{t.brand}</strong><small>{t.product}</small></span></a>
-      <div className="mn-header-actions"><Badge tone="info">{t.status}</Badge><Button variant="secondary" size="small" onClick={()=>setLanguage(language==="am"?"en":"am")} aria-label={language==="am"?"Switch language to English":"ቋንቋን ወደ አማርኛ ቀይር"}>{language==="am"?"EN":"አማ"}</Button></div>
-    </header>
-    <section className="mn-hero">
-      <div className="mn-hero-copy"><p className="mn-eyebrow">{t.eyebrow}</p><h1>{t.title}</h1><p className="mn-lead">{t.subtitle}</p>
-        <div className="mn-hero-actions"><Button size="large" onClick={()=>dialogRef.current?.showModal()}>{t.action}<span aria-hidden="true">↗</span></Button><span className="mn-action-note">{t.actionNote}</span></div>
-      </div>
-      <Card className="mn-location-card"><span className="mn-location-orbit" aria-hidden="true">⌖</span><div><span className="mn-overline">{t.pilot}</span><strong>{t.pilotPlace}</strong></div><Badge tone="warning">{language==="am"?"በዝግጅት ላይ":"Preparing"}</Badge></Card>
-    </section>
-    <section className="mn-services" id="services"><div className="mn-section-heading"><div><p className="mn-eyebrow">{language==="am"?"የማአሌኔክስ ሞቶ":"MAALENEX MOTO"}</p><h2>{t.services}</h2></div><span>{t.servicesNote}</span></div>
-      <div className="mn-service-grid">{services.map(service=><Card key={service.number} className="mn-service-card"><span className="mn-service-top"><span>{service.number}</span><span className="mn-service-icon" aria-hidden="true">{service.icon}</span></span><div><h3>{service.title}</h3><p>{service.description}</p></div><span className="mn-card-arrow" aria-hidden="true">↗</span></Card>)}</div>
-    </section>
-    <section className="mn-community" id="help"><div className="mn-community-mark" aria-hidden="true">M</div><div><h2>{t.how}</h2><p>{t.howDesc}</p></div><Badge tone="success">{language==="am"?"ደህንነት ቅድሚያ":"Safety first"}</Badge></section>
-    <footer className="mn-app-footer"><span>{t.note}</span><span>© MaaleNex Moto · 2026</span></footer>
-    <BottomNavigation label={language==="am"?"ዋና ማሰሻ":"Main navigation"} items={[{href:"#home",label:t.home,icon:"⌂",current:true},{href:"#services",label:t.explore,icon:"▦"},{href:"#help",label:t.help,icon:"?"}]}/>
-    <Dialog ref={dialogRef} title={t.dialogTitle} onRequestClose={()=>dialogRef.current?.close()}><p>{t.dialogText}</p><Button onClick={()=>dialogRef.current?.close()}>{t.close}</Button></Dialog>
-  </main>;
+const places=[{id:"koybe",am:"ኮይቤ",en:"Koybe"},{id:"jinka",am:"ጂንካ",en:"Jinka"},{id:"maale",am:"ማአሌ ወረዳ",en:"Maale Woreda"},{id:"sodo",am:"ወላይታ ሶዶ",en:"Wolaita Sodo"}];
+const sampleRoutes=[{from:"koybe",to:"jinka",km:42,etb:180},{from:"jinka",to:"sodo",km:185,etb:760},{from:"koybe",to:"maale",km:18,etb:90},{from:"maale",to:"jinka",km:28,etb:125}];
+export default function App(){
+ const [language,setLanguage]=useState<Language>("am");const [stage,setStage]=useState<Stage>("route");const [pickup,setPickup]=useState("koybe");const [destination,setDestination]=useState("jinka");const dialogRef=useRef<HTMLDialogElement>(null);const t=copy[language];
+ const route=sampleRoutes.find(r=>r.from===pickup&&r.to===destination)||sampleRoutes.find(r=>r.from===destination&&r.to===pickup);
+ const km=pickup===destination?0:route?.km??null;const fare=pickup===destination?0:route?.etb??null;
+ const placeName=(id:string)=>places.find(p=>p.id===id)?.[language]??id;
+ const start=()=>{setStage("route");dialogRef.current?.showModal();};
+ const services=[{number:"01",icon:"↗",title:t.rides,description:t.rideDesc},{number:"02",icon:"✳",title:t.care,description:t.careDesc},{number:"03",icon:"⌁",title:t.drivers,description:t.driverDesc}];
+ return <main className="mn-app" lang={language} id="home">
+  <header className="mn-app-header"><a className="mn-app-brand" href="#home" aria-label="MaaleNex Moto home"><span className="mn-app-symbol">M</span><span><strong>{t.brand}</strong><small>{t.product}</small></span></a><div className="mn-header-actions"><Badge tone="info">{t.status}</Badge><Button variant="secondary" size="small" onClick={()=>setLanguage(language==="am"?"en":"am")}>{language==="am"?"EN":"አማ"}</Button></div></header>
+  <section className="mn-hero"><div className="mn-hero-copy"><p className="mn-eyebrow">{t.eyebrow}</p><h1>{t.title}</h1><p className="mn-lead">{t.subtitle}</p><div className="mn-hero-actions"><Button size="large" onClick={start}>{t.action}<span aria-hidden="true">↗</span></Button><span className="mn-action-note">{t.actionNote}</span></div></div><Card className="mn-location-card"><span className="mn-location-orbit" aria-hidden="true">⌖</span><div><span className="mn-overline">{t.pilot}</span><strong>{t.pilotPlace}</strong></div><Badge tone="warning">{t.pilotStatus}</Badge></Card></section>
+  <section className="mn-services" id="services"><div className="mn-section-heading"><div><p className="mn-eyebrow">{language==="am"?"የማአሌኔክስ ሞቶ":"MAALENEX MOTO"}</p><h2>{t.services}</h2></div><span>{t.servicesNote}</span></div><div className="mn-service-grid">{services.map(s=><Card key={s.number} className="mn-service-card"><span className="mn-service-top"><span>{s.number}</span><span className="mn-service-icon" aria-hidden="true">{s.icon}</span></span><div><h3>{s.title}</h3><p>{s.description}</p></div><span className="mn-card-arrow" aria-hidden="true">↗</span></Card>)}</div></section>
+  <section className="mn-community" id="help"><div className="mn-community-mark" aria-hidden="true">M</div><div><h2>{t.how}</h2><p>{t.howDesc}</p></div><Badge tone="success">{language==="am"?"ደህንነት ቅድሚያ":"Safety first"}</Badge></section>
+  <footer className="mn-app-footer"><span>{t.note}</span><span>© MaaleNex Moto · 2026</span></footer>
+  <BottomNavigation label={language==="am"?"ዋና ማሰሻ":"Main navigation"} items={[{href:"#home",label:t.home,icon:"⌂",current:true},{href:"#services",label:t.explore,icon:"▦"},{href:"#help",label:t.help,icon:"?"}]}/>
+  <Dialog ref={dialogRef} title={stage==="route"?t.rideTitle:stage==="review"?t.reviewTitle:t.previewTitle} onRequestClose={()=>dialogRef.current?.close()} className="mn-ride-dialog">
+   {stage==="route"&&<><p className="mn-dialog-intro">{t.rideIntro}</p><div className="mn-route-fields"><label className="mn-field-wrap"><span className="mn-field-label">{t.from}</span><select className="mn-field" value={pickup} onChange={e=>setPickup(e.target.value)}>{places.map(p=><option key={p.id} value={p.id}>{p[language]}</option>)}</select></label><div className="mn-route-swap"><Button size="small" variant="quiet" onClick={()=>{setPickup(destination);setDestination(pickup);}}>{t.swap} ⇅</Button></div><label className="mn-field-wrap"><span className="mn-field-label">{t.to}</span><select className="mn-field" value={destination} onChange={e=>setDestination(e.target.value)}>{places.map(p=><option key={p.id} value={p.id}>{p[language]}</option>)}</select></label></div>
+    {pickup===destination?<p className="mn-inline-error" role="alert">{language==="am"?"መነሻና መድረሻ ቦታ የተለያዩ መሆን አለባቸው።":"Pickup and destination must be different."}</p>:<div className="mn-estimate-card"><div className="mn-estimate-route"><span>{placeName(pickup)}</span><span className="mn-route-line"/><span>{placeName(destination)}</span></div><div className="mn-estimate-values"><div><small>{t.distance}</small><strong>{km===null?"—":`~${km} km`}</strong></div><div><small>{t.fare}</small><strong>{fare===null?"—":`~${fare.toLocaleString()} ETB`}</strong></div></div><p>{t.estimate}</p></div>}
+    <div className="mn-dialog-actions"><Button variant="secondary" onClick={()=>dialogRef.current?.close()}>{t.close}</Button><Button disabled={pickup===destination||!route} onClick={()=>setStage("review")}>{t.continue}</Button></div>
+   </>}
+   {stage==="review"&&<><p className="mn-dialog-intro">{t.reviewTitle}</p><div className="mn-review-list"><div><span>{t.from}</span><strong>{placeName(pickup)}</strong></div><div><span>{t.to}</span><strong>{placeName(destination)}</strong></div><div><span>{t.distance}</span><strong>~{km} km</strong></div><div><span>{t.fare}</span><strong>~{fare?.toLocaleString()} ETB</strong></div></div><p className="mn-safety-note">{t.safety}</p><div className="mn-dialog-actions"><Button variant="secondary" onClick={()=>setStage("route")}>{t.back}</Button><Button onClick={()=>setStage("preview")}>{t.confirm}</Button></div></>}
+   {stage==="preview"&&<><div className="mn-preview-success" aria-hidden="true">✓</div><p className="mn-dialog-intro">{t.previewText}</p><Badge tone="warning">{language==="am"?"ቅድመ እይታ ብቻ":"Preview only"}</Badge><div className="mn-dialog-actions"><Button onClick={()=>{setStage("route");dialogRef.current?.close();}}>{t.reset}</Button></div></>}
+  </Dialog>
+ </main>;
 }
