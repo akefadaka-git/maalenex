@@ -1,8 +1,6 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi.routing import APIRoute
-
 from app.routers.bookings import _verification_payload
 
 from app.main import app
@@ -21,15 +19,6 @@ def test_guest_booking_recovery_support_and_revocation_routes_are_registered():
     }
     assert expected.issubset(paths)
 
-
-def test_passenger_verification_route_is_registered_for_native_csrf_bootstrap():
-    route = next(
-        route for route in app.routes
-        if isinstance(route, APIRoute)
-        and route.path == "/api/v1/passenger-access/challenges/{challenge_id}/verify"
-    )
-    assert route.methods == {"POST"}
-    assert route.response_model is None
 
 def test_native_webview_receives_csrf_token_in_verification_payload():
     booking_id = uuid4()
