@@ -83,7 +83,7 @@ This isolated run is not a substitute for the repository's exact-HEAD GitHub Act
 - Dedicated workflow added: `.github/workflows/a5-3-4-edge-security-verification.yml`.
 - Jobs: backend/PostgreSQL/migrations/full pytest, frontend tests/typecheck/build/npm audit, Python pip-audit and Bandit.
 - Workflow sets `APP_ENV=test`, `SYNTHETIC_DATA_ONLY=true`, local `maalenex_dev`, disables SMTP delivery and hides test tokens.
-- **Exact-HEAD GitHub Actions result: PENDING / NOT VERIFIED in this report.** Do not infer a pass from workflow-file creation or the isolated unit run.
+- **Exact-HEAD GitHub Actions result: PENDING / NOT VERIFIED in this report.** The PR verification workflow is registered on the base branch; a PR-head synchronization is being issued to request the workflow run. Do not infer a pass from workflow-file creation or the isolated unit run.
 
 ## 5. Safety and non-authorizations
 
