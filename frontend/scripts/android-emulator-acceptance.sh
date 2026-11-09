@@ -20,7 +20,42 @@ if [[ "$booted" != "1" ]]; then
   exit 1
 fi
 
-adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+# Wait for Android's package manager binder service; sys.boot_completed can
+# become 1 before system services are ready on a cold hosted-runner boot.
+package_service_ready=""
+for attempt in $(seq 1 24); do
+  if adb shell cmd package list packages >/dev/null 2>&1; then
+    package_service_ready="yes"
+    break
+  fi
+  adb reconnect offline >/dev/null 2>&1 || true
+  adb wait-for-device
+  sleep 5
+done
+if [[ "$package_service_ready" != "yes" ]]; then
+  adb logcat -d -t 3000 > maalenex-emulator-logcat.txt || true
+  echo "Android package manager did not become ready after boot." >&2
+  exit 1
+fi
+
+installed=""
+for attempt in $(seq 1 4); do
+  if adb install -r android/app/build/outputs/apk/debug/app-debug.apk; then
+    installed="yes"
+    break
+  fi
+  echo "APK install attempt $attempt failed; reconnecting and waiting for package service." >&2
+  adb reconnect offline >/dev/null 2>&1 || true
+  adb wait-for-device
+  sleep 10
+  adb shell cmd package list packages >/dev/null 2>&1 || true
+done
+if [[ "$installed" != "yes" ]]; then
+  adb logcat -d -t 3000 > maalenex-emulator-logcat.txt || true
+  echo "APK installation failed after four attempts." >&2
+  exit 1
+fi
+
 adb shell monkey -p com.maalenex.moto 1
 
 # Allow the Capacitor WebView and Android activity to settle before inspection.
