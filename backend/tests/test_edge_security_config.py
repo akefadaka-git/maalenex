@@ -356,9 +356,17 @@ def test_browser_session_and_guest_cookie_bootstrap_routes_reject_missing_origin
             }),
             ("POST", f"/api/v1/bookings/{uuid4()}/reservation", {}),
         ]
+        invalid_header_sets = [
+            [],
+            [("Origin", "null")],
+            [("Origin", "https://attacker.example")],
+            [("Origin", "http://localhost:5173"), ("Origin", "http://localhost:5173")],
+            [("Origin", "http://localhost:5173, https://attacker.example")],
+        ]
         for method, path, payload in requests:
-            response = client.request(method, path, json=payload)
-            assert response.status_code == 403, (path, response.text)
+            for headers in invalid_header_sets:
+                response = client.request(method, path, json=payload, headers=headers)
+                assert response.status_code == 403, (path, headers, response.text)
     finally:
         app.dependency_overrides.pop(current_booking_grant, None)
         app.dependency_overrides.pop(get_db, None)
