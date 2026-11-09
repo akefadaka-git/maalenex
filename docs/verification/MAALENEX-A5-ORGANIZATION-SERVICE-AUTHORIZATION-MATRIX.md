@@ -21,12 +21,12 @@
 | Platform operator control | `POST /operators`, `POST /operators/{organization_id}/review` | `platform.operator.create`, `platform.operator.review` | Explicit platform-wide control-plane authority |
 | Platform access administration | `POST /operators/{organization_id}/role-assignments`, `POST /operators/{organization_id}/invitations`, invitation revoke, membership revoke | `platform.access.manage` | Explicit platform-wide administrator may manage the target tenant; target IDs are still checked against the requested organization |
 | Platform catalog management | Location, terminal and route create/publish endpoints | `platform.catalog.manage`, `platform.catalog.publish` | Shared platform catalog; platform-wide |
-| Operator fleet | `POST /operators/{organization_id}/vehicles`, `POST /vehicles/{vehicle_id}/seat-layouts` | `operator.fleet.manage` | Tenant ID comes from route organization or persisted vehicle; exact organization grant required |
-| Platform fleet review | `POST /vehicles/{vehicle_id}/review`, `POST /seat-layouts/{layout_id}/approve` | `platform.fleet.review` | Platform-wide review privilege |
-| Operator trips | `POST /operators/{organization_id}/trips`, `POST /trips/{trip_id}/submit` | `operator.trip.manage` | Tenant ID comes from route organization or persisted trip |
-| Trip manifest | `GET /trips/{trip_id}/manifest` | `operator.trip.manifest.read` | Tenant ID is derived from the persisted trip; sensitive passenger manifest |
-| Platform trip control | `POST /trips/{trip_id}/approve`, `POST /trips/{trip_id}/publish` | `platform.trip.approve`, `platform.trip.publish` | Platform-wide approval/publication privilege |
-| Operator fares | `POST /operators/{organization_id}/fares`, fare-version submit | `operator.fare.propose` | Tenant ID comes from route organization or persisted fare |
+| Operator vehicle fleet | `POST /operators/{organization_id}/vehicles`, `POST /vehicles/{vehicle_id}/seat-layouts` | `operator.fleet.manage` + service code `fleet` | Service assignment and exact tenant membership; seat-layout tenant is derived from persisted vehicle |
+| Platform fleet review | `POST /vehicles/{vehicle_id}/review`, `POST /seat-layouts/{layout_id}/approve` | `platform.fleet.review` | Platform-wide review privilege; not an operator service grant |
+| Operator trips | `POST /operators/{organization_id}/trips`, `POST /trips/{trip_id}/submit` | `operator.trip.manage` + service code `transit` | Service assignment and exact tenant membership; submit tenant is derived from persisted trip |
+| Trip manifest | `GET /trips/{trip_id}/manifest` | `operator.trip.manifest.read` + service code `transit` | Service assignment and exact tenant membership; tenant derived from persisted trip |
+| Platform trip control | `POST /trips/{trip_id}/approve`, `POST /trips/{trip_id}/publish` | `platform.trip.approve`, `platform.trip.publish` | Platform-wide approval/publication privilege; not an operator service grant |
+| Operator fares | `POST /operators/{organization_id}/fares`, `POST /fares/{fare_id}/versions/{version_id}/submit` | `operator.fare.propose` + service code `transit` | Service assignment and exact tenant membership; submit tenant is derived from persisted fare |
 | Platform fare control | Fare-version review and publish | `platform.fare.approve`, `platform.fare.publish` | Platform-wide reviewer/publisher privilege; proposer and reviewer remain separate identities in fare workflow |
 | Support and audit | Support list/claim/resolve; audit event list | `platform.support.manage`, `platform.audit.read` | Platform-wide support/audit administration |
 | Guest booking capability | Booking read, reservation QR, support cases, reservation acceptance and access revoke | Booking-specific guest grant; mutation requires `manage` scope and CSRF | Grant is bound to the booking; no staff role is implied |
@@ -34,9 +34,20 @@
 
 ## Service-scoped authorization status
 
-The shared authorization function `has_service_permission()` enforces the complete service tuple (user, organization, service code, permission) and verifies active membership, approved organization and active user. Its PostgreSQL integration tests cover wrong-service, wrong-organization, revoked assignment and revoked membership.
+The shared authorization function `has_service_permission()` enforces the complete service tuple (user, organization, service code, permission) and verifies active membership, approved organization and active user. Operator route authorization now resolves service code through `OPERATOR_PERMISSION_SERVICE_MAP` in `backend/app/routers/admin.py` and invokes this service-scoped guard for every tenant-scoped `operator.*` permission listed below.
 
-**Important implementation boundary:** current operator route guards call the organization-scoped `has_permission()` helper with `operator.*` permissions. They do not yet call `has_service_permission()` or derive a service code from each route. The service-scoped model/helper is therefore verified as a policy primitive, but service-role enforcement is not yet wired end-to-end across operator routes. Do not interpret this matrix as proof that the eight product service lines have independent route-level role enforcement.
+| Permission code | Service code | Operator route coverage |
+|---|---|---|
+| `operator.fleet.manage` | `fleet` | Vehicle creation and seat-layout creation |
+| `operator.trip.manage` | `transit` | Trip creation and trip submission |
+| `operator.trip.manifest.read` | `transit` | Passenger manifest read |
+| `operator.fare.propose` | `transit` | Fare proposal and fare-version submission |
+
+Platform-wide `platform.*` permissions remain on the existing explicit platform-role path and are not implicitly converted to tenant service grants. The service code is always paired with the exact organization ID, permission code, active user, approved organization, active membership and unrevoked service-role assignment.
+
+PostgreSQL HTTP integration tests authenticate with real synthetic staff-session cookies and CSRF tokens. They prove that a Fleet service assignment permits vehicle creation in its assigned tenant but returns HTTP 403 for another tenant even when the user is also a member there; Transit trip creation reaches domain validation in the assigned tenant but returns HTTP 403 for the other tenant. Separate helper tests continue to cover wrong-service and revoked-grant denial.
+
+This mapping covers the currently implemented passenger-operator routes only. It does not imply that Move, Delivery, Cargo, Market, Business or Pay have implemented route families or active commercial availability.
 
 ## A5 regression coverage added
 
@@ -47,7 +58,7 @@ The shared authorization function `has_service_permission()` enforces the comple
 
 ## Remaining work / limits
 
-- Build a route-to-service mapping and wire service-scoped checks into routes only after the Owner-approved service/permission mapping is explicit.
-- Add end-to-end HTTP tests for each sensitive route family using authenticated synthetic staff sessions.
+- Extend the mapping only when additional service route families are implemented and their permission contracts are specified.
+- Continue adding authenticated HTTP tests for newly introduced sensitive route families.
 - Keep platform-wide control-plane permissions distinct from operator tenant privileges; do not silently narrow or broaden these existing platform roles.
 - Cross-tenant tests use synthetic PostgreSQL fixtures only. They do not authorize live data, production access or deployment.
