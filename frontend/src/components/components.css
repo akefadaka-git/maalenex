@@ -1,6 +1,6 @@
 /* MaaleNex reusable component primitives — Element 05 */
 .mn-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:var(--mn-touch-target);padding:0 18px;border:1px solid transparent;border-radius:var(--mn-radius-pill);font:inherit;font-weight:700;line-height:1.2;text-decoration:none;cursor:pointer;transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease}
-.mn-button:focus-visible,.mn-field:focus-visible,.mn-nav__link:focus-visible,.mn-dialog__close:focus-visible{outline:3px solid var(--mn-focus-ring);outline-offset:3px}
+.mn-button:focus-visible,.mn-field:focus-visible,.mn-nav__link:focus-visible,.mn-dialog__close:focus-visible{outline:3px solid var(--mn-focus-ring,var(--mn-focus));outline-offset:3px}
 .mn-button:active:not(:disabled){transform:translateY(1px)}
 .mn-button:disabled,.mn-button[aria-disabled="true"]{opacity:.48;cursor:not-allowed}
 .mn-button--primary{background:var(--mn-brand-emerald);color:#fff}.mn-button--primary:hover:not(:disabled){background:var(--mn-brand-emerald-strong, #087D68)}
