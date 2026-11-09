@@ -192,10 +192,20 @@ This inventory is based on the registered FastAPI routers at the reviewed HEAD. 
 
 The three application findings in this review were remediated on the isolated PR #11 branch, in the requested order:
 
-- **F-01 — REMEDIATED IN CODE; CI PENDING:** trusted proxies now fail closed unless exactly one HTTPS forwarded-proto value is present. Missing, empty, duplicate, comma-list and HTTP downgrade cases have regression tests.
-- **F-03 — REMEDIATED IN CODE; CI PENDING:** browser staff/account session creation, guest challenge verification and guest cookie-authenticated booking mutations now require exactly one exact allowlisted Origin. The shared guard rejects missing, duplicate, malformed, non-ASCII, comma-list and null values. Route-level tests cover session and guest-booking endpoints.
-- **F-02 — REMEDIATED IN CODE; CI PENDING:** trusted-proxy client IP is accepted only from a single valid edge-overwritten X-Forwarded-For value. The ASGI client identity used by rate-limit call sites is set to that parsed IP; the immediate proxy peer is retained separately. Untrusted peers cannot alter their rate-limit identity.
+- **F-01 — VERIFIED-CLOSED:** trusted proxies now fail closed unless exactly one HTTPS forwarded-proto value is present. Missing, empty, duplicate, comma-list and HTTP downgrade cases have regression tests.
+- **F-03 — VERIFIED-CLOSED:** browser staff/account session creation, guest challenge verification and guest cookie-authenticated booking mutations now require exactly one exact allowlisted Origin. The shared guard rejects missing, duplicate, malformed, non-ASCII, comma-list and null values. Route-level tests cover session and guest-booking endpoints.
+- **F-02 — VERIFIED-CLOSED:** trusted-proxy client IP is accepted only from a single valid edge-overwritten X-Forwarded-For value. The ASGI client identity used by rate-limit call sites is set to that parsed IP; the immediate proxy peer is retained separately. Untrusted peers cannot alter their rate-limit identity.
 
 The final edge must strip inbound X-Forwarded-For and set exactly one client IP. This single-hop trust profile is documented; arbitrary multi-proxy chains remain unsupported.
 
-**Current disposition:** F-01/F-02/F-03 are implementation-remediated but not yet VERIFIED-CLOSED until exact-HEAD CI passes. F-04 remains open as an ingress/hosting acceptance gate; no HSTS policy is enabled without confirmed universal HTTPS, and CSP must be finalized against the deployed frontend. This focused source review is not an independent penetration test, external SAST/DAST assessment, or live TLS scan.
+**Current disposition:** F-01/F-02/F-03 are VERIFIED-CLOSED for the reviewed application scope. Exact-HEAD CI passed on `3bce5b81c91ad9a573a02e55d3a6e2f6da1a3121` ([run #42571302514](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42571302514)); backend/PostgreSQL 82 passed, 1 warning, and frontend, dependency and Bandit jobs passed. F-04 remains open as an ingress/hosting acceptance gate; no HSTS policy is enabled without confirmed universal HTTPS, and CSP must be finalized against the deployed frontend. This focused source review is not an independent penetration test, external SAST/DAST assessment, or live TLS scan.
+
+
+### Exact-HEAD verification evidence
+
+- Commit: `3bce5b81c91ad9a573a02e55d3a6e2f6da1a3121`
+- Workflow: [#42571302514 — success](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42571302514)
+- Backend/PostgreSQL: 82 passed, 1 warning; compile, Ruff, migrations, seed idempotency, Alembic parity and downgrade/re-upgrade PASS.
+- Frontend tests, TypeScript, Vite build, npm audit, pip-audit and Bandit PASS.
+
+F-04 remains OPEN and is not remediated by this application change. Actual TLS termination, HSTS/CSP ownership, ingress/network policy, external scan and provider configuration require a separately approved production-edge environment. No penetration test, live TLS scan, merge or deployment is claimed.
