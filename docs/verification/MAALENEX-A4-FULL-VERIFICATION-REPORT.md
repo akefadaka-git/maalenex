@@ -17,7 +17,7 @@ The A4 workflow completed all three jobs successfully on the tested A4 snapshot:
 - Frontend tests, typecheck, production build and npm audit.
 - Python dependency audit and high-severity Bandit scan.
 
-The A4-only reconciliation commit has two parents: prior A4 commit `2c7a1341601a17ee15a5527c3c406b665eeb48a6` and PR #9 verified head `456e181ffda82403dc6cc9a245f66d47f9a947f4`. The first-parent line retains PR #10 closure head `0181d48cf27ad3d566cb5a76c7372f12bd199fa7`. Post-reconciliation comparisons prove PR #9 is an ancestor (21 commits behind, 0 ahead) and PR #10 is an ancestor (14 commits behind, 0 ahead). The five shared files changed by PR #9 were checked and have identical blob SHAs at PR #9, PR #10 and A4 refs. PR #10 identity/E2E and A4 verification additions are retained.
+The final evidence-record commit `239253f55bbc8b4936f62fbf06b8601f62cc6b06` is the exact HEAD checked by run #42557700677; all three jobs passed. The A4-only reconciliation commit has two parents: prior A4 commit `2c7a1341601a17ee15a5527c3c406b665eeb48a6` and PR #9 verified head `456e181ffda82403dc6cc9a245f66d47f9a947f4`. The first-parent line retains PR #10 closure head `0181d48cf27ad3d566cb5a76c7372f12bd199fa7`. Post-reconciliation comparisons prove PR #9 is an ancestor (21 commits behind, 0 ahead) and PR #10 is an ancestor (14 commits behind, 0 ahead). The five shared files changed by PR #9 were checked and have identical blob SHAs at PR #9, PR #10 and A4 refs. PR #10 identity/E2E and A4 verification additions are retained.
 
 ## 2. Exact automated verification evidence
 
