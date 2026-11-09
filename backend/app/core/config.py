@@ -123,7 +123,10 @@ class Settings(BaseSettings):
 
     @property
     def allowed_origins(self) -> list[str]:
-        return [\n            f"{urlsplit(item.strip()).scheme.lower()}://{urlsplit(item.strip()).netloc.lower()}"\n            for item in self.cors_origins.split(",") if item.strip()\n        ]
+        return [
+            f"{urlsplit(item.strip()).scheme.lower()}://{urlsplit(item.strip()).netloc.lower()}"
+            for item in self.cors_origins.split(",") if item.strip()
+        ]
 
     @property
     def trusted_proxy_networks(self) -> tuple:
