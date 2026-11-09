@@ -6,6 +6,22 @@ from sqlalchemy.engine import make_url
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _canonical_origin(origin: str) -> str:
+    """Normalize an already-validated browser origin for exact comparisons."""
+    parsed = urlsplit(origin)
+    scheme = parsed.scheme.lower()
+    hostname = parsed.hostname
+    if not scheme or not hostname:
+        raise ValueError("CORS origin must contain a scheme and hostname.")
+    hostname = hostname.lower()
+    if ":" in hostname and not hostname.startswith("["):
+        hostname = f"[{hostname}]"
+    port = parsed.port
+    default_port = 80 if scheme == "http" else 443 if scheme == "https" else None
+    port_suffix = f":{port}" if port is not None and port != default_port else ""
+    return f"{scheme}://{hostname}{port_suffix}"
+
+
 class Settings(BaseSettings):
     app_name: str = "MaaleNex Moto"
     app_env: str = "development"
