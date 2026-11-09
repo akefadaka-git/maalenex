@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.request_security import require_allowed_origin
 from app.db.session import get_db
 from app.domains.audit.service import record_event
 from app.domains.identity.accounts import AccountIdentifier, AccountSession
@@ -107,6 +108,7 @@ def _current_account(request: Request, db: Session = Depends(get_db)):
 
 
 def _require_csrf(request: Request, session: AccountSession) -> None:
+    require_allowed_origin(request)
     from app.domains.identity.security import token_digest
     import hmac
 
@@ -282,8 +284,8 @@ def revoke_current_account_session(
     _require_csrf(request, session)
     revoke_account_sessions(db, account_id=account.id, session_id=session.id)
     db.commit()
-    response.delete_cookie(SESSION_COOKIE, path="/", samesite="lax")
-    response.delete_cookie(CSRF_COOKIE, path="/", samesite="lax")
+    response.delete_cookie(SESSION_COOKIE, path="/", samesite="lax", secure=settings.should_use_secure_cookies(request.url.scheme))
+    response.delete_cookie(CSRF_COOKIE, path="/", samesite="lax", secure=settings.should_use_secure_cookies(request.url.scheme))
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
 
