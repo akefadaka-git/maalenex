@@ -18,7 +18,7 @@ export function normalizeApiBaseUrl(value: string, allowLocalHttp = true): strin
       (parsed.pathname !== "/" && parsed.pathname !== "")) {
     throw new Error("VITE_API_BASE_URL must contain only an origin, without credentials, path, query, or fragment.");
   }
-  if (/YOUR-TEST-API-HOST|example\.(com|org|net)|\.invalid$/i.test(parsed.hostname)) {
+  if (/YOUR-TEST-API-HOST|example\.(com|org|net)|\.invalid$|\.example$|\.test$/i.test(parsed.hostname)) {
     throw new Error("VITE_API_BASE_URL still contains a documentation placeholder.");
   }
   return parsed.origin;
