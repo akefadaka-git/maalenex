@@ -1,7 +1,7 @@
 # MaaleNex A5.3.4 — Fail-Closed Edge Security Implementation Report
 
 **Stage:** A5.3.4 implementation and synthetic verification  
-**Status:** IMPLEMENTED ON ISOLATED BRANCH; exact-HEAD GitHub CI evidence pending retrieval  
+**Status:** IMPLEMENTED ON ISOLATED BRANCH; exact-HEAD GitHub Actions verification PASS on `60ea65e85a6a02e9467ab10ea0970750d49c5376` (run [#42568481664](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42568481664))  
 **Repository:** `akefadaka-git/maalenex-moto`  
 **Implementation branch:** `a5/a5-3-4-edge-security-hardening`  
 **Review PR:** [#11 — A5.3.4 edge security configuration and regression tests](https://github.com/akefadaka-git/maalenex-moto/pull/11)  
@@ -83,7 +83,13 @@ This isolated run is not a substitute for the repository's exact-HEAD GitHub Act
 - Dedicated workflow added: `.github/workflows/a5-3-4-edge-security-verification.yml`.
 - Jobs: backend/PostgreSQL/migrations/full pytest, frontend tests/typecheck/build/npm audit, Python pip-audit and Bandit.
 - Workflow sets `APP_ENV=test`, `SYNTHETIC_DATA_ONLY=true`, local `maalenex_dev`, disables SMTP delivery and hides test tokens.
-- **Exact-HEAD GitHub Actions result: PENDING / NOT VERIFIED in this report.** The PR verification workflow is registered on the base branch; a PR-head synchronization is being issued to request the workflow run. Do not infer a pass from workflow-file creation or the isolated unit run.
+- **Exact-HEAD GitHub Actions result: PASS** — run [#42568481664](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42568481664), workflow run #27, tested commit `60ea65e85a6a02e9467ab10ea0970750d49c5376`.
+- The workflow was corrected so every checkout uses `${{ github.event.pull_request.head.sha || github.sha }}`; backend job logs confirm checkout and `git log -1` both resolved to the exact branch HEAD `60ea65e85a6a02e9467ab10ea0970750d49c5376`.
+- Backend/PostgreSQL: compile PASS; Ruff PASS; migrations PASS; registry seed idempotency PASS; full PostgreSQL test suite **70 passed, 1 warning**; Alembic parity PASS; full downgrade and clean re-upgrade PASS.
+- Frontend: clean lockfile install, tests, TypeScript, Vite build and npm audit all PASS.
+- Python security: pip-audit and Bandit high-severity scan both PASS.
+- The earlier run #42568318940 is superseded: it exposed the missing `_canonical_origin` helper and failed Ruff. The helper was added in commit `a418474d4e7680d5529c6c7994aeb61f6c747643`; the corrected exact-HEAD run above passes.
+- Branch history reconciliation: assessment branch `4a88653b1caef2c594587e24c67f004967b9bc10` is now an ancestor of the implementation branch; comparison is 35 ahead / 0 behind. PR #11 remains draft and unmerged.
 
 ## 5. Safety and non-authorizations
 
