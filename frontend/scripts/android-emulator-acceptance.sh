@@ -5,7 +5,7 @@ cd frontend
 adb wait-for-device
 
 booted=""
-for attempt in $(seq 1 60); do
+for attempt in $(seq 1 120); do
   booted="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
   if [[ "$booted" == "1" ]]; then
     break
@@ -16,7 +16,7 @@ done
 if [[ "$booted" != "1" ]]; then
   adb logcat -d -t 2000 > /tmp/maalenex-emulator-boot.log || true
   cat /tmp/maalenex-emulator-boot.log
-  echo "Android emulator did not become ready within 5 minutes." >&2
+  echo "Android emulator did not become ready within 10 minutes." >&2
   exit 1
 fi
 
