@@ -460,3 +460,22 @@ The links below are starting points for verification, not a substitute for revie
 **Deployment, merge, production activation and public launch: NOT AUTHORIZED.**
 
 The correct next activity is evidence collection and owner-approved readiness work-package planning, not deployment. The current application safety guards must remain in force until a separately authorized production architecture and migration plan exists.
+
+
+---
+
+## A5.3 follow-on — infrastructure, secrets/key lifecycle and TLS
+
+The detailed repository-backed assessment is recorded in [MAALENEX-A5-3-INFRASTRUCTURE-SECRETS-TLS-ASSESSMENT.md](MAALENEX-A5-3-INFRASTRUCTURE-SECRETS-TLS-ASSESSMENT.md).
+
+**A5.3 disposition: PARTIAL assessment complete; production readiness remains NOT READY.**
+
+Key findings:
+- No production hosting topology, infrastructure-as-code, provider/account ownership, data-residency or private-network evidence is present in the inspected repository.
+- The current application deliberately rejects non-development/test environments, requires synthetic-only mode and restricts PostgreSQL to local `maalenex_dev`. Preserve these controls; do not bypass them.
+- Identity identifier encryption uses AES-GCM and lookup uses HMAC with separate environment settings, but production secret storage, key-version metadata, encryption-key rotation, lookup-key re-indexing, recovery and revocation procedures are not evidenced.
+- Cookie Secure behavior depends on explicit configuration or the ASGI request scheme. A TLS-terminating proxy contract, trusted-proxy allowlist and production cookie verification are not evidenced.
+- SMTP uses standard TLS verification when TLS is selected, but the configuration currently permits both STARTTLS and implicit SSL to be disabled while email delivery is enabled. This is a fail-closed hardening item for a separately authorized implementation increment.
+- CORS defaults to localhost; production CORS, DNS, certificates, ingress hardening and external TLS scan evidence are absent.
+
+No provider was provisioned, no DNS/certificate was changed, no production key was generated or rotated, no SMTP connection/email was sent, and no production deployment or activation occurred.
