@@ -48,3 +48,17 @@ OpenStreetMap data can be obtained separately from tile services. Geofabrik publ
 - OpenStreetMap standard tile usage policy: https://operations.osmfoundation.org/policies/tiles/
 - OpenStreetMap vector tile usage policy: https://operations.osmfoundation.org/policies/vector/
 - Geofabrik Ethiopia extract: https://download.geofabrik.de/africa/ethiopia.html
+
+## Regional coverage architecture — Maale, South Omo and Ari
+
+The geographic data scope is regional, not Koybe–Jinka-only. See `docs/maps/REGIONAL-GEOGRAPHIC-COVERAGE-BASELINE.md` for the coverage inventory, source register, administrative reconciliation and acceptance gates.
+
+- Model South Omo Zone and Ari Zone as separate administrative branches.
+- Model Maale as a priority area within South Omo; do not invent a separate Maale Zone. Confirm its current administrative level and parentage against the latest authoritative record.
+- Use stable internal IDs and versioned parent-child relationships. Keep local-script names, English names and transliteration aliases as attributes, not identifiers.
+- Separate administrative boundaries, settlement gazetteer, service points, road graph, operator service coverage and motorcycle suitability into independently versioned layers.
+- Do not assume a place is served because it appears in the gazetteer, or a road is motorcycle-safe because it appears in OSM.
+- Acquire and validate regional boundary and road sources before rendering geographic polygons or route lines. The existing Koybe–Jinka source candidates are not regional coverage proof.
+- Preserve `MAP_PROVIDER_MODE = "schematic"` until the region-wide data-rights, source integrity, field validation, motorcycle access, privacy, offline and release gates are independently passed.
+
+The UI should be designed to scale from the Maale area to all South Omo and Ari administrative units without embedding a fixed list of woredas or assuming the current boundary hierarchy is immutable.
