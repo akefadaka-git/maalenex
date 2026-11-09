@@ -18,11 +18,11 @@
 
 | Role | Dashboard scope | Required future authorization |
 |---|---|---|
-| Passenger / rider | Profile, trip history, saved places, safety information | Authenticated passenger account |
-| Motorcycle driver | Driver profile, identity/vehicle verification, availability, trip requests and earnings | Driver role plus approved identity and vehicle |
+| Passenger / rider | Profile, booking/cancellation, trip history, wallet top-up/payment, loyalty card/points, referrals, ratings, receipts and exports | Authenticated passenger account; own-wallet and own-trip scope |
+| Motorcycle driver | Driver profile, identity/vehicle verification, availability, trip requests, earnings ledger, available/pending balance, cash-out, transaction history and exports | Driver role plus approved identity/vehicle; own earnings and verified payout beneficiary |
 | Heavy-load vehicle driver | Cargo capacity, vehicle/document verification, load requests, delivery history and earnings | Heavy-load driver role plus vehicle and permit verification |
-| Fleet / transport operator | Fleet vehicles, driver roster, assignments and compliance | Approved operator role and scoped fleet ownership |
-| Administrator | User management, driver approvals, trip/dispatch oversight, reports, audit and system configuration | Separate administrator identity, server-side role/permission checks, MFA and audited privileged actions |
+| Fleet / transport operator | Fleet vehicles, driver roster, assignments, compliance and organization-scoped owner/driver settlement reports | Approved operator role, scoped fleet ownership and recorded payout allocation agreements |
+| Administrator / finance operator | User management, driver approvals, trip/dispatch oversight, fare governance, reconciliation, payout approval, reports, audit and system configuration | Separate identity, least privilege, server-side permissions, MFA, maker-checker controls and audited actions |
 
 ## Security boundaries
 
@@ -48,3 +48,9 @@ The public experience communicates the planned regional coverage: Maale, South O
 5. Connect real trip, dispatch, cargo, payment and notification services only after their separate safety and regulatory gates.
 6. Add component, accessibility, responsive/mobile and end-to-end tests.
 7. Obtain exact-HEAD CI evidence and independent security review before merge/deployment.
+
+## Financial and booking capabilities — design scope
+
+The expanded product specification is maintained in `docs/product/MAALENEX-PAY-MOBILITY-AND-FARE-SPEC-v1.0.md`. It defines passenger booking/cancellation/rating/referrals, ETB wallet and immutable ledger, driver/vehicle-owner settlement, cash-out, loyalty card/points, transaction exports, jurisdictional fare governance and legal agreements.
+
+**Development remains synthetic-only.** This matrix does not enable real payments, production personal-data processing, live dispatch, or deployment. Wallet value and loyalty points are separate accounting concepts; administrator and finance privileges are never self-registered.
