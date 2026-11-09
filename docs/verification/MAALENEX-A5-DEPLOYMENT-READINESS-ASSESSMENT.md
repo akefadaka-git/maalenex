@@ -530,3 +530,15 @@ All existing development/test-only, synthetic-only and local `maalenex_dev` rest
 - PR #11 remains a separate draft/unmerged implementation review. No main-branch modification, merge, deployment, production secrets, real data, payment, GPS or commercial activation occurred.
 
 **A5.3.4 application implementation and automated verification: VERIFIED-CLOSED for F-01/F-02/F-03 scope. Overall A5 production readiness remains NOT READY / NO-GO.**
+
+
+## F-04 production-edge design and acceptance update
+
+- Design package: [A5.3.5 F-04 Production-Edge Security Design and Acceptance](MAALENEX-A5-3-5-F04-PRODUCTION-EDGE-DESIGN-AND-ACCEPTANCE.md).
+- HSTS/CSP single owner: public ingress edge. The application retains CORS, Origin/CSRF, cookie and proxy-trust controls; no weakening or duplicate policy ownership.
+- HSTS staged rollout and subdomain/preload restrictions defined; CSP report-only observation, enforcement criteria and rollback defined.
+- TLS termination, encrypted private origin hop, origin isolation, ingress hardening, external evidence IDs and F04-01 through F04-12 acceptance gates defined.
+- **F-04: DESIGN-RESOLVED / OPERATIONAL ACCEPTANCE PENDING.** No provider, DNS, certificate, endpoint or edge has been provisioned; live TLS/HTTP/HSTS/CSP/origin-bypass scans and rollback exercises are NOT RUN.
+- Existing APP_ENV development/test restriction, SYNTHETIC_DATA_ONLY requirement and local maalenex_dev database restriction remain unchanged. No production secret, real data, DNS, certificate, network, runtime, merge or deployment change.
+
+**Overall A5 remains NOT READY / NO-GO.**
