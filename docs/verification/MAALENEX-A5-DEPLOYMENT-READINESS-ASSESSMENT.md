@@ -508,6 +508,6 @@ The TLS termination, trusted-proxy, cookie, CORS and ingress contract is **OWNER
 
 A5.3.4 implementation is isolated on [PR #11](https://github.com/akefadaka-git/maalenex-moto/pull/11), branch `a5/a5-3-4-edge-security-hardening`. Its implementation report is [MAALENEX-A5-3-4-EDGE-SECURITY-IMPLEMENTATION-REPORT.md](https://github.com/akefadaka-git/maalenex-moto/blob/a5/a5-3-4-edge-security-hardening/docs/verification/MAALENEX-A5-3-4-EDGE-SECURITY-IMPLEMENTATION-REPORT.md).
 
-**A5.3.4 status:** Implemented on isolated branch; isolated synthetic unit suite passed 21 tests; exact-HEAD GitHub Actions result remains **NOT VERIFIED**. PR #11 is draft and unmerged. No live proxy, public ingress, DNS, certificates or production runtime controls are claimed as implemented.
+**A5.3.4 status:** Implemented on isolated branch; isolated synthetic unit suite passed 23 tests; exact-HEAD GitHub Actions run [#42568481664](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42568481664) passed on `60ea65e85a6a02e9467ab10ea0970750d49c5376` (70 backend/PostgreSQL tests passed; frontend and security jobs passed).. PR #11 is draft and unmerged. No live proxy, public ingress, DNS, certificates or production runtime controls are claimed as implemented.
 
 All existing development/test-only, synthetic-only and local `maalenex_dev` restrictions remain binding. Overall A5 remains **NOT READY / NO-GO**.
