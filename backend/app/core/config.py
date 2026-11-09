@@ -81,7 +81,7 @@ class Settings(BaseSettings):
             if parsed.scheme == "http" and parsed.hostname.lower() not in {
                 "localhost", "127.0.0.1", "::1"
             }:
-                raise ValueError("Non-loopback CORS origins must use HTTPS.")
+                raise ValueError("CORS_ORIGINS non-loopback origins must use HTTPS.")
             try:
                 if parsed.port is not None and not 1 <= parsed.port <= 65535:
                     raise ValueError("CORS origin port is invalid.")
@@ -123,7 +123,7 @@ class Settings(BaseSettings):
 
     @property
     def allowed_origins(self) -> list[str]:
-        return [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+        return [\n            f"{urlsplit(item.strip()).scheme.lower()}://{urlsplit(item.strip()).netloc.lower()}"\n            for item in self.cors_origins.split(",") if item.strip()\n        ]
 
     @property
     def trusted_proxy_networks(self) -> tuple:
