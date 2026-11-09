@@ -17,7 +17,7 @@ export default function App(){
  const km=pickup===destination?0:route?.km??null;const fare=pickup===destination?0:route?.etb??null;
  const placeName=(id:string)=>places.find(p=>p.id===id)?.[language]??id;
  const start=()=>{setStage("route");dialogRef.current?.showModal();};
- return <div className="mn-app" lang={language} id="home">
+ return <div className="mn-app-shell" lang={language} id="home">
   <PortalPages language={language} onLanguageChange={setLanguage} onRidePreview={start}/>
   <Dialog ref={dialogRef} title={stage==="route"?t.rideTitle:stage==="review"?t.reviewTitle:t.previewTitle} onRequestClose={()=>dialogRef.current?.close()} className="mn-ride-dialog">
    {stage==="route"&&<><p className="mn-dialog-intro">{t.rideIntro}</p><div className="mn-route-fields"><label className="mn-field-wrap"><span className="mn-field-label">{t.from}</span><select className="mn-field" value={pickup} onChange={e=>setPickup(e.target.value)}>{places.map(p=><option key={p.id} value={p.id}>{p[language]}</option>)}</select></label><div className="mn-route-swap"><Button size="small" variant="quiet" onClick={()=>{setPickup(destination);setDestination(pickup);}}>{t.swap} ⇅</Button></div><label className="mn-field-wrap"><span className="mn-field-label">{t.to}</span><select className="mn-field" value={destination} onChange={e=>setDestination(e.target.value)}>{places.map(p=><option key={p.id} value={p.id}>{p[language]}</option>)}</select></label></div>
