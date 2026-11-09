@@ -39,7 +39,9 @@ pip install -e ".[dev]"
 Copy the root `.env.example` to `backend/.env` and adjust only local development values. The committed example contains no database username or password. Configure local PostgreSQL authentication on your machine, or supply a local-only `DATABASE_URL` through the environment; never commit authentication material. Create a local database named `maalenex_dev`, then start the API:
 
 ```bash
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --no-proxy-headers
+
+The application validates forwarded proxy metadata itself. Keep Uvicorn's built-in proxy-header processing disabled; configure `TRUSTED_PROXY_IPS` and `CANONICAL_HOSTS` together only for a reviewed private proxy topology. Untrusted forwarded headers are ignored. These settings do not enable a production runtime.
 ```
 
 The API listens on `http://127.0.0.1:8000`; health check: `GET /api/v1/health`; OpenAPI UI: `/api/v1/docs`. The Vite development server proxies `/api` to this backend.
