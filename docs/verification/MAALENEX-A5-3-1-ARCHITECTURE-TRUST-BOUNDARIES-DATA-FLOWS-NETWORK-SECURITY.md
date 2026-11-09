@@ -385,7 +385,8 @@ No tests or implementation are authorized by this document. When separately appr
 ### Next separately gated design work
 
 - A5.3.2: versioned identity-encryption and lookup-key lifecycle design — PREPARED in [MAALENEX-A5-3-2-VERSIONED-KEY-LIFECYCLE-DESIGN.md](MAALENEX-A5-3-2-VERSIONED-KEY-LIFECYCLE-DESIGN.md); Owner review pending. No key generation.
-- A5.3.3: TLS termination, trusted-proxy, cookie, CORS and ingress contract — PREPARED in [MAALENEX-A5-3-3-TLS-PROXY-COOKIE-CORS-INGRESS-SECURITY-CONTRACT.md](MAALENEX-A5-3-3-TLS-PROXY-COOKIE-CORS-INGRESS-SECURITY-CONTRACT.md); Owner review pending. No DNS/certificate/runtime change.
+- A5.3.3: TLS termination, trusted-proxy, cookie, CORS and ingress contract — OWNER-APPROVED in [MAALENEX-A5-3-3-TLS-PROXY-COOKIE-CORS-INGRESS-SECURITY-CONTRACT.md](MAALENEX-A5-3-3-TLS-PROXY-COOKIE-CORS-INGRESS-SECURITY-CONTRACT.md). No DNS/certificate/runtime change.
+- A5.3.4: fail-closed edge configuration and synthetic regression tests — IMPLEMENTED ON ISOLATED BRANCH; exact-HEAD GitHub Actions verification pending in [PR #11](https://github.com/akefadaka-git/maalenex-moto/pull/11).
 - A5.3.4: synthetic-only fail-closed configuration tests only after separate implementation authorization.
 
 ## 12. Change and approval record
