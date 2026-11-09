@@ -95,6 +95,15 @@ class SyntheticEdgeAcceptanceTests(unittest.TestCase):
         gate = next(item for item in result["gate_results"] if item["gate"] == "F04-12")
         self.assertEqual(gate["status"], "NOT_EVALUATED")
 
+
+    def test_non_object_gate_entry_fails_closed_without_crashing(self):
+        manifest = copy.deepcopy(self.manifest)
+        manifest["gates"]["F04-03"] = "not-an-object"
+        result = validate_manifest(manifest)
+        self.assertFalse(result["valid"])
+        gate = next(item for item in result["gate_results"] if item["gate"] == "F04-03")
+        self.assertEqual(gate["status"], "SYNTHETIC_FAIL")
+
     def test_missing_gate_is_rejected(self):
         manifest = copy.deepcopy(self.manifest)
         del manifest["gates"]["F04-08"]
