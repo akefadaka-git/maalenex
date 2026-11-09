@@ -31,17 +31,23 @@ def _create_service_principal(db, organization_ids, service_codes):
         code=f"service-http-role-{suffix}",
         description="Synthetic HTTP service role",
     )
-    permissions = {
-        "fleet": Permission(
-            code=f"operator.fleet.manage.{suffix}",
-            description="Synthetic Fleet management permission",
-        ),
-        "transit": Permission(
-            code=f"operator.trip.manage.{suffix}",
-            description="Synthetic Transit trip management permission",
-        ),
+    permission_codes = {
+        "fleet": "operator.fleet.manage",
+        "transit": "operator.trip.manage",
     }
-    db.add_all([user, role, *permissions.values()])
+    permissions = {}
+    for service_code in service_codes:
+        permission_code = permission_codes[service_code]
+        permission = db.scalar(select(Permission).where(Permission.code == permission_code))
+        if permission is None:
+            permission = Permission(
+                code=permission_code,
+                description=f"Synthetic {service_code.title()} management permission",
+            )
+            db.add(permission)
+            db.flush()
+        permissions[service_code] = permission
+    db.add_all([user, role])
     db.flush()
     db.add_all(
         RolePermission(role_id=role.id, permission_id=permission.id)
