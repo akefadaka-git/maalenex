@@ -1,4 +1,5 @@
-const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() ?? "";
+const viteEnv = (import.meta as ImportMeta & { env?: { VITE_API_BASE_URL?: string; DEV?: boolean } }).env;
+const rawApiBaseUrl = viteEnv?.VITE_API_BASE_URL?.trim() ?? "";
 
 export function normalizeApiBaseUrl(value: string, allowLocalHttp = true): string {
   const candidate = value.trim();
@@ -24,7 +25,7 @@ export function normalizeApiBaseUrl(value: string, allowLocalHttp = true): strin
   return parsed.origin;
 }
 
-export const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl, import.meta.env.DEV);
+export const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl, viteEnv?.DEV ?? false);
 
 export function apiUrl(path: string, base = API_BASE_URL): string {
   if (!path.startsWith("/") || path.startsWith("//")) {
