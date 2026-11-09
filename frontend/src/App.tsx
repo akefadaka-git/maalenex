@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Badge, BottomNavigation, Button, Card, Dialog } from "./components/ui";
+import { Badge, Button, Dialog } from "./components/ui";
 import { RouteMapPreview } from "./RouteMapPreview";
 import { PortalPages } from "./PortalPages";
 
@@ -17,7 +17,6 @@ export default function App(){
  const km=pickup===destination?0:route?.km??null;const fare=pickup===destination?0:route?.etb??null;
  const placeName=(id:string)=>places.find(p=>p.id===id)?.[language]??id;
  const start=()=>{setStage("route");dialogRef.current?.showModal();};
- const services=[{number:"01",icon:"↗",title:t.rides,description:t.rideDesc},{number:"02",icon:"✳",title:t.care,description:t.careDesc},{number:"03",icon:"⌁",title:t.drivers,description:t.driverDesc}];
  return <main className="mn-app" lang={language} id="home">
   <PortalPages language={language} onLanguageChange={setLanguage} onRidePreview={start}/>
   <Dialog ref={dialogRef} title={stage==="route"?t.rideTitle:stage==="review"?t.reviewTitle:t.previewTitle} onRequestClose={()=>dialogRef.current?.close()} className="mn-ride-dialog">
