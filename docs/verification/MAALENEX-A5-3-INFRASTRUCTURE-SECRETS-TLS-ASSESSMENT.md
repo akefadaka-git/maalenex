@@ -218,3 +218,10 @@ A5.3 closure requires verified design artifacts and evidence for the scoped cont
 The provider-neutral architecture decision record, logical architecture and trust-boundary diagrams, data-flow map, current/future environment separation model, provider-selection criteria and network-security specification are prepared in [MAALENEX-A5-3-1-ARCHITECTURE-TRUST-BOUNDARIES-DATA-FLOWS-NETWORK-SECURITY.md](MAALENEX-A5-3-1-ARCHITECTURE-TRUST-BOUNDARIES-DATA-FLOWS-NETWORK-SECURITY.md).
 
 **A5.3.1 disposition: DOCUMENTATION PREPARED; Owner review pending.** No provider was selected, no account or infrastructure was purchased or provisioned, no secrets/keys were generated or changed, and no DNS, certificate, network, runtime, deployment or production activation occurred. Existing development/test-only, synthetic-only and local `maalenex_dev` restrictions remain binding. Overall A5 remains NOT READY / NO-GO.
+
+
+## A5.3.2 versioned key lifecycle design
+
+The versioned AES-GCM encryption envelope, key-ID resolver, encryption-key rotation/backfill, HMAC lookup-key dual-index migration, rollback, recovery, revocation and synthetic verification plan are documented in [MAALENEX-A5-3-2-VERSIONED-KEY-LIFECYCLE-DESIGN.md](MAALENEX-A5-3-2-VERSIONED-KEY-LIFECYCLE-DESIGN.md).
+
+**A5.3.2 disposition: DESIGN PREPARED; Owner review pending.** No keys were generated, retrieved, rotated, revoked or destroyed. No code, schema, runtime configuration or workflow changed. Overall A5 remains NOT READY / NO-GO.
