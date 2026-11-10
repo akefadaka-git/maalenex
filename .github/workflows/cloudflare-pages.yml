@@ -1,0 +1,76 @@
+name: MaaleNex Cloudflare Pages
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/cloudflare-pages.yml"
+  workflow_dispatch:
+    inputs:
+      confirm_production_deploy:
+        description: "Type DEPLOY to publish the current main branch to Cloudflare Pages"
+        required: true
+        type: choice
+        options:
+          - "NO"
+          - "DEPLOY"
+        default: "NO"
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: maalenex-cloudflare-pages
+  cancel-in-progress: false
+
+jobs:
+  verify-frontend:
+    name: Test and build frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install --no-package-lock --no-audit --no-fund
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Build production assets
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install Wrangler
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.confirm_production_deploy == 'DEPLOY'
+        run: npm install --global wrangler@4
+
+      - name: Create Pages project if it does not exist
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.confirm_production_deploy == 'DEPLOY'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if wrangler pages project list --json | grep -Eq '"name"[[:space:]]*:[[:space:]]*"maalenex"'; then
+            echo "Cloudflare Pages project maalenex already exists."
+          else
+            wrangler pages project create maalenex --production-branch main
+          fi
+
+      - name: Deploy to Cloudflare Pages
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.confirm_production_deploy == 'DEPLOY'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: wrangler pages deploy frontend/dist --project-name=maalenex --branch=main
