@@ -56,19 +56,19 @@ if [[ "$installed" != "yes" ]]; then
   exit 1
 fi
 
-adb shell monkey -p com.maalenex.moto 1
+adb shell monkey -p com.maalenex.app 1
 
 # Allow the Capacitor WebView and Android activity to settle before inspection.
 sleep 20
 foreground=""
 for attempt in $(seq 1 12); do
   foreground="$(adb shell dumpsys activity activities 2>/dev/null || true)"
-  if grep -E 'mResumedActivity|topResumedActivity' <<<"$foreground" | grep -q 'com.maalenex.moto'; then
+  if grep -E 'mResumedActivity|topResumedActivity' <<<"$foreground" | grep -q 'com.maalenex.app'; then
     break
   fi
   sleep 5
 done
-if ! grep -E 'mResumedActivity|topResumedActivity' <<<"$foreground" | grep -q 'com.maalenex.moto'; then
+if ! grep -E 'mResumedActivity|topResumedActivity' <<<"$foreground" | grep -q 'com.maalenex.app'; then
   echo "MaaleNex did not remain in the foreground." >&2
   adb logcat -d -t 3000 > maalenex-emulator-logcat.txt || true
   exit 1
