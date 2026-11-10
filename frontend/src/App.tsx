@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { API_BASE_URL, apiFetch, apiUrl } from "./api";
 
 type Language = "am" | "en";
 type LocationOption = { id: string; name: string; type: string };
@@ -25,13 +26,6 @@ type SupportCase = {
   case_reference: string; category: string; subject: string; message: string;
   status: string; resolution_code: string | null; resolution_note: string | null;
 };
-
-const API_BASE_URL = (import.meta as ImportMeta & { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL ?? "";
-
-function apiUrl(path: string): string {
-  const base = API_BASE_URL.endsWith("/") ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
-  return `${base}${path}`;
-}
 
 const copy = {
   am: {
@@ -138,6 +132,7 @@ export default function App() {
   const [hold, setHold] = useState<HoldResult | null>(null);
   const [challengeId, setChallengeId] = useState("");
   const [syntheticCode, setSyntheticCode] = useState("");
+  const [csrfToken, setCsrfToken] = useState(() => sessionStorage.getItem("mnm_booking_csrf_token") ?? "");
   const [verificationCode, setVerificationCode] = useState("");
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [reservation, setReservation] = useState<ReservationResult | null>(null);
@@ -161,7 +156,7 @@ export default function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(apiUrl("/api/v1/catalog/locations"), { signal: controller.signal })
+    apiFetch("/api/v1/catalog/locations", { signal: controller.signal })
       .then((response) => { if (!response.ok) throw new Error("locations"); return response.json() as Promise<LocationOption[]>; })
       .then((items) => {
         setLocations(items);
@@ -179,7 +174,7 @@ export default function App() {
     const savedBookingId = sessionStorage.getItem("mnm_active_booking_id");
     if (!savedBookingId) return;
     const controller = new AbortController();
-    fetch(apiUrl(`/api/v1/bookings/${encodeURIComponent(savedBookingId)}`), {
+    apiFetch(`/api/v1/bookings/${encodeURIComponent(savedBookingId)}`, {
       credentials: "include", signal: controller.signal,
     }).then(async (response) => {
       if (!response.ok) {
@@ -191,7 +186,7 @@ export default function App() {
       const detail = await response.json() as BookingDetails;
       setBooking(detail);
       setReservation(detail.reservation ?? null);
-      const casesResponse = await fetch(apiUrl(`/api/v1/bookings/${encodeURIComponent(savedBookingId)}/support-cases`), {
+      const casesResponse = await apiFetch(`/api/v1/bookings/${encodeURIComponent(savedBookingId)}/support-cases`, {
         credentials: "include", signal: controller.signal,
       });
       if (casesResponse.ok) setSupportCases(await casesResponse.json() as SupportCase[]);
@@ -214,7 +209,7 @@ export default function App() {
         origin_id: originId, destination_id: destinationId,
         travel_date: travelDate, passenger_count: String(passengerCount),
       });
-      const response = await fetch(apiUrl(`/api/v1/trips/search?${params.toString()}`));
+      const response = await apiFetch(`/api/v1/trips/search?${params.toString()}`);
       if (!response.ok) throw new Error("search");
       setTrips((await response.json()) as TripResult[]);
     } catch { setTrips([]); setError("error"); }
@@ -226,7 +221,7 @@ export default function App() {
     setHold(null); setChallengeId(""); setBooking(null); setReservation(null); setError("");
     setLoadingSeats(true);
     try {
-      const response = await fetch(apiUrl(`/api/v1/trips/${trip.id}/seats`));
+      const response = await apiFetch(`/api/v1/trips/${trip.id}/seats`);
       if (!response.ok) throw new Error("seats");
       setSeats((await response.json()) as SeatOption[]);
     } catch { setError("error"); }
@@ -245,7 +240,7 @@ export default function App() {
         passengerNames.some((name) => !name.trim())) return;
     setWorking(true); setError("");
     try {
-      const response = await fetch(apiUrl("/api/v1/bookings/holds"), {
+      const response = await apiFetch("/api/v1/bookings/holds", {
         method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({
           trip_id: selectedTrip.id, booking_contact_name: contactName,
@@ -264,7 +259,7 @@ export default function App() {
     if (!hold) return;
     setWorking(true); setError("");
     try {
-      const response = await fetch(apiUrl("/api/v1/passenger-access/challenges"), {
+      const response = await apiFetch("/api/v1/passenger-access/challenges", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ booking_reference: hold.booking_reference, contact_phone: contactPhone }),
       });
@@ -281,20 +276,24 @@ export default function App() {
     if (!challengeId) return;
     setWorking(true); setError("");
     try {
-      const response = await fetch(apiUrl(`/api/v1/passenger-access/challenges/${challengeId}/verify`), {
+      const response = await apiFetch(`/api/v1/passenger-access/challenges/${challengeId}/verify`, {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: verificationCode }),
       });
       if (!response.ok) throw new Error("verify");
-      const result = await response.json() as { booking_id: string };
+      const result = await response.json() as { booking_id: string; csrf_token?: string };
       sessionStorage.setItem("mnm_active_booking_id", result.booking_id);
-      const detail = await fetch(apiUrl(`/api/v1/bookings/${result.booking_id}`), { credentials: "include" });
+      if (result.csrf_token) {
+        sessionStorage.setItem("mnm_booking_csrf_token", result.csrf_token);
+        setCsrfToken(result.csrf_token);
+      }
+      const detail = await apiFetch(`/api/v1/bookings/${result.booking_id}`, { credentials: "include" });
       if (!detail.ok) throw new Error("booking");
       const bookingDetails = await detail.json() as BookingDetails;
       setBooking(bookingDetails);
       setReservation(bookingDetails.reservation ?? null);
-      const casesResponse = await fetch(apiUrl(`/api/v1/bookings/${result.booking_id}/support-cases`), { credentials: "include" });
+      const casesResponse = await apiFetch(`/api/v1/bookings/${result.booking_id}/support-cases`, { credentials: "include" });
       if (casesResponse.ok) setSupportCases(await casesResponse.json() as SupportCase[]);
     } catch { setError("error"); }
     finally { setWorking(false); }
@@ -304,9 +303,9 @@ export default function App() {
     if (!booking) return;
     setWorking(true); setError("");
     try {
-      const response = await fetch(apiUrl(`/api/v1/bookings/${booking.booking_id}/reservation`), {
+      const response = await apiFetch(`/api/v1/bookings/${booking.booking_id}/reservation`, {
         method: "POST", credentials: "include",
-        headers: { "X-CSRF-Token": csrfCookie() },
+        headers: { "X-CSRF-Token": csrfToken || csrfCookie() },
       });
       if (!response.ok) throw new Error("reservation");
       setReservation((await response.json()) as ReservationResult);
@@ -319,9 +318,9 @@ export default function App() {
     if (!booking || !supportSubject.trim() || !supportMessage.trim()) return;
     setWorking(true); setError("");
     try {
-      const response = await fetch(apiUrl(`/api/v1/bookings/${booking.booking_id}/support-cases`), {
+      const response = await apiFetch(`/api/v1/bookings/${booking.booking_id}/support-cases`, {
         method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfCookie() },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken || csrfCookie() },
         body: JSON.stringify({
           category: "reservation_status",
           subject: supportSubject,
@@ -329,7 +328,7 @@ export default function App() {
         }),
       });
       if (!response.ok) throw new Error("support");
-      const casesResponse = await fetch(apiUrl(`/api/v1/bookings/${booking.booking_id}/support-cases`), { credentials: "include" });
+      const casesResponse = await apiFetch(`/api/v1/bookings/${booking.booking_id}/support-cases`, { credentials: "include" });
       if (!casesResponse.ok) throw new Error("support-list");
       setSupportCases(await casesResponse.json() as SupportCase[]);
       setSupportSubject(""); setSupportMessage("");
@@ -341,12 +340,14 @@ export default function App() {
     if (!booking) return;
     setWorking(true); setError("");
     try {
-      const response = await fetch(apiUrl(`/api/v1/bookings/${booking.booking_id}/access/revoke`), {
+      const response = await apiFetch(`/api/v1/bookings/${booking.booking_id}/access/revoke`, {
         method: "POST", credentials: "include",
-        headers: { "X-CSRF-Token": csrfCookie() },
+        headers: { "X-CSRF-Token": csrfToken || csrfCookie() },
       });
       if (!response.ok) throw new Error("revoke");
       sessionStorage.removeItem("mnm_active_booking_id");
+      sessionStorage.removeItem("mnm_booking_csrf_token");
+      setCsrfToken("");
       setBooking(null); setReservation(null); setHold(null); setChallengeId(""); setSupportCases([]);
       setSyntheticCode(""); setVerificationCode("");
     } catch { setError("error"); }
@@ -357,8 +358,8 @@ export default function App() {
     <main className="page" lang={language}>
       <a className="skip-link" href="#hero-title">{t.skip}</a>
       <header className="topbar">
-        <a className="brand" href="#hero-title" aria-label="MaaleNex Moto home">
-          <span className="brand-mark" aria-hidden="true">M</span> MAALE NEX MOTO
+        <a className="brand" href="#hero-title" aria-label="MaaleNex home">
+          <span className="brand-mark" aria-hidden="true">M</span> MAALENEX
         </a>
         <div className="top-actions">
           <span className="environment">{t.status}</span>
@@ -492,7 +493,7 @@ export default function App() {
           <p className="trip-meta">{API_BASE_URL ? `API: ${API_BASE_URL}` : (language === "am" ? "የAPI አድራሻ አልተዋቀረም።" : "API origin is not configured.")}</p>
         </section>
 
-      <footer><span>{t.footer}</span><span>© MaaleNex Moto · 2026</span></footer>
+      <footer><span>{t.footer}</span><span>© MaaleNex · 2026</span></footer>
     </main>
   );
 }

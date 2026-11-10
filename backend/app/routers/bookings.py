@@ -69,6 +69,15 @@ def _require_origin(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Request origin is not allowed.")
 
 
+def _verification_payload(booking_id: UUID, scope: str, expires_at: str, csrf_token: str) -> dict:
+    return {
+        "booking_id": str(booking_id),
+        "scope": scope,
+        "expires_at": expires_at,
+        "csrf_token": csrf_token,
+    }
+
+
 def current_booking_grant(
     booking_id: UUID, request: Request, db: Session = Depends(get_db),
 ) -> BookingAccessGrant:
@@ -166,13 +175,20 @@ def verify_booking_access_challenge(
     cookie_path = f"{settings.api_prefix}/bookings/{booking.id}"
     response.set_cookie(
         ACCESS_COOKIE, access_token, max_age=2 * 60 * 60,
-        httponly=True, secure=secure_cookie, samesite="lax", path=cookie_path,
+        httponly=True, secure=secure_cookie, samesite="none" if secure_cookie else "lax", path=cookie_path,
     )
     response.set_cookie(
         CSRF_COOKIE, csrf_token, max_age=2 * 60 * 60,
-        httponly=False, secure=secure_cookie, samesite="lax", path="/",
+        httponly=False, secure=secure_cookie, samesite="none" if secure_cookie else "lax", path="/",
     )
-    return {"booking_id": str(booking.id), "scope": grant.scope, "expires_at": grant.expires_at.isoformat()}
+    # The CSRF token is not an authentication credential. The native WebView
+    # cannot read the API host-scoped CSRF cookie via document.cookie.
+    return _verification_payload(
+        booking_id=booking.id,
+        scope=grant.scope,
+        expires_at=grant.expires_at.isoformat(),
+        csrf_token=csrf_token,
+    )
 
 
 @router.get("/bookings/{booking_id}")
@@ -237,7 +253,7 @@ def read_reservation_qr(
     if reservation is None:
         raise HTTPException(status_code=404, detail="Active reservation reference not found.")
     payload = (
-        f"maalenex-moto:reservation:v{reservation.qr_payload_version}:"
+        f"maalenex:reservation:v{reservation.qr_payload_version}:"
         f"{reservation.qr_payload_reference}"
     )
     code = qrcode.QRCode(
