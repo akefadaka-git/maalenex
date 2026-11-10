@@ -91,7 +91,7 @@ if [[ "$dumped" != "yes" ]]; then
   exit 1
 fi
 
-grep -q "MAALE NEX MOTO" ./maalenex-window.xml
+grep -q "MAALENEX" ./maalenex-window.xml
 adb exec-out screencap -p > maalenex-emulator.png
 
 if adb logcat -d -t 3000 -s AndroidRuntime:E | grep -q 'FATAL EXCEPTION'; then
