@@ -69,7 +69,7 @@ for attempt in $(seq 1 12); do
   sleep 5
 done
 if ! grep -E 'mResumedActivity|topResumedActivity' <<<"$foreground" | grep -q 'com.maalenex.moto'; then
-  echo "MaaleNex Moto did not remain in the foreground." >&2
+  echo "MaaleNex did not remain in the foreground." >&2
   adb logcat -d -t 3000 > maalenex-emulator-logcat.txt || true
   exit 1
 fi
