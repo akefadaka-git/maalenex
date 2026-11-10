@@ -23,7 +23,7 @@ This remediation is based on PR #5's exact source head `563bd5c9eba6e69c1de08a29
 - Cookie persistence and CSRF behavior must still be verified on the target Android WebView against the actual HTTPS test API. SameSite configuration alone is not proof that the device accepts the cookie.
 
 ## Reproducible CI acceptance
-The workflow runs frontend tests and typecheck/build, creates a debug APK, starts an API 35 Android emulator with bounded boot readiness, installs the APK, launches `com.maalenex.moto`, verifies the app is foregrounded, checks for Android fatal exceptions, and stores the UI hierarchy plus screenshot as CI artifacts.
+The workflow runs frontend tests and typecheck/build, creates a debug APK, starts an API 35 Android emulator with bounded boot readiness, installs the APK, launches `com.maalenex.app`, verifies the app is foregrounded, checks for Android fatal exceptions, and stores the UI hierarchy plus screenshot as CI artifacts.
 
 This is an emulator install/launch smoke test. It does not substitute for physical-device acceptance or a live API journey.
 
