@@ -358,8 +358,8 @@ export default function App() {
     <main className="page" lang={language}>
       <a className="skip-link" href="#hero-title">{t.skip}</a>
       <header className="topbar">
-        <a className="brand" href="#hero-title" aria-label="MaaleNex Moto home">
-          <span className="brand-mark" aria-hidden="true">M</span> MAALE NEX MOTO
+        <a className="brand" href="#hero-title" aria-label="MaaleNex home">
+          <span className="brand-mark" aria-hidden="true">M</span> MAALENEX
         </a>
         <div className="top-actions">
           <span className="environment">{t.status}</span>
@@ -493,7 +493,7 @@ export default function App() {
           <p className="trip-meta">{API_BASE_URL ? `API: ${API_BASE_URL}` : (language === "am" ? "የAPI አድራሻ አልተዋቀረም።" : "API origin is not configured.")}</p>
         </section>
 
-      <footer><span>{t.footer}</span><span>© MaaleNex Moto · 2026</span></footer>
+      <footer><span>{t.footer}</span><span>© MaaleNex · 2026</span></footer>
     </main>
   );
 }
