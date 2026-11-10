@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/android-device-acceptance-emulator
+  pull_request:
+    branches:
+      - fix/android-device-acceptance
   workflow_dispatch:
 
 permissions:
