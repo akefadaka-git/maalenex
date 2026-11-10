@@ -253,7 +253,7 @@ def read_reservation_qr(
     if reservation is None:
         raise HTTPException(status_code=404, detail="Active reservation reference not found.")
     payload = (
-        f"maalenex-moto:reservation:v{reservation.qr_payload_version}:"
+        f"maalenex:reservation:v{reservation.qr_payload_version}:"
         f"{reservation.qr_payload_reference}"
     )
     code = qrcode.QRCode(
