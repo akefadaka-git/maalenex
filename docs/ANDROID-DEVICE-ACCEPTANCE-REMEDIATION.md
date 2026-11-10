@@ -22,6 +22,15 @@ This remediation is based on PR #5's exact source head `563bd5c9eba6e69c1de08a29
 - The test API must explicitly allow the installed app origin (including the Capacitor origin) in `CORS_ORIGINS`, with credentials enabled. Do not use wildcard CORS with credentials.
 - Cookie persistence and CSRF behavior must still be verified on the target Android WebView against the actual HTTPS test API. SameSite configuration alone is not proof that the device accepts the cookie.
 
+## Reservation QR-code compatibility contract
+
+- Newly generated reservation QR payloads use the canonical namespace `maalenex:reservation:v1:`.
+- During migration, any scanner or external integration that consumes previously issued QR codes must also recognize the legacy namespace `maalenex-moto:reservation:v1:`. The legacy prefix is retained here as a compatibility identifier, not as the current product or repository name.
+- A reader must parse the namespace and version explicitly, reject malformed or unsupported payloads, and treat the reservation reference as an opaque lookup key.
+- A QR payload is not proof of ticket validity, payment, boarding permission or reservation status. The backend must independently verify that the referenced reservation exists and is currently eligible for the requested operation.
+- Do not retire legacy-prefix support until the lifetime of previously issued codes and every known external scanner/integration have been accounted for.
+- PR #15 contains QR generation only; it does not implement a boarding-validation scanner. Therefore legacy-reader compatibility remains an integration requirement, not a behavior proven by this PR.
+
 ## Reproducible CI acceptance
 The workflow runs frontend tests and typecheck/build, creates a debug APK, starts an API 35 Android emulator with bounded boot readiness, installs the APK, launches `com.maalenex.app`, verifies the app is foregrounded, checks for Android fatal exceptions, and stores the UI hierarchy plus screenshot as CI artifacts.
 
