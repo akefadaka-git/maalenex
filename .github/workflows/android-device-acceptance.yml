@@ -9,9 +9,11 @@ on:
 permissions:
   contents: read
 
+# Do not cancel a long emulator boot just because a second push/dispatch arrives.
+# Queue the newer run instead; every tested SHA must retain its own evidence.
 concurrency:
   group: android-device-acceptance-${{ github.event.pull_request.head.ref || github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   backend-postgres:
@@ -63,7 +65,7 @@ jobs:
 
   frontend-and-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: frontend
@@ -139,28 +141,54 @@ jobs:
         working-directory: .
         run: |
           set -Eeuo pipefail
+          export ANDROID_USER_HOME="$HOME/.android"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          export ANDROID_SERIAL="emulator-5554"
+          mkdir -p "$ANDROID_AVD_HOME"
+
           printf 'no\n' | avdmanager create avd --force --name maalenex-ci --package "system-images;android-30;default;x86_64" --device "pixel_2"
+          test -s "$ANDROID_AVD_HOME/maalenex-ci.ini" || {
+            echo "AVD manager did not create the expected AVD at $ANDROID_AVD_HOME." >&2
+            find "$ANDROID_USER_HOME" -maxdepth 4 -type f -name 'maalenex-ci.ini' -print || true
+            exit 1
+          }
+
           adb start-server
-          nohup "$ANDROID_HOME/emulator/emulator" -avd maalenex-ci \
+          nohup "$ANDROID_HOME/emulator/emulator" -avd maalenex-ci -port 5554 \
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim \
             -no-snapshot -wipe-data -no-metrics -camera-back none -camera-front none \
             -memory 4096 -cores 4 > /tmp/maalenex-emulator.log 2>&1 &
-          echo $! > /tmp/maalenex-emulator.pid
-          adb wait-for-device
+          emulator_pid=$!
+          echo "$emulator_pid" > /tmp/maalenex-emulator.pid
+
+          if ! timeout 180s adb -s "$ANDROID_SERIAL" wait-for-device; then
+            echo "Emulator did not register with ADB within 3 minutes." >&2
+            cat /tmp/maalenex-emulator.log || true
+            adb devices -l || true
+            exit 1
+          fi
+
           booted=""
           for attempt in $(seq 1 180); do
-            booted="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              echo "Android emulator process exited before boot completed." >&2
+              cat /tmp/maalenex-emulator.log || true
+              exit 1
+            fi
+            booted="$(adb -s "$ANDROID_SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
             if [[ "$booted" == "1" ]]; then
               break
             fi
             sleep 5
           done
           if [[ "$booted" != "1" ]]; then
-            adb logcat -d -t 3000 > frontend/maalenex-emulator-logcat.txt || true
-            cat /tmp/maalenex-emulator.log
+            adb -s "$ANDROID_SERIAL" logcat -d -t 3000 > frontend/maalenex-emulator-logcat.txt || true
             echo "Android emulator failed to complete boot within 15 minutes." >&2
+            adb devices -l || true
+            cat /tmp/maalenex-emulator.log || true
             exit 1
           fi
+
           bash frontend/scripts/android-emulator-acceptance.sh
       - name: Upload emulator acceptance evidence
         if: always()
