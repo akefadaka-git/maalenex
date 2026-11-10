@@ -129,7 +129,7 @@ jobs:
       - name: Upload debug APK and build manifest
         uses: actions/upload-artifact@v4
         with:
-          name: maalenex-moto-android-debug
+          name: maalenex-android-debug
           path: |
             frontend/android/app/build/outputs/apk/debug/app-debug.apk
             frontend/maalenex-apk.sha256
