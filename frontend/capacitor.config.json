@@ -1,5 +1,5 @@
 {
-  "appId": "com.maalenex.moto",
+  "appId": "com.maalenex.app",
   "appName": "MaaleNex Moto",
   "webDir": "dist",
   "bundledWebRuntime": false,
