@@ -141,7 +141,7 @@ def test_synthetic_samples_are_scoped_and_freshness_is_explicit():
         assert get_location_freshness(db, session_id=session.id, max_age=timedelta(minutes=2)) == "stale"
 
 
-def test_expired_sessions_are_closed_and_cannot_accept_samples():
+def test_expired_sessions_are_closed_and_cannot_accept_samples(monkeypatch):
     seed()
     with SessionLocal.begin() as db:
         account = _account(db)
@@ -151,8 +151,10 @@ def test_expired_sessions_are_closed_and_cannot_accept_samples():
             resource_type="move_ride", resource_id=consent.resource_id,
             resource_account_id=account.id, resource_status="in_progress", expires_at=consent.expires_at,
         )
-        session.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
-        db.flush()
+        monkeypatch.setattr(
+            "app.domains.location.service._database_now",
+            lambda _db: session.expires_at + timedelta(seconds=1),
+        )
         assert expire_location_sessions(db) == 1
         assert session.status == "expired"
         with pytest.raises(ValueError, match="active, unexpired"):
