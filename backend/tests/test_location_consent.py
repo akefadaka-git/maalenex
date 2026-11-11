@@ -115,7 +115,7 @@ def test_location_consent_requires_active_account_and_matching_service_scope():
                 resource_id="cargo-1", purpose="active_job_tracking", consent_version="v1",
                 expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
             )
-        consent = _consent(db, active, active_ride)
+        _consent(db, active, active_ride)
         with pytest.raises(ValueError, match="already exists"):
             _consent(db, active, active_ride)
 
