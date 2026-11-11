@@ -29,7 +29,10 @@ def request_move_ride(db: Session, *, passenger_account_id: UUID) -> MoveRide:
     return ride
 
 
-def assign_move_driver(db: Session, *, ride_id: UUID, driver_account_id: UUID) -> MoveRide:
+def assign_move_driver(
+    db: Session, *, ride_id: UUID, driver_account_id: UUID,
+    dispatcher_user_id: UUID | None = None,
+) -> MoveRide:
     """Trusted dispatch operation; caller must enforce dispatcher authorization."""
     ride = db.scalar(select(MoveRide).where(MoveRide.id == ride_id).with_for_update())
     driver = db.scalar(
@@ -46,7 +49,9 @@ def assign_move_driver(db: Session, *, ride_id: UUID, driver_account_id: UUID) -
     ride.matched_at = db.scalar(select(func.now()))
     db.flush()
     record_event(
-        db, event_type="move.ride.matched", actor_type="system", actor_id=None,
+        db, event_type="move.ride.matched",
+        actor_type="staff" if dispatcher_user_id else "system",
+        actor_id=str(dispatcher_user_id) if dispatcher_user_id else None,
         resource_type="move_ride", resource_id=str(ride.id),
         action="assign_driver", outcome="success",
     )
