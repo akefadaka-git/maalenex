@@ -10,6 +10,7 @@ from app.domains.audit.service import record_event
 from app.domains.identity.accounts import PlatformAccount
 from app.domains.location.models import LocationConsent, LocationSession, SyntheticLocationSample
 from app.domains.platform.models import PlatformService
+from app.domains.move.models import MoveRide
 
 _RESOURCE_SERVICE = {
     "move_ride": "move",
@@ -82,14 +83,10 @@ def grant_location_consent(
 
 def open_location_session(
     db: Session, *, consent_id: UUID, account_id: UUID, service_code: str,
-    resource_type: str, resource_id: str, resource_account_id: UUID,
-    resource_status: str, expires_at: datetime,
+    resource_type: str, resource_id: str, expires_at: datetime,
 ) -> LocationSession:
-    """Open a scoped session only after the caller resolves an authoritative active job.
+    """Resolve the authoritative Move ride and verify participant and lifecycle state."""
 
-    The caller must load and authorize the resource in its own domain transaction; the
-    resource owner, status and identifiers supplied here must come from that trusted lookup.
-    """
     consent = db.scalar(
         select(LocationConsent).where(LocationConsent.id == consent_id).with_for_update()
     )
@@ -98,12 +95,23 @@ def open_location_session(
         raise ValueError("Location consent does not belong to this account.")
     if consent.status != "active" or consent.revoked_at is not None or consent.expires_at <= now:
         raise ValueError("Location consent is revoked or expired.")
-    if resource_account_id != account_id or resource_status not in _ACTIVE_RESOURCE_STATUSES:
-        raise ValueError("Location sharing requires the consenting account's active job.")
     if (consent.service_code, consent.resource_type, consent.resource_id) != (
         service_code, resource_type, resource_id
     ):
         raise ValueError("Location session does not match the consented resource scope.")
+    if service_code != "move" or resource_type != "move_ride":
+        raise ValueError("This location-session adapter currently supports Move rides only.")
+    try:
+        ride_id = UUID(resource_id)
+    except ValueError as exc:
+        raise ValueError("Move ride resource reference is invalid.") from exc
+    ride = db.scalar(select(MoveRide).where(MoveRide.id == ride_id).with_for_update())
+    if (
+        ride is None or ride.service_code != service_code
+        or account_id not in {ride.passenger_account_id, ride.driver_account_id}
+        or ride.status not in _ACTIVE_RESOURCE_STATUSES
+    ):
+        raise ValueError("Location sharing requires the consenting participant's authoritative active ride.")
     if expires_at.tzinfo is None or expires_at.utcoffset() is None:
         raise ValueError("Location session expiry must be timezone-aware.")
     if expires_at <= now or expires_at > consent.expires_at:
