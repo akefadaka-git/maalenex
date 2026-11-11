@@ -4,6 +4,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.db.session import SessionLocal
@@ -126,7 +127,7 @@ def test_synthetic_samples_are_scoped_and_freshness_is_explicit():
             resource_account_id=account.id, resource_status="accepted", expires_at=expiry,
         )
         assert get_location_freshness(db, session_id=session.id, max_age=timedelta(minutes=2)) == "no_sample"
-        sample_time = datetime.now(timezone.utc)
+        sample_time = db.scalar(select(func.now()))
         sample = record_synthetic_location_sample(
             db, session_id=session.id, latitude=Decimal("6.250000"),
             longitude=Decimal("36.900000"), accuracy_meters=Decimal("25.00"),
