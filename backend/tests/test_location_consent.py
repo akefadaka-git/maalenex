@@ -35,11 +35,9 @@ def _ride(db, passenger, driver=None, status="requested"):
         assign_move_driver(db, ride_id=ride.id, driver_account_id=driver.id)
         steps = ["accepted", "arrived", "in_progress", "completed"]
         for step in steps:
+            transition_move_ride(db, ride_id=ride.id, actor_account_id=driver.id, next_status=step)
             if step == status:
                 break
-            transition_move_ride(db, ride_id=ride.id, actor_account_id=driver.id, next_status=step)
-        if status == "completed" and ride.status != "completed":
-            transition_move_ride(db, ride_id=ride.id, actor_account_id=driver.id, next_status="completed")
     return ride
 
 
@@ -121,11 +119,10 @@ def test_location_consent_requires_active_account_and_matching_service_scope():
     seed()
     with SessionLocal.begin() as db:
         pending = _account(db, "pending")
-        ride = _ride(db, pending)
-        with pytest.raises(ValueError, match="active platform account"):
-            _consent(db, pending, ride)
         active = _account(db)
         active_ride = _ride(db, active)
+        with pytest.raises(ValueError, match="active platform account"):
+            _consent(db, pending, active_ride)
         with pytest.raises(ValueError, match="do not match"):
             grant_location_consent(
                 db, account_id=active.id, service_code="move", resource_type="cargo_movement",
