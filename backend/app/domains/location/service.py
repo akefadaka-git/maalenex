@@ -38,6 +38,8 @@ def grant_location_consent(
     _validate_scope(service_code, resource_type, purpose)
     if not resource_id or len(resource_id) > 80 or not consent_version.strip():
         raise ValueError("A resource reference and consent version are required.")
+    if expires_at.tzinfo is None or expires_at.utcoffset() is None:
+        raise ValueError("Location consent expiry must be timezone-aware.")
     account = db.scalar(select(PlatformAccount).where(PlatformAccount.id == account_id).with_for_update())
     if account is None or account.status != "active":
         raise ValueError("An active platform account is required for location consent.")
@@ -53,12 +55,14 @@ def grant_location_consent(
             LocationConsent.resource_type == resource_type,
             LocationConsent.resource_id == resource_id,
             LocationConsent.purpose == purpose,
-            LocationConsent.revoked_at.is_(None),
-            LocationConsent.expires_at > now,
+            LocationConsent.status == "active",
         ).with_for_update()
     )
     if existing is not None:
-        raise ValueError("An active consent already exists for this resource and purpose.")
+        if existing.expires_at <= now:
+            existing.status = "expired"
+        else:
+            raise ValueError("An active consent already exists for this resource and purpose.")
     consent = LocationConsent(
         account_id=account_id, service_code=service_code, resource_type=resource_type,
         resource_id=resource_id, purpose=purpose, consent_version=consent_version.strip(),
@@ -92,7 +96,7 @@ def open_location_session(
     now = _database_now(db)
     if consent is None or consent.account_id != account_id:
         raise ValueError("Location consent does not belong to this account.")
-    if consent.revoked_at is not None or consent.expires_at <= now:
+    if consent.status != "active" or consent.revoked_at is not None or consent.expires_at <= now:
         raise ValueError("Location consent is revoked or expired.")
     if resource_account_id != account_id or resource_status not in _ACTIVE_RESOURCE_STATUSES:
         raise ValueError("Location sharing requires the consenting account's active job.")
@@ -100,6 +104,8 @@ def open_location_session(
         service_code, resource_type, resource_id
     ):
         raise ValueError("Location session does not match the consented resource scope.")
+    if expires_at.tzinfo is None or expires_at.utcoffset() is None:
+        raise ValueError("Location session expiry must be timezone-aware.")
     if expires_at <= now or expires_at > consent.expires_at:
         raise ValueError("Location session expiry must be within the consent window.")
     active = db.scalar(
@@ -132,9 +138,10 @@ def revoke_location_consent(db: Session, *, consent_id: UUID, account_id: UUID) 
     )
     if consent is None or consent.account_id != account_id:
         raise ValueError("Location consent does not belong to this account.")
-    if consent.revoked_at is not None:
+    if consent.status == "revoked":
         return consent
     now = _database_now(db)
+    consent.status = "revoked"
     consent.revoked_at = now
     sessions = db.scalars(
         select(LocationSession).where(
@@ -164,6 +171,8 @@ def record_synthetic_location_sample(
     now = _database_now(db)
     if session is None or session.status != "active" or session.expires_at <= now:
         raise ValueError("An active, unexpired location session is required.")
+    if captured_at.tzinfo is None or captured_at.utcoffset() is None:
+        raise ValueError("Synthetic sample timestamp must be timezone-aware.")
     if captured_at > now or captured_at < session.started_at or captured_at > session.expires_at:
         raise ValueError("Synthetic sample timestamp must fall within the active session window.")
     sample = SyntheticLocationSample(
@@ -181,6 +190,8 @@ def get_location_freshness(
     db: Session, *, session_id: UUID, max_age: timedelta,
 ) -> str:
     """Return a freshness classification without exposing coordinates."""
+    if max_age <= timedelta(0):
+        raise ValueError("Freshness window must be positive.")
     session = db.get(LocationSession, session_id)
     if session is None:
         return "session_missing"
@@ -198,8 +209,15 @@ def get_location_freshness(
 
 
 def expire_location_sessions(db: Session) -> int:
-    """Close expired sessions using database time; safe to call repeatedly."""
+    """Close expired sessions and consents using database time; safe to call repeatedly."""
     now = _database_now(db)
+    consents = db.scalars(
+        select(LocationConsent).where(
+            LocationConsent.status == "active", LocationConsent.expires_at <= now
+        ).with_for_update()
+    ).all()
+    for consent in consents:
+        consent.status = "expired"
     sessions = db.scalars(
         select(LocationSession).where(
             LocationSession.status == "active", LocationSession.expires_at <= now

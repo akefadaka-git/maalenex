@@ -21,11 +21,17 @@ class LocationConsent(Base):
             "resource_type IN ('move_ride', 'delivery_shipment', 'cargo_movement')",
             name="ck_location_consent_resource_type",
         ),
+        CheckConstraint("status IN ('active', 'expired', 'revoked')", name="ck_location_consent_status"),
         CheckConstraint("length(consent_version) > 0", name="ck_location_consent_version"),
         CheckConstraint("expires_at > granted_at", name="ck_location_consent_expiry"),
         Index(
             "ix_location_consents_subject_scope",
             "account_id", "service_code", "resource_type", "resource_id", "purpose",
+        ),
+        Index(
+            "uq_active_location_consent_scope",
+            "account_id", "service_code", "resource_type", "resource_id", "purpose",
+            unique=True, postgresql_where=text("status = 'active'"),
         ),
     )
 
@@ -40,6 +46,9 @@ class LocationConsent(Base):
     resource_id: Mapped[str] = mapped_column(String(80), nullable=False)
     purpose: Mapped[str] = mapped_column(String(32), nullable=False)
     consent_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="active", server_default=text("'active'")
+    )
     granted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -79,7 +88,9 @@ class LocationSession(Base):
     )
     resource_type: Mapped[str] = mapped_column(String(32), nullable=False)
     resource_id: Mapped[str] = mapped_column(String(80), nullable=False)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="active", server_default=text("'active'")
+    )
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -110,5 +121,9 @@ class SyntheticLocationSample(Base):
     received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    source: Mapped[str] = mapped_column(String(32), nullable=False, default="synthetic_fixture")
-    is_synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    source: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="synthetic_fixture", server_default=text("'synthetic_fixture'")
+    )
+    is_synthetic: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )

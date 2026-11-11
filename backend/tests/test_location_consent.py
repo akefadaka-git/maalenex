@@ -4,11 +4,11 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.db.session import SessionLocal
 from app.domains.identity.accounts import PlatformAccount
-from app.domains.location.models import LocationConsent, LocationSession, SyntheticLocationSample
+from app.domains.location.models import SyntheticLocationSample
 from app.domains.location.service import (
     expire_location_sessions, get_location_freshness, grant_location_consent,
     open_location_session, record_synthetic_location_sample, revoke_location_consent,
@@ -50,6 +50,13 @@ def test_location_consent_requires_active_account_and_matching_service_scope():
                 db, account_id=active.id, service_code="move", resource_type="cargo_movement",
                 resource_id="cargo-1", purpose="active_job_tracking", consent_version="v1",
                 expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            )
+        consent = _consent(db, active)
+        with pytest.raises(ValueError, match="already exists"):
+            grant_location_consent(
+                db, account_id=active.id, service_code="move", resource_type="move_ride",
+                resource_id=consent.resource_id, purpose="active_job_tracking",
+                consent_version="location-v1", expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
             )
 
 
@@ -97,6 +104,7 @@ def test_revocation_terminates_session_and_blocks_further_samples():
             resource_account_id=account.id, resource_status="matched", expires_at=expiry,
         )
         revoke_location_consent(db, consent_id=consent.id, account_id=account.id)
+        assert consent.status == "revoked"
         assert consent.revoked_at is not None
         assert session.status == "revoked"
         with pytest.raises(ValueError, match="active, unexpired"):
@@ -118,7 +126,7 @@ def test_synthetic_samples_are_scoped_and_freshness_is_explicit():
             resource_account_id=account.id, resource_status="accepted", expires_at=expiry,
         )
         assert get_location_freshness(db, session_id=session.id, max_age=timedelta(minutes=2)) == "no_sample"
-        sample_time = datetime.now(timezone.utc) - timedelta(seconds=10)
+        sample_time = datetime.now(timezone.utc)
         sample = record_synthetic_location_sample(
             db, session_id=session.id, latitude=Decimal("6.250000"),
             longitude=Decimal("36.900000"), accuracy_meters=Decimal("25.00"),
@@ -136,12 +144,11 @@ def test_expired_sessions_are_closed_and_cannot_accept_samples():
     seed()
     with SessionLocal.begin() as db:
         account = _account(db)
-        consent = _consent(db, account, expires=datetime.now(timezone.utc) + timedelta(seconds=1))
-        expiry = consent.expires_at
+        consent = _consent(db, account, expires=datetime.now(timezone.utc) + timedelta(minutes=10))
         session = open_location_session(
             db, consent_id=consent.id, account_id=account.id, service_code="move",
             resource_type="move_ride", resource_id=consent.resource_id,
-            resource_account_id=account.id, resource_status="in_progress", expires_at=expiry,
+            resource_account_id=account.id, resource_status="in_progress", expires_at=consent.expires_at,
         )
         session.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
         db.flush()
@@ -170,6 +177,6 @@ def test_location_sample_database_scope_is_synthetic_only():
             captured_at=datetime.now(timezone.utc), source="device_gps", is_synthetic=False,
         )
         db.add(sample)
-        with pytest.raises(Exception):
+        with pytest.raises(IntegrityError):
             db.flush()
         db.rollback()

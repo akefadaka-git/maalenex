@@ -24,17 +24,24 @@ def upgrade() -> None:
         sa.Column("resource_id", sa.String(80), nullable=False),
         sa.Column("purpose", sa.String(32), nullable=False),
         sa.Column("consent_version", sa.String(40), nullable=False),
+        sa.Column("status", sa.String(16), nullable=False, server_default="active"),
         sa.Column("granted_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("revoked_at", sa.DateTime(timezone=True)),
         sa.CheckConstraint("purpose IN ('active_job_tracking', 'safety_response')", name="ck_location_consent_purpose"),
         sa.CheckConstraint("resource_type IN ('move_ride', 'delivery_shipment', 'cargo_movement')", name="ck_location_consent_resource_type"),
+        sa.CheckConstraint("status IN ('active', 'expired', 'revoked')", name="ck_location_consent_status"),
         sa.CheckConstraint("length(consent_version) > 0", name="ck_location_consent_version"),
         sa.CheckConstraint("expires_at > granted_at", name="ck_location_consent_expiry"),
     )
     op.create_index(
         "ix_location_consents_subject_scope", "location_consents",
         ["account_id", "service_code", "resource_type", "resource_id", "purpose"],
+    )
+    op.create_index(
+        "uq_active_location_consent_scope", "location_consents",
+        ["account_id", "service_code", "resource_type", "resource_id", "purpose"],
+        unique=True, postgresql_where=sa.text("status = 'active'"),
     )
     op.create_table(
         "location_sessions",
@@ -89,5 +96,6 @@ def downgrade() -> None:
     op.drop_index("ix_location_sessions_resource_scope", table_name="location_sessions")
     op.drop_index("ix_location_sessions_account_status", table_name="location_sessions")
     op.drop_table("location_sessions")
+    op.drop_index("uq_active_location_consent_scope", table_name="location_consents")
     op.drop_index("ix_location_consents_subject_scope", table_name="location_consents")
     op.drop_table("location_consents")
