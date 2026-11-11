@@ -88,6 +88,23 @@ def test_location_session_resolves_authoritative_ride_and_participant():
             _open(db, stranger, stranger_consent, ride)
 
 
+
+def test_ride_completion_terminates_all_active_location_sessions():
+    seed()
+    with SessionLocal.begin() as db:
+        passenger, driver = _account(db), _account(db)
+        ride = _ride(db, passenger, driver, "in_progress")
+        passenger_session = _open(db, passenger, _consent(db, passenger, ride), ride)
+        driver_session = _open(db, driver, _consent(db, driver, ride), ride)
+        transition_move_ride(
+            db, ride_id=ride.id, actor_account_id=driver.id, next_status="completed"
+        )
+        assert passenger_session.status == "completed"
+        assert passenger_session.ended_at is not None
+        assert driver_session.status == "completed"
+        assert driver_session.ended_at is not None
+
+
 def test_location_session_rejects_requested_and_completed_rides():
     seed()
     with SessionLocal.begin() as db:
