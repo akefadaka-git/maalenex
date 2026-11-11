@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.domains.audit.service import record_event
 from app.domains.identity.accounts import PlatformAccount
+from app.domains.location.models import LocationSession
 from app.domains.move.models import MoveRide
 
 
@@ -83,11 +84,29 @@ def transition_move_ride(
             raise ValueError("Move ride transition is not permitted for this actor or state.")
         ride.status = next_status
         setattr(ride, f"{next_status}_at", now)
+    terminated_sessions = 0
+    if next_status in {"completed", "cancelled"}:
+        sessions = db.scalars(
+            select(LocationSession).where(
+                LocationSession.service_code == "move",
+                LocationSession.resource_type == "move_ride",
+                LocationSession.resource_id == str(ride.id),
+                LocationSession.status == "active",
+            ).with_for_update()
+        ).all()
+        for session in sessions:
+            session.status = "completed"
+            session.ended_at = now
+        terminated_sessions = len(sessions)
+
     record_event(
         db, event_type=f"move.ride.{next_status}", actor_type="account",
         actor_id=str(actor_account_id), resource_type="move_ride",
         resource_id=str(ride.id), action=next_status, outcome="success",
-        metadata={"reason_code": cancellation_reason_code},
+        metadata={
+            "reason_code": cancellation_reason_code,
+            "location_sessions_terminated": terminated_sessions,
+        },
     )
     db.flush()
     return ride
