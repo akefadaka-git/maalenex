@@ -102,8 +102,11 @@ PRs #3, #9 and #10 remain unmerged. The default branch was not changed. No deplo
 **PR #9 / PR #10 source-history reconciliation:** VERIFIED.  
 **Reconciled code candidate `ae7546b29b755973623420d8a887c813c5521edf`:** VERIFIED — run #42557579829, all three jobs passed.  
 **Evidence-record commit `239253f55bbc8b4936f62fbf06b8601f62cc6b06`:** VERIFIED — run #42557700677, all three jobs passed.  
-**A4 bounded automated verification:** VERIFIED-CLOSED.  
+**Reconciled A4 code candidate:** VERIFIED — run #42557579829, all three jobs passed on the exact code SHA.  
+**Prior evidence-record candidate:** VERIFIED — run #42557700677, all three jobs passed on exact SHA `239253f55bbc8b4936f62fbf06b8601f62cc6b06`.  
+**Current corrected report/plan revision:** PARTIAL — documentation-only corrections are committed, but an exact-head workflow run for the current corrected branch tip has not been located.  
+**A4 overall evidence-record closure:** PARTIAL pending exact-head CI for the final corrected report/plan revision. Do not claim VERIFIED-CLOSED until that run passes.  
 **Production readiness:** NOT READY / NOT ASSESSED FOR LIVE OPERATION.  
 **A5:** NOT AUTHORIZED.
 
-This A4 closure applies only to the documented automated verification scope. It is not production approval, independent security certification, regulatory approval, accessibility conformance certification, merge authorization or deployment authorization.
+This A4 assessment is limited to the documented automated verification scope. It is not production approval, independent security certification, regulatory approval, accessibility conformance certification, merge authorization or deployment authorization.
