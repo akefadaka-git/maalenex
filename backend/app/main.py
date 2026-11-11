@@ -10,6 +10,7 @@ from app.routers.health import router as health_router
 from app.routers.identity import router as identity_router
 from app.routers.passenger_catalog import router as passenger_catalog_router
 from app.routers.platform import router as platform_router
+from app.routers.move import router as move_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -33,6 +34,7 @@ app.include_router(admin_router, prefix=settings.api_prefix)
 app.include_router(bookings_router, prefix=settings.api_prefix)
 app.include_router(passenger_catalog_router, prefix=settings.api_prefix)
 app.include_router(platform_router, prefix=settings.api_prefix)
+app.include_router(move_router, prefix=settings.api_prefix)
 
 
 @app.get("/", tags=["root"])
