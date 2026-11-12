@@ -16,7 +16,10 @@ def test_move_router_registers_authenticated_ride_endpoints():
 
 def test_move_ride_creation_requires_account_session():
     client = TestClient(app)
-    response = client.post("/api/v1/move/rides")
+    response = client.post(
+        "/api/v1/move/rides",
+        json={"pickup_area_code": "ET-SO-JINKA", "dropoff_area_code": "ET-SO-KOYBE"},
+    )
     assert response.status_code == 401
 
 
