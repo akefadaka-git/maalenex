@@ -7,15 +7,13 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.db.session import SessionLocal
-from app.domains.identity.accounts import (AccountServiceRoleAssignment, PlatformAccount, TrustEvidence, TrustVerificationCase)
+from app.domains.identity.accounts import PlatformAccount
 from app.domains.location.models import SyntheticLocationSample
 from app.domains.location.service import (
     expire_location_sessions, get_location_freshness, grant_location_consent,
     open_location_session, record_synthetic_location_sample, revoke_location_consent,
 )
 from app.domains.move.service import assign_move_driver, request_move_ride, transition_move_ride
-from app.domains.identity.models import Role
-from app.domains.organizations.models import Organization
 from scripts.seed_platform_services import seed
 
 pytestmark = pytest.mark.skipif(
@@ -31,30 +29,8 @@ def _account(db, status="active"):
     return account
 
 
-def _eligible_driver(db):
-    from uuid import uuid4
-    driver = _account(db)
-    organization = Organization(organization_type="operator", display_name="Synthetic Move Operator", status="approved")
-    role = Role(code="move_driver", description="Move driver")
-    db.add_all([organization, role])
-    db.flush()
-    case = TrustVerificationCase(subject_type="individual", account_id=driver.id, status="approved")
-    db.add(case)
-    db.flush()
-    db.add_all([
-        TrustEvidence(case_id=case.id, evidence_type="synthetic_driver_identity",
-            document_digest=uuid4().hex + uuid4().hex, private_object_key="synthetic://driver",
-            media_type="application/octet-stream", status="accepted"),
-        AccountServiceRoleAssignment(account_id=driver.id, organization_id=organization.id,
-            service_code="move", role_id=role.id),
-    ])
-    db.flush()
-    return driver
-
-
 def _ride(db, passenger, driver=None, status="requested"):
-    ride = request_move_ride(db, passenger_account_id=passenger.id,
-        pickup_area_code="ET-SO-KOYBE", dropoff_area_code="ET-SO-JINKA")
+    ride = request_move_ride(db, passenger_account_id=passenger.id)
     if driver is not None:
         assign_move_driver(db, ride_id=ride.id, driver_account_id=driver.id)
         steps = ["accepted", "arrived", "in_progress", "completed"]
@@ -85,7 +61,7 @@ def _open(db, account, consent, ride, *, expires=None):
 def test_move_ride_lifecycle_is_actor_bound_and_monotonic():
     seed()
     with SessionLocal.begin() as db:
-        passenger, driver, stranger = _account(db), _eligible_driver(db), _account(db)
+        passenger, driver, stranger = _account(db), _account(db), _account(db)
         ride = _ride(db, passenger)
         assign_move_driver(db, ride_id=ride.id, driver_account_id=driver.id)
         with pytest.raises(ValueError, match="not permitted"):
@@ -114,7 +90,7 @@ def test_location_session_resolves_authoritative_ride_and_participant():
 def test_ride_completion_terminates_all_active_location_sessions():
     seed()
     with SessionLocal.begin() as db:
-        passenger, driver = _account(db), _eligible_driver(db)
+        passenger, driver = _account(db), _account(db)
         ride = _ride(db, passenger, driver, "in_progress")
         passenger_session = _open(db, passenger, _consent(db, passenger, ride), ride)
         driver_session = _open(db, driver, _consent(db, driver, ride), ride)

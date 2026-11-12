@@ -17,8 +17,6 @@ class MoveRide(Base):
     )
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     service_code: Mapped[str] = mapped_column(String(32), ForeignKey("platform_services.code", ondelete="RESTRICT"), nullable=False, default="move", server_default="move")
-    pickup_area_code: Mapped[str] = mapped_column(String(48), ForeignKey("service_areas.code", ondelete="RESTRICT"), nullable=False)
-    dropoff_area_code: Mapped[str] = mapped_column(String(48), ForeignKey("service_areas.code", ondelete="RESTRICT"), nullable=False)
     passenger_account_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("platform_accounts.id", ondelete="RESTRICT"), nullable=False)
     driver_account_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("platform_accounts.id", ondelete="RESTRICT"), nullable=True)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="requested", server_default="requested")

@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.domains.audit.service import record_event
 from app.domains.identity.accounts import (
     AccountServiceRoleAssignment, PlatformAccount, TrustEvidence, TrustVerificationCase,
@@ -23,15 +24,15 @@ def request_move_ride(db: Session, *, passenger_account_id: UUID, pickup_area_co
     )
     if passenger is None or passenger.status != "active":
         raise ValueError("An active passenger account is required.")
-    if not pickup_area_code or not dropoff_area_code or pickup_area_code == dropoff_area_code:
-        raise ValueError("Distinct pickup and destination service areas are required.")
+    if not pickup_area_code or not dropoff_area_code:
+        raise ValueError("Pickup and destination service areas are required.")
     now = db.scalar(select(func.now()))
     for area_code in {pickup_area_code, dropoff_area_code}:
         policy = db.scalar(select(ServiceAreaAvailability).where(
             ServiceAreaAvailability.service_code == "move",
             ServiceAreaAvailability.area_code == area_code,
             ServiceAreaAvailability.is_enabled.is_(True),
-            ServiceAreaAvailability.availability_status.in_(("active", "pilot", "synthetic_test")),
+            ServiceAreaAvailability.availability_status.in_(("active", "pilot", "synthetic_test") if settings.app_env == "test" else ("active", "pilot")),
             or_(ServiceAreaAvailability.valid_from.is_(None), ServiceAreaAvailability.valid_from <= now),
             or_(ServiceAreaAvailability.valid_until.is_(None), ServiceAreaAvailability.valid_until > now),
         ))
