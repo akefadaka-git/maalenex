@@ -2,9 +2,9 @@ import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type H
 
 type ButtonVariant = "primary" | "secondary" | "quiet" | "danger";
 type ButtonSize = "small" | "medium" | "large";
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> { variant?: ButtonVariant; size?: ButtonSize; loading?: boolean; }
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({variant="primary",size="medium",loading=false,disabled,children,className="",...props},ref){
-  return <button ref={ref} className={`mn-button mn-button--${variant} ${size==="medium"?"":`mn-button--${size}`} ${className}`.trim()} disabled={disabled||loading} aria-busy={loading||undefined} {...props}>{loading&&<span className="mn-spinner" aria-hidden="true"/>}{children}</button>;
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> { variant?: ButtonVariant; size?: ButtonSize; loading?: boolean; block?: boolean; }
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({variant="primary",size="medium",loading=false,block=false,disabled,children,className="",...props},ref){
+  return <button ref={ref} className={`mn-button mn-button--${variant} ${size==="medium"?"":`mn-button--${size}`} ${block?"mn-button--block":""} ${className}`.trim()} disabled={disabled||loading} aria-busy={loading||undefined} {...props}>{loading&&<span className="mn-spinner" aria-hidden="true"/>}{children}</button>;
 });
 
 export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> { label: string; hint?: string; error?: string; }
