@@ -7,10 +7,12 @@ from sqlalchemy.exc import DBAPIError
 
 from app.db.session import SessionLocal
 from app.domains.identity.accounts import (
-    AccountCredential, AccountIdentifier, PlatformAccount, TrustEvidence,
+    AccountCredential, AccountIdentifier, AccountServiceRoleAssignment, PlatformAccount, TrustEvidence,
     TrustReviewEvent, TrustVerificationCase,
 )
-from app.domains.identity.models import User
+from app.domains.identity.models import Role, User
+from app.domains.move.service import assign_move_driver, request_move_ride
+from app.domains.organizations.models import Organization
 from app.domains.identity.trust_lifecycle import transition_trust_case
 
 pytestmark = pytest.mark.skipif(
@@ -91,3 +93,51 @@ def test_trust_lifecycle_rejects_illegal_transition_and_missing_reviewer():
             transition_trust_case(
                 db, case_id=case.id, reviewer_user_id=uuid4(), target_status="approved"
             )
+
+
+
+def test_move_dispatch_rejects_unverified_driver():
+    with SessionLocal.begin() as db:
+        passenger = PlatformAccount(display_name="Synthetic passenger", status="active")
+        driver = PlatformAccount(display_name="Unverified driver", status="active")
+        db.add_all([passenger, driver])
+        db.flush()
+        ride = request_move_ride(db, passenger_account_id=passenger.id)
+        with pytest.raises(ValueError, match="approved individual trust case"):
+            assign_move_driver(db, ride_id=ride.id, driver_account_id=driver.id)
+
+
+def test_move_dispatch_requires_trust_role_and_approved_operator():
+    with SessionLocal.begin() as db:
+        passenger = PlatformAccount(display_name="Synthetic passenger", status="active")
+        driver = PlatformAccount(display_name="Verified synthetic driver", status="active")
+        organization = Organization(
+            organization_type="operator", display_name="Synthetic Move Operator",
+            status="approved",
+        )
+        role = Role(code="move_driver", description="Move driver")
+        db.add_all([passenger, driver, organization, role])
+        db.flush()
+        ride = request_move_ride(db, passenger_account_id=passenger.id)
+        case = TrustVerificationCase(
+            subject_type="individual", account_id=driver.id,
+            verification_level="basic", status="approved",
+        )
+        db.add(case)
+        db.flush()
+        db.add_all([
+            TrustEvidence(
+                case_id=case.id, evidence_type="synthetic_driver_identity",
+                document_digest=uuid4().hex + uuid4().hex,
+                private_object_key="synthetic://driver-evidence",
+                media_type="application/octet-stream", status="accepted",
+            ),
+            AccountServiceRoleAssignment(
+                account_id=driver.id, organization_id=organization.id,
+                service_code="move", role_id=role.id,
+            ),
+        ])
+        db.flush()
+        matched = assign_move_driver(db, ride_id=ride.id, driver_account_id=driver.id)
+        assert matched.status == "matched"
+        assert matched.driver_account_id == driver.id

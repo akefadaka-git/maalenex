@@ -1,12 +1,16 @@
 """Authoritative Move ride lifecycle."""
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.domains.audit.service import record_event
-from app.domains.identity.accounts import PlatformAccount
+from app.domains.identity.accounts import (
+    AccountServiceRoleAssignment, PlatformAccount, TrustEvidence, TrustVerificationCase,
+)
+from app.domains.identity.models import Role
 from app.domains.location.models import LocationSession
+from app.domains.organizations.models import Organization
 from app.domains.move.models import MoveRide
 
 
@@ -44,6 +48,34 @@ def assign_move_driver(
         raise ValueError("Only a requested ride can be assigned.")
     if driver is None or driver.status != "active" or driver_account_id == ride.passenger_account_id:
         raise ValueError("An active, distinct driver account is required.")
+    now = db.scalar(select(func.now()))
+    eligible = db.scalar(
+        select(AccountServiceRoleAssignment.id)
+        .join(Role, Role.id == AccountServiceRoleAssignment.role_id)
+        .join(Organization, Organization.id == AccountServiceRoleAssignment.organization_id)
+        .join(
+            TrustVerificationCase,
+            TrustVerificationCase.account_id == AccountServiceRoleAssignment.account_id,
+        )
+        .join(TrustEvidence, TrustEvidence.case_id == TrustVerificationCase.id)
+        .where(
+            AccountServiceRoleAssignment.account_id == driver_account_id,
+            AccountServiceRoleAssignment.service_code == "move",
+            AccountServiceRoleAssignment.revoked_at.is_(None),
+            Role.code == "move_driver",
+            Organization.status == "approved",
+            TrustVerificationCase.subject_type == "individual",
+            TrustVerificationCase.status == "approved",
+            TrustEvidence.status == "accepted",
+            or_(TrustEvidence.expires_at.is_(None), TrustEvidence.expires_at > now),
+        )
+        .limit(1)
+    )
+    if eligible is None:
+        raise ValueError(
+            "Driver must have an approved individual trust case, accepted current evidence, "
+            "an active Move driver role, and an approved operating organization."
+        )
     ride.driver_account_id = driver_account_id
     ride.status = "matched"
     ride.matched_at = db.scalar(select(func.now()))

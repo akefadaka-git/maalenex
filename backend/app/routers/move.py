@@ -1,5 +1,4 @@
 """Authenticated Move ride endpoints; synthetic-only until a separate rollout approval."""
-from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -12,8 +11,6 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.domains.identity.authorization import has_permission
 from app.domains.identity.service import StaffContext
-from app.domains.location.models import LocationConsent
-from app.domains.location.service import grant_location_consent, revoke_location_consent
 from app.domains.move.models import MoveRide
 from app.domains.move.service import assign_move_driver, request_move_ride, transition_move_ride
 from app.routers.auth import current_staff_context, require_csrf
@@ -24,12 +21,6 @@ router = APIRouter(prefix="/move", tags=["move-rides"])
 
 class DriverAssignmentRequest(BaseModel):
     driver_account_id: UUID
-
-
-class LocationConsentRequest(BaseModel):
-    purpose: Literal["active_job_tracking", "safety_response"]
-    consent_version: str = Field(min_length=1, max_length=40)
-    expires_at: datetime
 
 
 class RideTransitionRequest(BaseModel):
@@ -150,75 +141,3 @@ def dispatch_ride(
         db.rollback()
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return _ride_payload(ride)
-
-
-
-def _consent_payload(consent: LocationConsent) -> dict:
-    return {
-        "consent_id": str(consent.id),
-        "ride_id": consent.resource_id,
-        "service_code": consent.service_code,
-        "purpose": consent.purpose,
-        "consent_version": consent.consent_version,
-        "status": consent.status,
-        "granted_at": consent.granted_at.isoformat() if consent.granted_at else None,
-        "expires_at": consent.expires_at.isoformat(),
-        "revoked_at": consent.revoked_at.isoformat() if consent.revoked_at else None,
-    }
-
-
-@router.post("/rides/{ride_id}/location-consents", status_code=status.HTTP_201_CREATED)
-def grant_move_location_consent(
-    ride_id: UUID,
-    payload: LocationConsentRequest,
-    request: Request,
-    context=Depends(_current_account),
-    db: Session = Depends(get_db),
-) -> dict:
-    _require_synthetic_move()
-    account, session = context
-    _require_csrf(request, session)
-    ride = db.get(MoveRide, ride_id)
-    if (
-        ride is None
-        or account.id not in {ride.passenger_account_id, ride.driver_account_id}
-        or ride.status not in {"matched", "accepted", "arrived", "in_progress"}
-    ):
-        raise HTTPException(status_code=404, detail="Active Move ride not found.")
-    try:
-        consent = grant_location_consent(
-            db,
-            account_id=account.id,
-            service_code="move",
-            resource_type="move_ride",
-            resource_id=str(ride.id),
-            purpose=payload.purpose,
-            consent_version=payload.consent_version,
-            expires_at=payload.expires_at,
-        )
-        db.commit()
-    except ValueError as exc:
-        db.rollback()
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return _consent_payload(consent)
-
-
-@router.delete("/location-consents/{consent_id}")
-def revoke_move_location_consent(
-    consent_id: UUID,
-    request: Request,
-    context=Depends(_current_account),
-    db: Session = Depends(get_db),
-) -> dict:
-    _require_synthetic_move()
-    account, session = context
-    _require_csrf(request, session)
-    try:
-        consent = revoke_location_consent(
-            db, consent_id=consent_id, account_id=account.id
-        )
-        db.commit()
-    except ValueError as exc:
-        db.rollback()
-        raise HTTPException(status_code=404, detail="Location consent not found.") from exc
-    return _consent_payload(consent)
