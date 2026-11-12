@@ -65,8 +65,8 @@ def seed() -> None:
                 row = session.query(ServiceAreaAvailability).filter_by(
                     service_code=service_code, area_code=area_code
                 ).one_or_none()
-                status = "synthetic_test" if service_code == "transit" else "planned"
-                enabled = service_code == "transit"
+                status = "synthetic_test" if service_code in {"transit", "move"} else "planned"
+                enabled = service_code in {"transit", "move"}
                 if row is None:
                     session.add(ServiceAreaAvailability(
                         service_code=service_code, area_code=area_code,
