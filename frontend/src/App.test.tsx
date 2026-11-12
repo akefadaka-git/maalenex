@@ -1,6 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import App from "./App";
+
+afterEach(() => {
+  cleanup();
+});
 
 describe("MaaleNex Moto multi-role portal", () => {
   it("renders the warm Amharic welcome page by default", () => {
