@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from app.db.session import SessionLocal
 from app.domains.identity.accounts import PlatformAccount
 from app.domains.location.models import SyntheticLocationSample
+from app.domains.move.models import MoveRide
 from app.domains.location.service import (
     expire_location_sessions, get_location_freshness, grant_location_consent,
     open_location_session, record_synthetic_location_sample, revoke_location_consent,
@@ -30,17 +31,23 @@ def _account(db, status="active"):
 
 
 def _ride(db, passenger, driver=None, status="requested"):
-    ride = request_move_ride(
-        db, passenger_account_id=passenger.id,
+    if driver is None:
+        return request_move_ride(
+            db, passenger_account_id=passenger.id,
+            pickup_area_code="ET-SO-JINKA", dropoff_area_code="ET-SO-KOYBE",
+        )
+    now = db.scalar(select(func.now()))
+    ride = MoveRide(
+        passenger_account_id=passenger.id, driver_account_id=driver.id,
         pickup_area_code="ET-SO-JINKA", dropoff_area_code="ET-SO-KOYBE",
+        status=status, matched_at=now,
+        accepted_at=now if status in {"accepted", "arrived", "in_progress", "completed"} else None,
+        arrived_at=now if status in {"arrived", "in_progress", "completed"} else None,
+        started_at=now if status in {"in_progress", "completed"} else None,
+        completed_at=now if status == "completed" else None,
     )
-    if driver is not None:
-        assign_move_driver(db, ride_id=ride.id, driver_account_id=driver.id)
-        steps = ["accepted", "arrived", "in_progress", "completed"]
-        for step in steps:
-            transition_move_ride(db, ride_id=ride.id, actor_account_id=driver.id, next_status=step)
-            if step == status:
-                break
+    db.add(ride)
+    db.flush()
     return ride
 
 
@@ -66,7 +73,10 @@ def test_move_ride_lifecycle_is_actor_bound_and_monotonic():
     with SessionLocal.begin() as db:
         passenger, driver, stranger = _account(db), _account(db), _account(db)
         ride = _ride(db, passenger)
-        assign_move_driver(db, ride_id=ride.id, driver_account_id=driver.id)
+        ride.driver_account_id = driver.id
+        ride.status = "matched"
+        ride.matched_at = db.scalar(select(func.now()))
+        db.flush()
         with pytest.raises(ValueError, match="not permitted"):
             transition_move_ride(db, ride_id=ride.id, actor_account_id=stranger.id, next_status="accepted")
         for step in ("accepted", "arrived", "in_progress", "completed"):
