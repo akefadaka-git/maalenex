@@ -11,7 +11,7 @@ from app.db.session import SessionLocal
 from app.domains.platform.models import PlatformService, ServiceArea, ServiceAreaAvailability
 
 SERVICES = [
-    ("move", "MaaleNex Move", "Local passenger rides and dispatch", "planned", False, 1),
+    ("move", "MaaleNex Move", "Local passenger rides and dispatch", "synthetic_test", True, 1),
     ("transit", "MaaleNex Transit", "Intercity routes, schedules and reservations", "synthetic_test", True, 2),
     ("delivery", "MaaleNex Delivery", "Local parcels and last-mile delivery", "planned", False, 3),
     ("cargo", "MaaleNex Cargo", "Freight requests, carrier capacity and delivery", "planned", False, 4),
@@ -65,8 +65,8 @@ def seed() -> None:
                 row = session.query(ServiceAreaAvailability).filter_by(
                     service_code=service_code, area_code=area_code
                 ).one_or_none()
-                status = "synthetic_test" if service_code == "transit" else "planned"
-                enabled = service_code == "transit"
+                status = "synthetic_test" if service_code in {"transit", "move"} else "planned"
+                enabled = service_code in {"transit", "move"}
                 if row is None:
                     session.add(ServiceAreaAvailability(
                         service_code=service_code, area_code=area_code,

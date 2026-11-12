@@ -19,6 +19,11 @@ from app.routers.identity import _current_account, _require_csrf
 router = APIRouter(prefix="/move", tags=["move-rides"])
 
 
+class RideRequest(BaseModel):
+    pickup_area_code: str = Field(min_length=2, max_length=48)
+    dropoff_area_code: str = Field(min_length=2, max_length=48)
+
+
 class DriverAssignmentRequest(BaseModel):
     driver_account_id: UUID
 
@@ -40,6 +45,8 @@ def _ride_payload(ride: MoveRide) -> dict:
     return {
         "ride_id": str(ride.id),
         "service_code": ride.service_code,
+        "pickup_area_code": ride.pickup_area_code,
+        "dropoff_area_code": ride.dropoff_area_code,
         "passenger_account_id": str(ride.passenger_account_id),
         "driver_account_id": str(ride.driver_account_id) if ride.driver_account_id else None,
         "status": ride.status,
@@ -55,6 +62,7 @@ def _ride_payload(ride: MoveRide) -> dict:
 
 @router.post("/rides", status_code=status.HTTP_201_CREATED)
 def create_move_ride(
+    payload: RideRequest,
     request: Request,
     context=Depends(_current_account),
     db: Session = Depends(get_db),
@@ -62,8 +70,16 @@ def create_move_ride(
     _require_synthetic_move()
     account, session = context
     _require_csrf(request, session)
-    ride = request_move_ride(db, passenger_account_id=account.id)
-    db.commit()
+    try:
+        ride = request_move_ride(
+            db, passenger_account_id=account.id,
+            pickup_area_code=payload.pickup_area_code,
+            dropoff_area_code=payload.dropoff_area_code,
+        )
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return _ride_payload(ride)
 
 

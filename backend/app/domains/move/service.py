@@ -12,9 +12,10 @@ from app.domains.identity.models import Role
 from app.domains.location.models import LocationSession
 from app.domains.organizations.models import Organization
 from app.domains.move.models import MoveRide
+from app.domains.platform.models import ServiceAreaAvailability
 
 
-def request_move_ride(db: Session, *, passenger_account_id: UUID) -> MoveRide:
+def request_move_ride(db: Session, *, passenger_account_id: UUID, pickup_area_code: str, dropoff_area_code: str) -> MoveRide:
     passenger = db.scalar(
         select(PlatformAccount)
         .where(PlatformAccount.id == passenger_account_id)
@@ -22,7 +23,24 @@ def request_move_ride(db: Session, *, passenger_account_id: UUID) -> MoveRide:
     )
     if passenger is None or passenger.status != "active":
         raise ValueError("An active passenger account is required.")
-    ride = MoveRide(passenger_account_id=passenger_account_id, status="requested")
+    if not pickup_area_code or not dropoff_area_code or pickup_area_code == dropoff_area_code:
+        raise ValueError("Distinct pickup and destination service areas are required.")
+    now = db.scalar(select(func.now()))
+    for area_code in {pickup_area_code, dropoff_area_code}:
+        policy = db.scalar(select(ServiceAreaAvailability).where(
+            ServiceAreaAvailability.service_code == "move",
+            ServiceAreaAvailability.area_code == area_code,
+            ServiceAreaAvailability.is_enabled.is_(True),
+            ServiceAreaAvailability.availability_status.in_(("active", "pilot", "synthetic_test")),
+            or_(ServiceAreaAvailability.valid_from.is_(None), ServiceAreaAvailability.valid_from <= now),
+            or_(ServiceAreaAvailability.valid_until.is_(None), ServiceAreaAvailability.valid_until > now),
+        ))
+        if policy is None:
+            raise ValueError(f"Move is not authorized to serve area {area_code}.")
+    ride = MoveRide(
+        passenger_account_id=passenger_account_id, pickup_area_code=pickup_area_code,
+        dropoff_area_code=dropoff_area_code, status="requested",
+    )
     db.add(ride)
     db.flush()
     record_event(
