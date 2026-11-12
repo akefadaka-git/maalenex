@@ -19,6 +19,8 @@ class MoveRide(Base):
     service_code: Mapped[str] = mapped_column(String(32), ForeignKey("platform_services.code", ondelete="RESTRICT"), nullable=False, default="move", server_default="move")
     passenger_account_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("platform_accounts.id", ondelete="RESTRICT"), nullable=False)
     driver_account_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("platform_accounts.id", ondelete="RESTRICT"), nullable=True)
+    pickup_area_code: Mapped[str | None] = mapped_column(String(48), ForeignKey("service_areas.code", ondelete="RESTRICT"), nullable=True)
+    dropoff_area_code: Mapped[str | None] = mapped_column(String(48), ForeignKey("service_areas.code", ondelete="RESTRICT"), nullable=True)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="requested", server_default="requested")
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     matched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
