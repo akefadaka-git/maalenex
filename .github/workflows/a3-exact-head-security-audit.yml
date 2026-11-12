@@ -1,0 +1,80 @@
+name: MaaleNex A3 exact-HEAD dependency security audit
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/security-triggers/a3-exact-head-audit/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-dependencies:
+    name: Python dependency vulnerability audit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: PR-9
+            ref: 15348386fca41340a1ed2d27901e43f01da00ad1
+          - label: PR-10
+            ref: a80c56639142ebe6440ffdda12b7d37524c3474c
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Python dependency auditor
+        run: python -m pip install --upgrade pip-audit
+      - name: Build a requirements-only audit input
+        working-directory: backend
+        run: |
+          python - <<'PY' > "$RUNNER_TEMP/requirements-audit.txt"
+          import tomllib
+          from pathlib import Path
+          project = tomllib.loads(Path("pyproject.toml").read_text())
+          for requirement in project["project"]["dependencies"]:
+              print(requirement)
+          for requirement in project["project"].get("optional-dependencies", {}).get("dev", []):
+              print(requirement)
+          PY
+      - name: Audit Python dependencies and transitive requirements
+        working-directory: backend
+        run: pip-audit --strict -r "$RUNNER_TEMP/requirements-audit.txt"
+
+  frontend-dependencies:
+    name: npm dependency vulnerability audit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: PR-9
+            ref: 15348386fca41340a1ed2d27901e43f01da00ad1
+          - label: PR-10
+            ref: a80c56639142ebe6440ffdda12b7d37524c3474c
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Resolve an ephemeral lockfile without repository mutation
+        working-directory: frontend
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Audit complete frontend dependency tree
+        working-directory: frontend
+        run: npm audit --audit-level=high

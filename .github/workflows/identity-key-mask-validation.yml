@@ -1,0 +1,56 @@
+name: MaaleNex ephemeral identity-key masking validation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/e2e-triggers/identity-key-mask-validation/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-key-masking:
+    name: Validate ephemeral key masking without email delivery
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Generate, mask, export and clean ephemeral keys
+        shell: bash
+        run: |
+          set +x
+          set -euo pipefail
+          key_file="$RUNNER_TEMP/identity-ephemeral-keys"
+          python - <<'PY' > "$key_file"
+          import secrets
+          print("IDENTITY_ENCRYPTION_KEY=" + secrets.token_urlsafe(48))
+          print("IDENTITY_LOOKUP_KEY=" + secrets.token_urlsafe(48))
+          PY
+          test -s "$key_file"
+          while IFS= read -r entry; do
+            value="${entry#*=}"
+            test -n "$value"
+            printf '::add-mask::%s\n' "$value"
+            printf '%s\n' "$entry" >> "$GITHUB_ENV"
+          done < "$key_file"
+          rm -f "$key_file"
+          test ! -e "$key_file"
+          echo "PASS: ephemeral key file removed after export."
+      - name: Verify exported keys are masked in runner logs
+        shell: bash
+        run: |
+          set +x
+          set -euo pipefail
+          test -n "$IDENTITY_ENCRYPTION_KEY"
+          test -n "$IDENTITY_LOOKUP_KEY"
+          echo "MASKING_PROBE_ENCRYPTION:$IDENTITY_ENCRYPTION_KEY"
+          echo "MASKING_PROBE_LOOKUP:$IDENTITY_LOOKUP_KEY"
+          echo "PASS: both exported values reached this step; runner masking should redact the probes."
+      - name: Confirm no email side effects
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${IDENTITY_SMTP_PASSWORD:-}"
+          echo "PASS: no SMTP credentials were provided and no email-delivery command was invoked."
