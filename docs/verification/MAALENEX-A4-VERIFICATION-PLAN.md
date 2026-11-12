@@ -1,10 +1,11 @@
-# MaaleNex Moto — A4 Full Verification and Remediation Plan
+# MaaleNex — A4 Full Verification and Remediation Plan
 
 **Stage:** A4 — full verification and remediation  
 **A4 branch:** `a4/full-verification-remediation`  
 **Reconciled code candidate:** `ae7546b29b755973623420d8a887c813c5521edf`; PR #9 head `456e181ffda82403dc6cc9a245f66d47f9a947f4` and PR #10 closure head `0181d48cf27ad3d566cb5a76c7372f12bd199fa7` are both ancestors of this A4 commit. The A4 merge commit has the prior A4 line as first parent and PR #9 as second parent; PR #10 is retained in the prior A4 line.  
 **Reconciled candidate verification:** run [#42557579829](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42557579829), all three jobs passed on exact SHA `ae7546b29b755973623420d8a887c813c5521edf`.  
 **Evidence-record verification:** run [#42557700677](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42557700677), all three jobs passed on exact SHA `239253f55bbc8b4936f62fbf06b8601f62cc6b06`.  
+**Current A4 branch-tip verification:** run [#43067522415](https://github.com/akefadaka-git/maalenex/actions/runs/43067522415), all three jobs passed on exact SHA `3e91081885d4d54ede01b3e281e03ad30efbd256`.  
 **Governance:** synthetic-only; no PR merge, deployment, production activation, live payments, location tracking, or commercial operation.
 
 ## 1. Purpose and baseline qualification
@@ -48,6 +49,6 @@ A4 can be marked **VERIFIED-CLOSED** only when:
 - the final report identifies checks not run and implications;
 - the evidence record is committed and the evidence-record commit is checked by exact-head CI.
 
-The reconciled code-candidate requirement is satisfied by run #42557579829 on `ae7546b29b755973623420d8a887c813c5521edf`. The evidence-record requirement was satisfied for `239253f55bbc8b4936f62fbf06b8601f62cc6b06` by run #42557700677. Later report-only corrections must not be represented as tested until their own exact-head workflow evidence is obtained.
+The reconciled code-candidate requirement is satisfied by run #42557579829 on `ae7546b29b755973623420d8a887c813c5521edf`. The evidence-record requirement was satisfied for `239253f55bbc8b4936f62fbf06b8601f62cc6b06` by run #42557700677. The current A4 branch tip `3e91081885d4d54ede01b3e281e03ad30efbd256`, including the later report/plan corrections, was then checked by exact-head run #43067522415; all three jobs passed. The backend job reported 41 passed tests, Alembic parity, and full downgrade/re-upgrade success.
 
 A5 remains a separate Owner authorization and operational readiness gate.
