@@ -16,7 +16,10 @@ def test_move_router_registers_authenticated_ride_endpoints():
 
 def test_move_ride_creation_requires_account_session():
     client = TestClient(app)
-    response = client.post("/api/v1/move/rides")
+    response = client.post(
+        "/api/v1/move/rides",
+        json={"pickup_area_code": "ET-SO-JINKA", "dropoff_area_code": "ET-SO-KOYBE"},
+    )
     assert response.status_code == 401
 
 
@@ -27,3 +30,16 @@ def test_move_dispatch_requires_staff_session():
         json={"driver_account_id": "00000000-0000-0000-0000-000000000002"},
     )
     assert response.status_code == 401
+
+
+def test_move_ride_creation_requires_explicit_service_area_scope():
+    schema = app.openapi()
+    operation = schema["paths"]["/api/v1/move/rides"]["post"]
+    assert operation["requestBody"]["required"] is True
+    request_schema = operation["requestBody"]["content"]["application/json"]["schema"]
+    if "$ref" in request_schema:
+        schema_name = request_schema["$ref"].rsplit("/", 1)[-1]
+        request_schema = schema["components"]["schemas"][schema_name]
+    assert {"pickup_area_code", "dropoff_area_code"}.issubset(
+        set(request_schema["required"])
+    )
