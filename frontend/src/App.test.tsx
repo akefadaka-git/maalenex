@@ -41,7 +41,7 @@ describe("MaaleNex Moto multi-role portal", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "መለያ ይፍጠሩ" })[0]);
     fireEvent.change(screen.getByLabelText("የአገልግሎት ሚና ይምረጡ"), { target: { value: "motorcycle_driver" } });
     fireEvent.click(screen.getAllByRole("button", { name: "የእኔ ዳሽቦርድ" })[0]);
-    expect(screen.getByText("የሞተር ሳይክል ሹፌር")).toBeTruthy();
+    expect(screen.getByText(/የሞተር ሳይክል ሹፌር/)).toBeTruthy();
     expect(screen.getByText("የጉዞ ጥያቄዎች")).toBeTruthy();
   });
 
