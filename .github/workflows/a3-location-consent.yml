@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/a3-location-consent-foundation
+      - fix/critical-location-consent-ci
   pull_request:
     branches:
       - a4/full-verification-remediation
