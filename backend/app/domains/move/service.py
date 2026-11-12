@@ -139,7 +139,8 @@ def transition_move_ride(
         if expected is None or expected[0] != next_status or expected[1] != actor_account_id:
             raise ValueError("Move ride transition is not permitted for this actor or state.")
         ride.status = next_status
-        setattr(ride, f"{next_status}_at", now)
+        timestamp_field = {"accepted": "accepted_at", "arrived": "arrived_at", "in_progress": "started_at", "completed": "completed_at"}[next_status]
+        setattr(ride, timestamp_field, now)
     terminated_sessions = 0
     if next_status in {"completed", "cancelled"}:
         sessions = db.scalars(
