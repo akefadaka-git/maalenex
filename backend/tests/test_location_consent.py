@@ -30,7 +30,10 @@ def _account(db, status="active"):
 
 
 def _ride(db, passenger, driver=None, status="requested"):
-    ride = request_move_ride(db, passenger_account_id=passenger.id)
+    ride = request_move_ride(
+        db, passenger_account_id=passenger.id,
+        pickup_area_code="ET-SO-JINKA", dropoff_area_code="ET-SO-KOYBE",
+    )
     if driver is not None:
         assign_move_driver(db, ride_id=ride.id, driver_account_id=driver.id)
         steps = ["accepted", "arrived", "in_progress", "completed"]
