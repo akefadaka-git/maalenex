@@ -73,6 +73,10 @@ def test_move_ride_lifecycle_is_actor_bound_and_monotonic():
     with SessionLocal.begin() as db:
         passenger, driver, stranger = _account(db), _account(db), _account(db)
         ride = _ride(db, passenger)
+        assert ride.pickup_area_code == "ET-SO-JINKA"
+        assert ride.dropoff_area_code == "ET-SO-KOYBE"
+        with pytest.raises(ValueError, match="approved individual trust case"):
+            assign_move_driver(db, ride_id=ride.id, driver_account_id=driver.id)
         ride.driver_account_id = driver.id
         ride.status = "matched"
         ride.matched_at = db.scalar(select(func.now()))
@@ -81,6 +85,8 @@ def test_move_ride_lifecycle_is_actor_bound_and_monotonic():
             transition_move_ride(db, ride_id=ride.id, actor_account_id=stranger.id, next_status="accepted")
         for step in ("accepted", "arrived", "in_progress", "completed"):
             transition_move_ride(db, ride_id=ride.id, actor_account_id=driver.id, next_status=step)
+            if step == "in_progress":
+                assert ride.started_at is not None
         assert ride.status == "completed"
         assert ride.completed_at is not None
 
