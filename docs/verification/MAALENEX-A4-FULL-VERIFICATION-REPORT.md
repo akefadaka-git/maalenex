@@ -1,10 +1,12 @@
-# MaaleNex Moto — A4 Full Verification Report
+# MaaleNex — A4 Full Verification Report
 
 **Audit date:** 2026-11-11  
 **Repository:** `akefadaka-git/maalenex` (historical workflow links may display `maalenex-moto`)  
 **A4 branch:** `a4/full-verification-remediation`  
 **Reconciled code candidate:** `ae7546b29b755973623420d8a887c813c5521edf`  
 **Final evidence-record candidate before this correction:** `239253f55bbc8b4936f62fbf06b8601f62cc6b06`  
+**Current A4 branch tip:** `3e91081885d4d54ede01b3e281e03ad30efbd256`  
+**Current A4 branch-tip verification:** [run #43067522415](https://github.com/akefadaka-git/maalenex/actions/runs/43067522415), PASS — 3/3 jobs on the exact branch-tip SHA  
 **Prior A4 evidence-record branch head:** `d54b0291a58499891baaac5d5106ea8eed85a96b`
 
 ## 1. Executive disposition
@@ -30,6 +32,7 @@ The earlier PR #9 ↔ PR #10 comparison (14 ahead / 7 behind, merge base `94a4ab
 |---|---|---|---|
 | `ae7546b29b755973623420d8a887c813c5521edf` | [#42557579829](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42557579829) | **PASS — 3/3 jobs** | Reconciled code candidate |
 | `239253f55bbc8b4936f62fbf06b8601f62cc6b06` | [#42557700677](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42557700677) | **PASS — 3/3 jobs** | Evidence-record commit; workflow logs confirm exact checkout SHA |
+| `3e91081885d4d54ede01b3e281e03ad30efbd256` | [#43067522415](https://github.com/akefadaka-git/maalenex/actions/runs/43067522415) | **PASS — 3/3 jobs** | Current A4 branch tip; exact checkout SHA confirmed |
 
 The workflow logs for both runs show the exact SHA fetched and checked out. All three jobs completed successfully: backend/PostgreSQL/migrations; frontend tests/typecheck/build/npm audit; and Python dependency audit/high-severity Bandit scan.
 
@@ -104,8 +107,8 @@ PRs #3, #9 and #10 remain unmerged. The default branch was not changed. No deplo
 **Evidence-record commit `239253f55bbc8b4936f62fbf06b8601f62cc6b06`:** VERIFIED — run #42557700677, all three jobs passed.  
 **Reconciled A4 code candidate:** VERIFIED — run #42557579829, all three jobs passed on the exact code SHA.  
 **Prior evidence-record candidate:** VERIFIED — run #42557700677, all three jobs passed on exact SHA `239253f55bbc8b4936f62fbf06b8601f62cc6b06`.  
-**Current corrected report/plan revision:** PARTIAL — documentation-only corrections are committed, but an exact-head workflow run for the current corrected branch tip has not been located.  
-**A4 overall evidence-record closure:** PARTIAL pending exact-head CI for the final corrected report/plan revision. Do not claim VERIFIED-CLOSED until that run passes.  
+**Current A4 branch tip `3e91081885d4d54ede01b3e281e03ad30efbd256`:** VERIFIED — exact-head run #43067522415, all three jobs passed. Backend/PostgreSQL: 41 tests passed; frontend tests, typecheck, build and npm audit passed; Python dependency audit and Bandit high-severity scan passed; Alembic parity and full downgrade/re-upgrade passed.  
+**A4 automated evidence closure:** VERIFIED for the current A4 branch tip and the bounded automated gates listed above. This does not certify external penetration testing, WCAG conformance, live infrastructure or production readiness.  
 **Production readiness:** NOT READY / NOT ASSESSED FOR LIVE OPERATION.  
 **A5:** NOT AUTHORIZED.
 
