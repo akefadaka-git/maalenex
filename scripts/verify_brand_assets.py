@@ -135,8 +135,22 @@ def main() -> None:
         fallback_root = ET.parse(fallback_path).getroot()
         if not fallback_root.tag.endswith("vector"):
             fail(f"{fallback} must be a vector fallback for API 23–25")
-    if not (ROOT / "android/app/src/main/java/com/maalenex/moto/MainActivity.kt").is_file():
+    activity_path = ROOT / "android/app/src/main/java/com/maalenex/moto/MainActivity.kt"
+    if not activity_path.is_file():
         fail("Native Android MainActivity is missing")
+    activity_text = activity_path.read_text(encoding="utf-8")
+    if "settings.allowFileAccess = false" not in activity_text or "settings.allowContentAccess = false" not in activity_text:
+        fail("Android WebView must disable file and content URL access")
+    if "addJavascriptInterface" in activity_text:
+        fail("Android WebView must not expose a JavaScript bridge")
+    if "shouldOverrideUrlLoading" not in activity_text or "APP_ASSET_HOST" not in activity_text:
+        fail("Android WebView must restrict top-level navigation to the local asset origin")
+    permissions = android_manifest.findall("uses-permission")
+    if any(p.attrib.get(ANDROID + "name") == "android.permission.INTERNET" for p in permissions):
+        fail("Offline packaged shell must not request INTERNET permission before a reviewed API integration")
+    for strings_file in ("values/strings.xml", "values-am/strings.xml"):
+        if not (RES / strings_file).is_file():
+            fail(f"Missing localized app label resource: {strings_file}")
     android_project_ready = (ROOT / "android/settings.gradle.kts").is_file() and (ROOT / "android/app/build.gradle.kts").is_file()
     print("PASS: PWA manifest references existing SVGs with matching intrinsic dimensions.")
     print("PASS: 512px maskable icon has full-bleed background and centered safe-zone artwork.")
