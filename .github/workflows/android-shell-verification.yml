@@ -85,12 +85,25 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          disable-animations: true
+          disable-animations: false
           script: |
             adb start-server
             adb wait-for-device
-            for attempt in $(seq 1 60); do boot_state="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)"; [ "$boot_state" = "1" ] && break; sleep 2; done
-            test "$(adb shell getprop sys.boot_completed | tr -d '\\r')" = "1"
+            device_ready=false
+            for attempt in $(seq 1 90); do
+              adb reconnect >/dev/null 2>&1 || true
+              boot_state="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)"
+              if [ "$boot_state" = "1" ]; then device_ready=true; break; fi
+              sleep 2
+            done
+            test "$device_ready" = "true"
+            unlock_ok=false
+            for attempt in $(seq 1 10); do
+              if adb shell input keyevent 82 >/dev/null 2>&1; then unlock_ok=true; break; fi
+              adb reconnect >/dev/null 2>&1 || true
+              sleep 2
+            done
+            test "$unlock_ok" = "true"
             adb shell settings put global window_animation_scale 0
             adb shell settings put global transition_animation_scale 0
             adb shell settings put global animator_duration_scale 0
