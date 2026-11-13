@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -89,6 +88,10 @@ def main() -> None:
         present = {child.tag.rsplit("}", 1)[-1] for child in root}
         if not required.issubset(present):
             fail(f"{path.relative_to(ROOT)} missing layers: {sorted(required - present)}")
+        refs = {child.attrib.get(ANDROID + "drawable", "") for child in root}
+        expected_refs = {"@color/ic_launcher_background", "@drawable/ic_launcher_foreground", "@drawable/ic_launcher_monochrome"}
+        if not expected_refs.issubset(refs):
+            fail(f"{path.relative_to(ROOT)} has incorrect or missing resource references")
 
     for filename in ("ic_launcher_foreground.xml", "ic_launcher_monochrome.xml"):
         path = RES / "drawable" / filename
@@ -97,9 +100,11 @@ def main() -> None:
             fail(f"{path.relative_to(ROOT)} is not a vector drawable")
         if root.attrib.get(ANDROID + "width") != "108dp" or root.attrib.get(ANDROID + "height") != "108dp":
             fail(f"{path.relative_to(ROOT)} must use 108dp x 108dp adaptive canvas")
-        group = root.find("android:group", {"android": "http://schemas.android.com/apk/res/android"})
-        if group is None or float(group.attrib.get(ANDROID + "scaleX", "1")) > 1 or float(group.attrib.get(ANDROID + "scaleY", "1")) > 1:
-            fail(f"{path.relative_to(ROOT)} has no centered reduced-scale safe-zone group")
+        group = root.find("group")
+        if group is None or group.attrib.get(ANDROID + "pivotX") != "54" or group.attrib.get(ANDROID + "pivotY") != "54":
+            fail(f"{path.relative_to(ROOT)} has no group centered on the 54dp canvas midpoint")
+        if float(group.attrib.get(ANDROID + "scaleX", "1")) > 1 or float(group.attrib.get(ANDROID + "scaleY", "1")) > 1:
+            fail(f"{path.relative_to(ROOT)} artwork exceeds the 108dp adaptive canvas")
 
     bg = RES / "values/ic_launcher_background.xml"
     ET.parse(bg)
