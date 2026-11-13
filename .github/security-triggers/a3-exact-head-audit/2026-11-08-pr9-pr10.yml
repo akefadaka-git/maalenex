@@ -1,8 +1,0 @@
-purpose: exact-HEAD dependency vulnerability audit
-refs:
-  pr9: 94a4ab968ee09f3c7dccf3d2665fc25f5fa160dd
-  pr10: 7eb5e0d52400ca655dbe5137cf32d21239b0b16d
-scans:
-  - pip-audit
-  - npm-audit
-side_effects: none

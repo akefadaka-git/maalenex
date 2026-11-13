@@ -1,4 +1,0 @@
-purpose: rerun exact-HEAD dependency audits after dependency remediation
-refs:
-  pr9: 7254d992de24d801be1e8a2e16d2114b1241e94c
-  pr10: 0eac037e8df52e8422f8bddd89e0a45fd80ce61f
