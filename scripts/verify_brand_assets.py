@@ -41,6 +41,16 @@ def main() -> None:
     icons = manifest.get("icons", [])
     if len(icons) < 2:
         fail("manifest must provide at least 192 and 512 PWA icons")
+    # Validate every SVG shipped in the public asset tree, not only manifest icons.
+    for svg_path in sorted(PUBLIC.rglob("*.svg")):
+        width, height = svg_dimensions(svg_path)
+        root = ET.parse(svg_path).getroot()
+        view_box = [float(value) for value in root.attrib["viewBox"].replace(",", " ").split()]
+        if width <= 0 or height <= 0 or view_box[2] <= 0 or view_box[3] <= 0:
+            fail(f"{svg_path.relative_to(ROOT)} has non-positive dimensions")
+        if abs((width / height) - (view_box[2] / view_box[3])) > 0.01:
+            fail(f"{svg_path.relative_to(ROOT)} intrinsic dimensions do not match its viewBox aspect ratio")
+
     seen: set[tuple[str, str]] = set()
     for icon in icons:
         src = icon.get("src", "")
