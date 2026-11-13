@@ -61,7 +61,7 @@ function Notice({ children }: { children: string }) {
   return <p className="mn-workspace-notice" role="note">{children}</p>;
 }
 
-function PassengerWorkspace({ language, onRidePreview }: { language: Language; onRidePreview: () => void }) {
+function PassengerWorkspace({ language, onRidePreview }: { language: Language; onRidePreview: (pickup?: string, destination?: string) => void }) {
   const t = copy[language];
   const [pickup, setPickup] = useState("koybe");
   const [destination, setDestination] = useState("jinka");
@@ -76,7 +76,7 @@ function PassengerWorkspace({ language, onRidePreview }: { language: Language; o
           <option value="koybe">{t.koybe}</option><option value="jinka">{t.jinka}</option><option value="maale">{t.maale}</option>
         </select></label>
       </div>
-      <Button onClick={onRidePreview} disabled={pickup === destination}>{t.previewRide}</Button>
+      <Button onClick={() => onRidePreview(pickup, destination)} disabled={pickup === destination}>{t.previewRide}</Button>
     </Card>
     <div className="mn-workspace-grid">
       <Card><h3>{t.savedPlaces}</h3><p>{t.savedPlacesText}</p><Badge tone="warning">{t.noLive}</Badge></Card>
@@ -133,7 +133,7 @@ function FleetWorkspace({ language }: { language: Language }) {
   </section>;
 }
 
-export function RoleWorkspace({ role, language, onRidePreview }: { role: Role; language: Language; onRidePreview: () => void }) {
+export function RoleWorkspace({ role, language, onRidePreview }: { role: Role; language: Language; onRidePreview: (pickup?: string, destination?: string) => void }) {
   if (role === "passenger") return <PassengerWorkspace language={language} onRidePreview={onRidePreview} />;
   if (role === "motorcycle_driver") return <DriverWorkspace language={language} />;
   if (role === "heavy_load_driver") return <DriverWorkspace language={language} cargo />;
