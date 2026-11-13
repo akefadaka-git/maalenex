@@ -1,6 +1,6 @@
 from pydantic import model_validator
-from sqlalchemy.engine import make_url
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 
 class Settings(BaseSettings):
