@@ -16,7 +16,7 @@ export default function App(){
  const route=sampleRoutes.find(r=>r.from===pickup&&r.to===destination)||sampleRoutes.find(r=>r.from===destination&&r.to===pickup);
  const km=pickup===destination?0:route?.km??null;const fare=pickup===destination?0:route?.etb??null;
  const placeName=(id:string)=>places.find(p=>p.id===id)?.[language]??id;
- const start=()=>{setStage("route");dialogRef.current?.showModal();};
+ const start=(from="koybe",to="jinka")=>{setPickup(from);setDestination(to);setStage("route");dialogRef.current?.showModal();};
  return <div className="mn-app-shell" lang={language} id="home">
   <PortalPages language={language} onLanguageChange={setLanguage} onRidePreview={start}/>
   <Dialog ref={dialogRef} title={stage==="route"?t.rideTitle:stage==="review"?t.reviewTitle:t.previewTitle} onRequestClose={()=>dialogRef.current?.close()} className="mn-ride-dialog">
