@@ -2,6 +2,7 @@
 @import "./components/components.css";
 @import "./app.css";
 @import "./portal.css";
+@import "./workspaces.css";
 
 :root{font-family:var(--mn-font-sans);color:var(--mn-text);background:var(--mn-bg);font-synthesis:none;text-rendering:optimizeLegibility}
 *{box-sizing:border-box}
