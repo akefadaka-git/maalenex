@@ -57,7 +57,9 @@ jobs:
         run: python -m ruff check app tests migrations
       - name: Backend tests
         run: python -m pytest -q
-      - name: Alembic metadata parity
+      - name: Apply baseline migration to empty database
+        run: python -m alembic upgrade head
+      - name: Check Alembic metadata parity
         run: python -m alembic check
-      - name: Full migration downgrade and clean upgrade
+      - name: Test full migration downgrade and clean re-upgrade
         run: python -m alembic downgrade base && python -m alembic upgrade head
