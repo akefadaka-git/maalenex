@@ -29,7 +29,7 @@ class MainActivity : Activity() {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.allowFileAccess = false
-            settings.allowContentAccess = true
+            settings.allowContentAccess = false
             settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
             settings.setSupportZoom(false)
             webViewClient = object : WebViewClient() {
@@ -41,7 +41,7 @@ class MainActivity : Activity() {
                 override fun shouldOverrideUrlLoading(
                     view: WebView,
                     request: WebResourceRequest
-                ): Boolean = request.url.host != APP_ASSET_HOST
+                ): Boolean = request.url.host != APP_ASSET_HOST || !request.url.path.orEmpty().startsWith("/assets/")
             }
         }
         setContentView(webView)
