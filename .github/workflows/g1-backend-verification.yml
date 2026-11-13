@@ -1,0 +1,65 @@
+name: G1 backend foundation verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/g1-backend-verification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: g1-backend-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-postgres:
+    name: Backend tests, lint and PostgreSQL migrations
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: maalenex_dev
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d maalenex_dev"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      APP_ENV: test
+      SYNTHETIC_DATA_ONLY: "true"
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/maalenex_dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Install backend and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+      - name: Ruff
+        run: python -m ruff check app tests migrations
+      - name: Backend tests
+        run: python -m pytest -q
+      - name: Apply baseline migration to empty database
+        run: python -m alembic upgrade head
+      - name: Check Alembic metadata parity
+        run: python -m alembic check
+      - name: Test full migration downgrade and clean re-upgrade
+        run: python -m alembic downgrade base && python -m alembic upgrade head

@@ -1,5 +1,0 @@
-# One-time Owner-authorized trigger for the synthetic verification email E2E workflow.
-# The workflow enforces the fixed recipient allowlist and uses synthetic test data only.
-request: owner-authorized-single-test
-recipient: akeayudaka@gmail.com
-implementation_sha: c4c5ff31058afcae972078fd4a0a81fe83d7b79f

@@ -1,5 +1,0 @@
-purpose: validate ephemeral identity-key masking only
-email_delivery: disabled
-smtp_secrets_required: false
-implementation_under_test: .github/workflows/identity-email-e2e.yml
-owner_authorized_scope: one no-send validation run
