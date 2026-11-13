@@ -7,7 +7,6 @@ import android.view.ViewGroup
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.activity.OnBackPressedCallback
 import androidx.webkit.WebViewAssetLoader
 
 class MainActivity : Activity() {
@@ -48,11 +47,12 @@ class MainActivity : Activity() {
         setContentView(webView)
         webView.loadUrl(APP_ENTRY_URL)
 
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (webView.canGoBack()) webView.goBack() else finish()
-            }
-        })
+    
+    }
+
+    @Deprecated("Use system back navigation on newer Android versions")
+    override fun onBackPressed() {
+        if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 
     override fun onDestroy() {
