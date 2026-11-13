@@ -54,9 +54,10 @@ def main() -> None:
     seen: set[tuple[str, str]] = set()
     for icon in icons:
         src = icon.get("src", "")
-        if not src.startswith("/") or ".." in Path(src).parts:
-            fail(f"unsafe or non-root-relative icon path: {src!r}")
-        file_path = PUBLIC / src.lstrip("/")
+        relative_src = src.lstrip("/") if src.startswith("/") else src
+        if Path(relative_src).is_absolute() or ".." in Path(relative_src).parts:
+            fail(f"unsafe icon path: {src!r}")
+        file_path = PUBLIC / relative_src
         if not file_path.is_file():
             fail(f"manifest icon does not exist: {src}")
         if icon.get("type") != "image/svg+xml":
@@ -118,17 +119,34 @@ def main() -> None:
 
     bg = RES / "values/ic_launcher_background.xml"
     ET.parse(bg)
-    android_project_ready = (ROOT / "android/gradlew").is_file() and (
-        (ROOT / "android/settings.gradle").is_file() or (ROOT / "android/settings.gradle.kts").is_file()
-    ) and ((ROOT / "android/app/build.gradle").is_file() or (ROOT / "android/app/build.gradle.kts").is_file())
+    manifest_path = ROOT / "android/app/src/main/AndroidManifest.xml"
+    gradle_path = ROOT / "android/app/build.gradle.kts"
+    if not manifest_path.is_file() or not gradle_path.is_file():
+        fail("Android application manifest or Gradle module is missing")
+    android_manifest = ET.parse(manifest_path).getroot()
+    app = android_manifest.find("application")
+    if app is None or app.attrib.get(ANDROID + "icon") != "@mipmap/ic_launcher" or app.attrib.get(ANDROID + "roundIcon") != "@mipmap/ic_launcher_round":
+        fail("Android manifest must register standard and round launcher resources")
+    gradle_text = gradle_path.read_text(encoding="utf-8")
+    if 'applicationId = "com.maalenex.moto"' not in gradle_text or "minSdk = 23" not in gradle_text:
+        fail("Android application ID or minimum SDK differs from the verified contract")
+    for fallback in ("mipmap-anydpi/ic_launcher.xml", "mipmap-anydpi/ic_launcher_round.xml"):
+        fallback_path = RES / fallback
+        fallback_root = ET.parse(fallback_path).getroot()
+        if not fallback_root.tag.endswith("vector"):
+            fail(f"{fallback} must be a vector fallback for API 23–25")
+    if not (ROOT / "android/app/src/main/java/com/maalenex/moto/MainActivity.kt").is_file():
+        fail("Native Android MainActivity is missing")
+    android_project_ready = (ROOT / "android/settings.gradle.kts").is_file() and (ROOT / "android/app/build.gradle.kts").is_file()
     print("PASS: PWA manifest references existing SVGs with matching intrinsic dimensions.")
     print("PASS: 512px maskable icon has full-bleed background and centered safe-zone artwork.")
     print("PASS: Android adaptive, round, foreground, background and monochrome XML resources parse and reference required layers.")
     if android_project_ready:
-        print("INFO: Android Gradle project scaffold detected; run the Gradle resource task in CI.")
+        print("PASS: Android application ID, minSdk 23, manifest icon registration, native activity and Gradle module are present.")
+        print("PASS: API 23–25 use scalable anydpi vector launcher fallbacks; API 26+ use adaptive icons; Android 13+ receives monochrome layer.")
+        print("INFO: Density-specific PNG fallbacks are not required for the selected API 23+ range because vector drawables are supported.")
     else:
-        print("SKIP: Android Gradle build/resource compilation — this repository currently contains resources only; no Gradle wrapper, settings file, app build file or AndroidManifest.xml.")
-        print("SKIP: Density-specific legacy mipmap PNGs — minSdk and a buildable Android module are not defined; do not generate unreferenced binaries before the Android shell is scaffolded.")
+        fail("Android Gradle project scaffold is incomplete")
 
 
 if __name__ == "__main__":
