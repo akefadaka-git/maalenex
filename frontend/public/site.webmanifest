@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "name": "MaaleNex Moto",
   "short_name": "MaaleNex",
   "description": "Amharic-first mobility, built for connected possibilities.",
@@ -19,7 +20,7 @@
       "src": "/pwa-512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ]
 }

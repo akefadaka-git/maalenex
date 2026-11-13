@@ -1,0 +1,59 @@
+name: MaaleNex brand assets and frontend verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "android/**"
+      - "scripts/verify_brand_assets.py"
+      - "docs/ui/**"
+      - ".github/workflows/brand-asset-verification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  brand-and-frontend:
+    name: Brand resources, frontend tests and build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate PWA and Android icon resources
+        run: python scripts/verify_brand_assets.py
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install --no-package-lock --no-audit --no-fund
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Typecheck and production build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Android Gradle resource compilation (when module exists)
+        shell: bash
+        run: |
+          if [[ -x android/gradlew && -f android/settings.gradle* && -f android/app/build.gradle* ]]; then
+            (cd android && ./gradlew :app:processDebugResources --no-daemon)
+          else
+            echo "::notice::Android Gradle build NOT RUN: the repository currently has Android resource XML only, without a Gradle wrapper/settings/app build file."
+          fi
