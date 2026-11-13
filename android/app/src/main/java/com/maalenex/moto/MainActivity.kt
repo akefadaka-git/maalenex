@@ -7,6 +7,9 @@ import android.view.ViewGroup
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
 
 class MainActivity : Activity() {
@@ -14,8 +17,9 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = Color.rgb(7, 27, 49)
-        window.navigationBarColor = Color.rgb(7, 27, 49)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         val assetLoader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
@@ -26,6 +30,7 @@ class MainActivity : Activity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
+            setBackgroundColor(Color.rgb(7, 27, 49))
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.allowFileAccess = false
@@ -44,7 +49,15 @@ class MainActivity : Activity() {
                 ): Boolean = request.url.host != APP_ASSET_HOST || !request.url.path.orEmpty().startsWith("/assets/")
             }
         }
+        ViewCompat.setOnApplyWindowInsetsListener(webView) { view, windowInsets ->
+            val safeInsets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            view.setPadding(safeInsets.left, safeInsets.top, safeInsets.right, safeInsets.bottom)
+            windowInsets
+        }
         setContentView(webView)
+        ViewCompat.requestApplyInsets(webView)
         webView.loadUrl(APP_ENTRY_URL)
 
     
