@@ -20,6 +20,10 @@
 | Design tokens | Brand palette, type, spacing, radii, shadows, touch target, light/dark values | Present; theme persistence and contrast audit not evidenced |
 | Motion | Reduced-motion CSS overrides | Present |
 | Form feedback | Inline notice and basic mismatch check | Ad hoc; no shared field-level validation framework |
+| Role workspaces | Passenger route selector, local driver availability/offer preview, synthetic fleet tables, read-only admin queue and audit table | Present as prototype-only components; no backend mutations |
+| Data table | Responsive semantic table with horizontal overflow and status badges | Present for fleet and admin sample records; filtering, sorting, pagination and exports remain missing |
+| Workspace notice | Persistent synthetic-data and no-live-service disclosure | Present |
+
 
 ## 2. Current screen and flow inventory
 
@@ -39,7 +43,7 @@
 ### Driver / operator
 - Motorcycle-driver dashboard preview: profile, verification, availability, trip-request and earnings placeholders.
 - Heavy-load-driver dashboard preview: profile, verification, capacity, load-request, delivery-history and earnings placeholders.
-- Fleet-operator dashboard preview: profile, fleet vehicles, driver roster, assignments and compliance placeholders.
+- Fleet-operator dashboard includes responsive synthetic vehicle and driver tables plus an assignment-status placeholder.
 - Registration preview collects role-specific vehicle, plate, licence, load-capacity or organization fields.
 - No live onboarding, document review, dispatch acceptance, trip execution, fleet CRUD, payout or compliance workflow.
 
@@ -101,3 +105,13 @@
 - All demo/placeholder content remains visibly marked and cannot be mistaken for a live booking, fare, account, payment or administrative action.
 - No real personal, passenger, driver, payment or operational data in prototype tests.
 - UI acceptance is not complete until API integration, role authorization, privacy and security gates are independently verified.
+
+
+## 6. Android application shell (added)
+
+- Native Kotlin Activity: `android/app/src/main/java/com/maalenex/moto/MainActivity.kt`.
+- Application ID and namespace: `com.maalenex.moto`; minimum SDK 23; compile/target SDK 35; JDK 17.
+- React/Vite production bundle is packaged as local Android assets through the Gradle `syncWebAssets` task.
+- AndroidX WebKit `WebViewAssetLoader` serves the local bundle on its HTTPS app-assets origin. File URL access is disabled, external navigation is blocked, and no JavaScript bridge or network permission is provided.
+- API 23–25 use any-density vector launcher fallbacks; API 26+ use adaptive icons; Android 13+ receives the monochrome layer. Density-specific PNGs are not needed for the chosen API 23 minimum because vector drawables are supported.
+- Android 15 emulator build/launch verification is automated. Physical-device launcher, touch, safe-area, keyboard, back-navigation and low-connectivity acceptance remain separate gates.
