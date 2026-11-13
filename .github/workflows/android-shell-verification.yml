@@ -87,15 +87,30 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: |
+            set -euo pipefail
+            adb start-server
+            adb wait-for-device
+            for attempt in $(seq 1 60); do
+              boot_state="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)"
+              if [ "$boot_state" = "1" ]; then break; fi
+              sleep 2
+            done
+            test "$(adb shell getprop sys.boot_completed | tr -d '\\r')" = "1"
+            adb shell settings put global window_animation_scale 0
+            adb shell settings put global transition_animation_scale 0
+            adb shell settings put global animator_duration_scale 0
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
             adb shell am force-stop com.maalenex.moto
             adb shell am start -W -n com.maalenex.moto/.MainActivity
-            sleep 10
+            for attempt in $(seq 1 30); do
+              if adb shell pidof com.maalenex.moto >/dev/null 2>&1; then break; fi
+              sleep 2
+            done
             adb shell pidof com.maalenex.moto
-            adb shell uiautomator dump /sdcard/window.xml
-            adb pull /sdcard/window.xml /tmp/maalenex-window.xml
-            grep -qi "MAALENEX" /tmp/maalenex-window.xml
-            if adb logcat -d -t 2000 | grep -q "FATAL EXCEPTION"; then
+            adb logcat -d -t 4000 > /tmp/maalenex-logcat.txt
+            if grep -q "FATAL EXCEPTION" /tmp/maalenex-logcat.txt; then
+              cat /tmp/maalenex-logcat.txt
               echo "Fatal Android exception detected"
               exit 1
             fi
+            adb shell dumpsys activity activities | grep -q "com.maalenex.moto/.MainActivity"
