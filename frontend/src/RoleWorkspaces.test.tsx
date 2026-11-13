@@ -8,7 +8,7 @@ describe("role workspaces", () => {
     render(<RoleWorkspace role="passenger" language="en" onRidePreview={onRidePreview} />);
     expect(screen.getByRole("heading", { name: "Passenger journey workspace" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Open ride planner preview" }));
-    expect(onRidePreview).toHaveBeenCalledOnce();
+    expect(onRidePreview).toHaveBeenCalledTimes(1);
   });
 
   it("keeps driver availability as a local preview state", () => {
