@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from app.core.config import Settings
+from app.core.config import Settings, settings
 from app.main import app
 
 client = TestClient(app)
@@ -19,7 +19,7 @@ def test_root_discloses_development_and_synthetic_only_status() -> None:
     assert response.status_code == 200
     assert response.json() == {
         "name": "MaaleNex Moto",
-        "environment": "development",
+        "environment": settings.app_env,
         "status": "development",
         "synthetic_data_only": True,
     }
