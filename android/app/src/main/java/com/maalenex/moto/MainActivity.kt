@@ -38,6 +38,32 @@ class MainActivity : Activity() {
             settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
             settings.setSupportZoom(false)
             webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                    super.onPageStarted(view, url, favicon)
+                    android.util.Log.i(TAG, "WEBVIEW_PAGE_STARTED url=$url")
+                }
+
+                override fun onPageFinished(view: WebView, url: String) {
+                    super.onPageFinished(view, url)
+                    android.util.Log.i(TAG, "WEBVIEW_PAGE_FINISHED url=$url")
+                    view.evaluateJavascript(
+                        "JSON.stringify({readyState:document.readyState,title:document.title,rootPresent:!!document.getElementById('root'),rootTextLength:(document.getElementById('root')?.innerText||'').trim().length})"
+                    ) { result ->
+                        android.util.Log.i(TAG, "WEBVIEW_JS_PROBE $result")
+                    }
+                }
+
+                override fun onReceivedError(
+                    view: WebView,
+                    request: WebResourceRequest,
+                    error: android.webkit.WebResourceError
+                ) {
+                    super.onReceivedError(view, request, error)
+                    if (request.isForMainFrame) {
+                        android.util.Log.e(TAG, "WEBVIEW_MAIN_FRAME_ERROR code=${error.errorCode} description=${error.description}")
+                    }
+                }
+
                 override fun shouldInterceptRequest(
                     view: WebView,
                     request: WebResourceRequest
@@ -77,6 +103,7 @@ class MainActivity : Activity() {
     }
 
     private companion object {
+        const val TAG = "MaaleNexWebView"
         const val APP_ASSET_HOST = "appassets.androidplatform.net"
         const val APP_ENTRY_URL = "https://appassets.androidplatform.net/assets/www/index.html"
     }
