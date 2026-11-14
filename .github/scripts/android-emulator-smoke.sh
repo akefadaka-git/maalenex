@@ -23,6 +23,8 @@ diagnose() {
   lsof -nP -iTCP -sTCP:LISTEN 2>/dev/null | grep -E '5554|5555|5037' || true
   echo "--- boot properties ---"
   adb_cmd shell getprop sys.boot_completed 2>&1 || true
+  echo "--- resumed and focused activities ---"
+  adb_cmd shell dumpsys activity activities 2>&1 | grep -E 'mResumedActivity|topResumedActivity|Resumed:' || true
   echo "--- recent emulator text logs ---"
   for root in /tmp/android-runner "$HOME/.android/avd"; do
     if [ -d "$root" ]; then
@@ -35,7 +37,7 @@ diagnose() {
     fi
   done
   echo "--- recent Android logcat ---"
-  adb_cmd logcat -b all -d -t 1200 2>&1 | tail -n 240 || true
+  adb_cmd logcat -b all -d -t 1600 2>&1 | tail -n 300 || true
 }
 
 trap 'status=$?; if [ "$status" -ne 0 ]; then diagnose; fi; exit "$status"' 0
@@ -67,20 +69,23 @@ adb_cmd shell settings put global animator_duration_scale 0
 test -s "$APK"
 adb_cmd install -r "$APK"
 adb_cmd shell am force-stop "$PACKAGE"
-adb_cmd shell am start -W -n "$ACTIVITY"
+adb_cmd shell am start -n "$ACTIVITY"
 
 launched=false
 attempt=0
-while [ "$attempt" -lt 30 ]; do
-  if adb_cmd shell pidof "$PACKAGE" >/dev/null 2>&1; then
+while [ "$attempt" -lt 60 ]; do
+  activity_state="$(adb_cmd shell dumpsys activity activities 2>/dev/null | grep -E 'mResumedActivity|topResumedActivity|Resumed:' || true)"
+  if printf '%s\n' "$activity_state" | grep -F "$PACKAGE" | grep -F 'MainActivity' >/dev/null 2>&1 &&
+     adb_cmd shell pidof "$PACKAGE" >/dev/null 2>&1; then
     launched=true
+    echo "Confirmed resumed activity: $activity_state"
     break
   fi
   attempt=$((attempt + 1))
   sleep 2
 done
 if [ "$launched" != "true" ]; then
-  echo "Application process did not remain alive after launch"
+  echo "MainActivity did not become the resumed foreground activity within 120 seconds"
   exit 1
 fi
 
@@ -90,5 +95,4 @@ if grep -q "FATAL EXCEPTION" "$LOG_FILE"; then
   echo "Fatal Android exception detected"
   exit 1
 fi
-adb_cmd shell dumpsys activity activities | grep -q "$ACTIVITY"
-echo "PASS: APK installed and $ACTIVITY launched on $DEVICE"
+echo "PASS: APK installed and $ACTIVITY reached resumed foreground state on $DEVICE"
