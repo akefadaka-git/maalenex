@@ -89,6 +89,30 @@ if [ "$launched" != "true" ]; then
   exit 1
 fi
 
+# Verify the packaged frontend actually loaded and executed JavaScript in WebView.
+webview_ready=false
+attempt=0
+while [ "$attempt" -lt 30 ]; do
+  adb_cmd logcat -d -s MaaleNexWebView:I '*:S' > "$LOG_FILE" 2>/dev/null || true
+  if grep -q "WEBVIEW_PAGE_FINISHED" "$LOG_FILE" &&
+     grep -q "WEBVIEW_JS_PROBE" "$LOG_FILE" &&
+     grep -q 'rootPresent.*true' "$LOG_FILE" &&
+     grep -Eq 'rootTextLength.*[1-9][0-9]*' "$LOG_FILE"; then
+    webview_ready=true
+    break
+  fi
+  attempt=$((attempt + 1))
+  sleep 2
+done
+if [ "$webview_ready" != "true" ]; then
+  echo "WebView page load or JavaScript DOM probe did not complete"
+  adb_cmd logcat -d -s MaaleNexWebView:I '*:S' || true
+  exit 1
+fi
+echo "PASS: WebView loaded the packaged frontend and JavaScript observed a rendered DOM root"
+echo "CAPACITOR_BRIDGE: NOT PRESENT — this app uses Android WebView directly"
+echo "NATIVE_PLUGINS: NOT REGISTERED — no Capacitor plugin runtime/dependencies are configured"
+
 adb_cmd logcat -b all -d -t 4000 > "$LOG_FILE"
 if grep -q "FATAL EXCEPTION" "$LOG_FILE"; then
   tail -n 400 "$LOG_FILE"
