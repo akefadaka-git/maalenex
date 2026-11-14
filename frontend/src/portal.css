@@ -1,0 +1,34 @@
+/* Multi-role MaaleNex Moto portal — UI prototype */
+.mn-portal{min-height:100dvh;padding:0 clamp(16px,4vw,64px) 94px;background:var(--mn-bg);color:var(--mn-text)}
+.mn-portal-header{min-height:72px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--mn-border);gap:12px}
+.mn-portal-brand{display:flex;align-items:center;gap:10px;border:0;background:none;color:var(--mn-text);text-align:left;cursor:pointer}
+.mn-portal-brand>span:last-child{display:grid;gap:3px}.mn-portal-brand strong{font-size:12px;letter-spacing:.16em}.mn-portal-brand small{font-size:10px;letter-spacing:.2em;color:var(--mn-text-muted)}
+.mn-portal-brand-mark{display:grid;place-items:center;width:42px;height:42px;border-radius:15px 15px 15px 4px;background:var(--mn-brand-midnight);color:var(--mn-brand-gold);font-size:22px;font-weight:900}
+.mn-portal-header-actions{display:flex;align-items:center;gap:10px}
+.mn-portal-topnav{display:flex;align-items:center;gap:5px;overflow-x:auto;padding:10px 0;border-bottom:1px solid var(--mn-border);scrollbar-width:thin}
+.mn-portal-topnav button{flex:0 0 auto;min-height:38px;padding:0 13px;border:0;border-radius:var(--mn-radius-pill);background:transparent;color:var(--mn-text-muted);font-size:12px;font-weight:700;cursor:pointer}
+.mn-portal-topnav button:hover,.mn-portal-topnav button.is-active{background:var(--mn-brand-emerald-soft);color:var(--mn-brand-emerald)}
+.mn-portal-main{width:min(100%,var(--mn-content-width));min-height:calc(100dvh - 190px);margin:0 auto}
+.mn-welcome-hero{min-height:470px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(240px,.7fr);align-items:center;gap:30px;padding:clamp(36px,6vw,78px) 0}
+.mn-welcome-copy>.mn-badge{margin-bottom:16px}.mn-portal-heading{margin:0 0 24px}.mn-portal-heading h1{margin:10px 0 12px;font-size:clamp(2.1rem,5vw,4.2rem);letter-spacing:-.05em;line-height:1.08}.mn-portal-heading>p:last-child{max-width:700px;margin:0;color:var(--mn-text-muted);line-height:1.7}
+.mn-welcome-intro{max-width:650px;color:var(--mn-text-muted);font-size:16px;line-height:1.8}.mn-welcome-copy>small{display:block;margin-top:14px;color:var(--mn-text-subtle);font-size:11px}
+.mn-portal-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.mn-welcome-art{position:relative;display:grid;place-items:center;justify-self:center;width:min(100%,340px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,var(--mn-surface-raised) 0 35%,transparent 36%),linear-gradient(145deg,var(--mn-brand-midnight),#123d59);box-shadow:var(--mn-shadow-card)}
+.mn-welcome-art>span{z-index:1;color:var(--mn-brand-gold);font-size:clamp(90px,15vw,150px);font-weight:900;letter-spacing:-.12em}.mn-welcome-art>i{position:absolute;top:18%;right:20%;color:var(--mn-brand-gold);font-size:30px;font-style:normal}
+.mn-welcome-orbit{position:absolute;inset:12%;border:1px solid #F5B82E80;border-radius:50%;transform:rotate(-28deg) scaleY(.62)}.mn-orbit-two{inset:22%;border-color:#36B8EC99;transform:rotate(38deg) scaleY(.72)}
+.mn-portal-section,.mn-portal-page{padding:44px 0 56px}.mn-portal-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.mn-portal-section-head h2,.mn-portal-page h2{margin:5px 0 14px;font-size:clamp(22px,3vw,30px)}
+.mn-portal-muted{color:var(--mn-text-muted);font-size:13px;line-height:1.7}.mn-portal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:22px 0}
+.mn-portal-tile{display:flex;align-items:center;gap:14px;min-height:112px}.mn-portal-tile-icon{display:grid;place-items:center;flex:0 0 44px;height:44px;border-radius:14px;background:var(--mn-brand-emerald-soft);color:var(--mn-brand-emerald);font-weight:900;font-size:20px}.mn-portal-tile>div{flex:1;min-width:0}.mn-portal-tile h3{margin:0 0 5px;font-size:15px}.mn-portal-tile p{margin:0;color:var(--mn-text-muted);font-size:12px;line-height:1.5}
+.mn-auth-page{max-width:760px;margin:0 auto}.mn-auth-card{display:grid;gap:16px;max-width:540px;padding:clamp(18px,4vw,30px);border:1px solid var(--mn-border);border-radius:var(--mn-radius-lg);background:var(--mn-surface);box-shadow:var(--mn-shadow-card)}
+.mn-auth-card>.mn-button{width:100%}.mn-portal-text-button{justify-self:start;border:0;background:none;color:var(--mn-brand-emerald);font-weight:700;text-decoration:underline;cursor:pointer}
+.mn-portal-notice{padding:12px;border-radius:var(--mn-radius-sm);background:var(--mn-success-soft);color:var(--mn-success);font-size:12px;line-height:1.6}
+.mn-portal-status-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:18px 0;color:var(--mn-text-muted);font-size:12px}
+.mn-portal-wide-card{margin:18px 0}.mn-portal-wide-card h2{margin:0 0 8px;font-size:19px}.mn-portal-wide-card p{color:var(--mn-text-muted);font-size:13px}
+.mn-admin-warning{display:grid;gap:10px;border-color:var(--mn-danger)}.mn-admin-warning p{margin:0;color:var(--mn-text-muted);font-size:13px;line-height:1.7}
+.mn-help-list{display:grid;gap:8px;margin:20px 0}.mn-help-list details{padding:16px 18px;border:1px solid var(--mn-border);border-radius:var(--mn-radius-md);background:var(--mn-surface)}.mn-help-list summary{font-weight:700;cursor:pointer}.mn-help-list details p{margin:12px 0 0;color:var(--mn-text-muted);font-size:13px;line-height:1.7}
+.mn-settings-card{display:grid;gap:18px;max-width:620px}.mn-settings-card>label:not(.mn-settings-toggle){display:grid;gap:8px;font-size:13px;font-weight:700}.mn-settings-toggle{display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:13px;font-weight:700}.mn-settings-toggle input{width:22px;height:22px;accent-color:var(--mn-brand-emerald)}
+.mn-portal-footer{display:flex;justify-content:space-between;gap:16px;padding:18px 0;border-top:1px solid var(--mn-border);color:var(--mn-text-subtle);font-size:11px}
+.mn-portal>.mn-nav{position:fixed;z-index:20;right:0;bottom:0;left:0;box-shadow:0 -8px 28px rgb(7 27 49 / 7%)}
+@media(max-width:720px){.mn-welcome-hero{grid-template-columns:1fr;min-height:0;padding:44px 0 28px}.mn-welcome-art{width:min(70vw,260px);grid-row:1}.mn-portal-grid{grid-template-columns:1fr}.mn-portal-section,.mn-portal-page{padding:30px 0 42px}.mn-portal-footer{flex-direction:column}.mn-portal-topnav{margin-inline:-4px}}
+@media(max-width:420px){.mn-portal{padding-inline:14px}.mn-portal-header .mn-badge{display:none}.mn-portal-actions{display:grid}.mn-portal-actions .mn-button{width:100%}.mn-portal-tile{align-items:flex-start}.mn-portal-tile>.mn-button{align-self:center}}
+@media(prefers-reduced-motion:reduce){.mn-portal *{scroll-behavior:auto}}
