@@ -86,44 +86,4 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: false
-          script: |
-            # Let android-emulator-runner own the ADB daemon; restarting it here can race the emulator.
-            # Bound each ADB probe so an offline device cannot consume the whole Actions step timeout.
-            device_ready=false
-            attempt=1; while [ "$attempt" -le 45 ]; do
-              device_state="$(timeout 5s adb devices 2>/dev/null | awk 'NR==2 {print $2}' || true)"
-              if [ "$device_state" = "device" ]; then
-                boot_state="$(timeout 5s adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)"
-                if [ "$boot_state" = "1" ]; then device_ready=true; break; fi
-              else
-                timeout 5s adb reconnect offline >/dev/null 2>&1 || true
-              fi
-              sleep 2
-              attempt=$((attempt + 1))
-            done
-            if [ "$device_ready" != "true" ]; then
-              echo "::error::Android emulator did not become ready after 45 bounded probes"
-              echo "--- adb version ---"; timeout 5s adb version || true
-              echo "--- adb devices -l ---"; timeout 5s adb devices -l || true
-              echo "--- emulator processes ---"; ps -ef | grep -E '[e]mulator|[q]emu' || true
-              echo "--- emulator ports ---"; (ss -lntp 2>/dev/null | grep -E '5554|5555|5037' || true)
-              echo "--- boot properties ---"; timeout 5s adb -s emulator-5554 shell getprop sys.boot_completed 2>&1 || true
-              echo "--- emulator runner files ---"; (find /tmp/android-runner -maxdepth 3 -type f -printf '%p (%s bytes)\\n' 2>/dev/null || true)
-              echo "--- recent emulator text logs ---"
-              (find /tmp/android-runner "$HOME/.android/avd" -type f \\( -name '*.log' -o -name 'emulator*.log' \\) -print 2>/dev/null | head -n 20 | while IFS= read -r log; do echo "### $log"; tail -n 120 "$log"; done)
-              exit 1
-            fi
-            unlock_ok=false
-            attempt=1; while [ "$attempt" -le 10 ]; do if adb shell input keyevent 82 >/dev/null 2>&1; then unlock_ok=true; break; fi; adb reconnect >/dev/null 2>&1 || true; sleep 2; attempt=$((attempt + 1)); done
-            test "$unlock_ok" = "true"
-            adb shell settings put global window_animation_scale 0
-            adb shell settings put global transition_animation_scale 0
-            adb shell settings put global animator_duration_scale 0
-            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-            adb shell am force-stop com.maalenex.moto
-            adb shell am start -W -n com.maalenex.moto/.MainActivity
-            for attempt in $(seq 1 30); do adb shell pidof com.maalenex.moto >/dev/null 2>&1 && break; sleep 2; done
-            adb shell pidof com.maalenex.moto
-            adb logcat -d -t 4000 > /tmp/maalenex-logcat.txt
-            if grep -q "FATAL EXCEPTION" /tmp/maalenex-logcat.txt; then cat /tmp/maalenex-logcat.txt; echo "Fatal Android exception detected"; exit 1; fi
-            adb shell dumpsys activity activities | grep -q "com.maalenex.moto/.MainActivity"
+          script: bash .github/scripts/android-emulator-smoke.sh
