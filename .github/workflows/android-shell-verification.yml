@@ -67,6 +67,14 @@ jobs:
             "emulator" \
             "system-images;android-35;google_apis;x86_64"
 
+      - name: Enable KVM access for the emulator runner
+        shell: bash
+        run: |
+          test -c /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          ls -l /dev/kvm
+
       - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -92,5 +100,6 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
+          disable-linux-hw-accel: false
           disable-animations: false
           script: bash .github/scripts/android-emulator-smoke.sh
