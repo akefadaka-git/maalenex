@@ -6,6 +6,7 @@ on:
     paths:
       - "android/**"
       - "frontend/**"
+      - ".github/scripts/android-emulator-smoke.sh"
       - ".github/workflows/android-shell-verification.yml"
   workflow_dispatch:
 
