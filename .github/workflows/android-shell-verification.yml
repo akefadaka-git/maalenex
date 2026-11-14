@@ -87,11 +87,32 @@ jobs:
           profile: pixel_2
           disable-animations: false
           script: |
+            # Emulator boot can temporarily leave ADB in "offline" state on hosted Linux runners.
+            # Restart the host daemon once, then poll device state and boot completion with a bounded deadline.
+            adb kill-server || true
             adb start-server
-            adb wait-for-device
             device_ready=false
-            attempt=1; while [ "$attempt" -le 90 ]; do adb reconnect >/dev/null 2>&1 || true; boot_state="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)"; if [ "$boot_state" = "1" ]; then device_ready=true; break; fi; sleep 2; attempt=$((attempt + 1)); done
-            test "$device_ready" = "true"
+            attempt=1; while [ "$attempt" -le 150 ]; do
+              device_state="$(adb devices | awk 'NR==2 {print $2}')"
+              if [ "$device_state" = "device" ]; then
+                boot_state="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)"
+                if [ "$boot_state" = "1" ]; then device_ready=true; break; fi
+              else
+                adb reconnect offline >/dev/null 2>&1 || true
+              fi
+              sleep 2
+              attempt=$((attempt + 1))
+            done
+            if [ "$device_ready" != "true" ]; then
+              echo "::error::Android emulator did not become ready within 300 seconds"
+              echo "--- adb version ---"; adb version || true
+              echo "--- adb devices -l ---"; adb devices -l || true
+              echo "--- emulator processes ---"; ps -ef | grep -E '[e]mulator|[q]emu' || true
+              echo "--- emulator ports ---"; (ss -lntp 2>/dev/null | grep -E '5554|5555|5037' || true)
+              echo "--- boot properties ---"; adb shell getprop sys.boot_completed 2>&1 || true
+              echo "--- recent emulator log ---"; (tail -n 160 /tmp/android-runner/emu-crash-*.db 2>/dev/null || true)
+              exit 1
+            fi
             unlock_ok=false
             attempt=1; while [ "$attempt" -le 10 ]; do if adb shell input keyevent 82 >/dev/null 2>&1; then unlock_ok=true; break; fi; adb reconnect >/dev/null 2>&1 || true; sleep 2; attempt=$((attempt + 1)); done
             test "$unlock_ok" = "true"
