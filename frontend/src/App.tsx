@@ -39,7 +39,7 @@ export default function App() {
       <button className="language" type="button" aria-label={t.language}
         onClick={() => setLanguage(language === "am" ? "en" : "am")}>{language === "am" ? "EN" : "አማ"}</button>
     </header>
-    <section id="main-content" className="hero">
+    <section id="main-content" className="hero" tabIndex={-1}>
       <p className="eyebrow">{t.eyebrow}</p>
       <h1>{t.title}</h1>
       <p className="subtitle">{t.intro}</p>
