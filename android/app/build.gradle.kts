@@ -23,7 +23,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/web-assets"))
+    // AGP 9 rejects Provider instances in the legacy SourceSet API.
+    // Resolve the generated directory as a static path; preBuild below
+    // explicitly depends on syncWebAssets so generation ordering is retained.
+    sourceSets.getByName("main").assets.srcDir(
+        layout.buildDirectory.dir("generated/web-assets").get().asFile
+    )
 }
 
 tasks.register<Sync>("syncWebAssets") {
