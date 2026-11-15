@@ -76,8 +76,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Install frontend dependencies
-        run: npm install --no-audit --no-fund
+      - name: Generate deterministic frontend lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Upload generated frontend lockfile for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: maalenex-frontend-package-lock
+          path: frontend/package-lock.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Install locked frontend dependencies
+        run: npm ci --no-audit --no-fund
       - name: Run frontend tests
         run: npm test
       - name: TypeScript typecheck
