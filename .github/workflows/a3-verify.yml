@@ -76,15 +76,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Generate deterministic frontend lockfile
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Upload generated frontend lockfile for review
-        uses: actions/upload-artifact@v4
-        with:
-          name: maalenex-frontend-package-lock
-          path: frontend/package-lock.json
-          if-no-files-found: error
-          retention-days: 7
       - name: Install locked frontend dependencies
         run: npm ci --no-audit --no-fund
       - name: Run frontend tests
@@ -93,17 +84,22 @@ jobs:
         run: npm run typecheck
       - name: Build frontend
         run: npm run build
-      - name: Run npm dependency vulnerability audit
+      - name: Run blocking npm dependency vulnerability audit
         shell: bash
         run: |
           set +e
-          npm audit --json > npm-audit.json
+          npm audit --json --audit-level=moderate > npm-audit.json
           audit_status=$?
           set -e
-          echo "npm audit exit code: $audit_status"
-          if [ "$audit_status" -ne 0 ]; then
-            echo "::warning::npm audit reported vulnerabilities or an audit-service error; inspect the uploaded JSON report."
-          fi
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync("npm-audit.json", "utf8"));
+          const v = report.metadata?.vulnerabilities ?? {};
+          const line = `npm audit: ${v.total ?? "unknown"} total; critical=${v.critical ?? "unknown"}, high=${v.high ?? "unknown"}, moderate=${v.moderate ?? "unknown"}, low=${v.low ?? "unknown"}`;
+          console.log(line);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Frontend dependency audit\n\n- ${line}\n`);
+          NODE
+          exit "$audit_status"
       - name: Upload npm dependency audit report
         if: always()
         uses: actions/upload-artifact@v4
@@ -112,36 +108,3 @@ jobs:
           path: frontend/npm-audit.json
           if-no-files-found: warn
           retention-days: 14
-
-  commit-frontend-lockfile:
-    name: Commit generated frontend lockfile to A3 branch
-    needs: frontend
-    if: github.event_name == 'push' && github.ref == 'refs/heads/feat/a3-passenger-only-integration'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout exact A3 branch head
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - name: Download generated lockfile artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: maalenex-frontend-package-lock
-          path: /tmp/maalenex-lock
-      - name: Commit lockfile only
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s /tmp/maalenex-lock/package-lock.json
-          cp /tmp/maalenex-lock/package-lock.json frontend/package-lock.json
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/package-lock.json
-          if git diff --cached --quiet; then
-            echo "Frontend lockfile already matches the generated dependency graph."
-          else
-            git commit -m "build: lock frontend dependencies"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
