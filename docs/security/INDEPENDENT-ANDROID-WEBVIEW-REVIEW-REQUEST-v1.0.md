@@ -1,8 +1,8 @@
-# MaaleNex — Independent Android/WebView Security Review Request v1.0
+# MaaleNex — Independent Android/WebView Security Review Request v1.1
 
 Repository: ake fadaka-git/maalenex
 Pull request: #25 — https://github.com/akefadaka-git/maalenex/pull/25
-Review target commit: e2dd491757a919b87a5f26478982f758493ecb6f
+Review target commit: c192a2439305e60a6cea0be75251b12d9a1939ec
 Review branch: feat/a3-passenger-only-integration
 Requested review: Independent assessment by a reviewer who did not implement this change.
 
@@ -101,3 +101,57 @@ The final report must include:
 ## 6. Reviewer response
 
 Please return the completed report as a signed PDF or Markdown document and attach/link the evidence. Do not change the reviewed branch or deploy the application as part of this assessment. Any proposed code remediation must be submitted separately for Owner review.
+
+
+## 7. Review target supersession and current evidence — v1.1 (2026-11-15)
+
+This addendum supersedes the original v1.0 target commit and its earlier CI artifacts. The independent reviewer must use the exact current target below and must not substitute the older APK.
+
+**Current exact review target:** `c192a2439305e60a6cea0be75251b12d9a1939ec`  
+**Branch:** `feat/a3-passenger-only-integration`  
+**PR:** [#25](https://github.com/akefadaka-git/maalenex/pull/25) — OPEN / DRAFT / UNMERGED  
+**Base:** `main` at `78884c0f2609edbfc94a24e42d84824bff9eed20`
+
+### Exact-head CI evidence
+
+- Android shell verification [run #43719864854](https://github.com/akefadaka-git/maalenex/actions/runs/43719864854) — PASS: dependency verification, SBOM generation/validation, trusted-navigation tests, APK assembly, Android lint and Android 15 emulator install/launch/WebView smoke.
+- Full resolved-graph OSV scan (job `132830678963`) — PASS; scanner output: **No issues found**.
+- OSV PR-diff scan [run #43719864941](https://github.com/akefadaka-git/maalenex/actions/runs/43719864941) — PASS; frontend lockfile scan completed with no issues.
+- Brand assets and frontend verification [run #43719864840](https://github.com/akefadaka-git/maalenex/actions/runs/43719864840) — PASS.
+- Cloudflare Pages build [run #43719864735](https://github.com/akefadaka-git/maalenex/actions/runs/43719864735) — PASS; deployment steps skipped/not executed.
+
+### Exact APK identity
+
+- Artifact: [debug APK](https://github.com/akefadaka-git/maalenex/actions/runs/43719864854/artifacts/14163739417)
+- File: `app-debug.apk`
+- Size: 2,643,438 bytes
+- SHA-256: `ca6e2bb1617d6585cf3cdabd457821bbe8b1f1f9933740f3203b07dedc1d1b54`
+
+This is a debug APK, not a production/release-signed package. The reviewer must verify the downloaded APK hash before testing.
+
+### Additional evidence artifacts
+
+- [Resolved CycloneDX SBOMs and frontend lockfile](https://github.com/akefadaka-git/maalenex/actions/runs/43719864854/artifacts/14164665214)
+- [Gradle SHA-256 verification metadata](https://github.com/akefadaka-git/maalenex/actions/runs/43719864854/artifacts/14163599898)
+- [OSV SARIF — zero results](https://github.com/akefadaka-git/maalenex/actions/runs/43719864854/artifacts/14163992272)
+- [Android lint report](https://github.com/akefadaka-git/maalenex/actions/runs/43719864854/artifacts/14164391194)
+- [Trusted-navigation unit tests](https://github.com/akefadaka-git/maalenex/actions/runs/43719864854/artifacts/14164580548)
+- [WebView emulator smoke evidence](https://github.com/akefadaka-git/maalenex/actions/runs/43719864854/artifacts/14164391345)
+
+The SBOM scan covered 27 runtime, 29 test, 19 compile, 112 build-tool and 160 frontend package instances. No known OSV issues matched the scanned inputs. This does not replace manual dependency review, dynamic security testing or independent sign-off.
+
+### New/updated files in the review scope
+
+- `android/build.gradle.kts` — patched build-tool dependency pins, including KGP 2.4.21.
+- `android/gradle/verification-metadata.xml` — committed Gradle SHA-256 integrity metadata.
+- `.github/scripts/gradle-report-to-cyclonedx.py` — generates SBOMs from selected Gradle versions.
+- `.github/scripts/verify-gradle-sbom.py` — validates SBOM structure and remediation pins.
+- `.github/workflows/android-shell-verification.yml` — exact-head build, SBOM validation, OSV input and emulator evidence workflow.
+- `.github/workflows/osv-scanner.yml` — frontend PR-diff lockfile scan; Android dependencies are scanned from the Android workflow's resolved SBOMs.
+- `docs/security/PRELIMINARY-DEPENDENCY-SUPPLY-CHAIN-REVIEW-v1.0.md` — v1.2 dependency triage and scan disposition.
+
+### Residual platform/toolchain note
+
+KGP 2.4.21 is documented as fully supported through Gradle 9.7.0; this project uses Gradle 9.9.1 to retain its security fixes. The exact build passed on the review target, but the documented full-support matrix does not yet cover Gradle 9.9.1. Please include this compatibility caveat in the residual-risk assessment.
+
+No independent reviewer has yet completed or signed this assessment. Independent security review remains MISSING. TalkBack remains deferred by Owner; external-keyboard testing is not available. The Samsung Galaxy A16 / Android 16 device checks remain Owner-reported evidence as listed in section 5.
