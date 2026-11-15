@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "MaaleNex Moto",
+  "name": "MaaleNex",
   "short_name": "MaaleNex",
-  "description": "Amharic-first mobility, built for connected possibilities.",
+  "description": "MaaleNex passenger mobility public development preview",
   "lang": "am",
   "start_url": "/",
   "scope": "/",
