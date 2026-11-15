@@ -85,10 +85,18 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.9.1"
+          develocity-injection-enabled: false
 
-      - name: Bootstrap complete Gradle SHA-256 dependency verification metadata
+      - name: Bootstrap or verify Gradle SHA-256 dependency metadata
         working-directory: android
-        run: gradle --no-daemon --write-verification-metadata sha256 :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -s gradle/verification-metadata.xml ]; then
+            gradle --no-daemon --write-verification-metadata sha256 :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+          else
+            gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+          fi
 
       - name: Capture application runtime and non-runtime dependency configurations
         working-directory: android
@@ -113,22 +121,44 @@ jobs:
           gradle --no-daemon buildEnvironment --console=plain > ../osv-input/build/root-buildEnvironment.txt
           gradle --no-daemon :app:buildEnvironment --console=plain > ../osv-input/build/app-buildEnvironment.txt
 
-      - name: Prepare resolved dependency inputs for OSV
+      - name: Prepare resolved SBOM and verification metadata inputs
         shell: bash
         run: |
           set -euo pipefail
           test -s android/gradle/verification-metadata.xml
           test -s frontend/package-lock.json
           test -s osv-input/runtime/debugRuntimeClasspath.txt
-          mkdir -p osv-input/gradle
-          cp android/gradle/verification-metadata.xml osv-input/gradle/verification-metadata.xml
+          mkdir -p osv-input/sbom metadata-input
           cp frontend/package-lock.json osv-input/package-lock.json
+          cp android/gradle/verification-metadata.xml metadata-input/verification-metadata.xml
+          python3 .github/scripts/gradle-report-to-cyclonedx.py \
+            --input osv-input/build/root-buildEnvironment.txt \
+            --output osv-input/sbom/gradle-build-tool.cdx.json
+          python3 .github/scripts/gradle-report-to-cyclonedx.py \
+            --input osv-input/build/debugCompileClasspath.txt \
+            --output osv-input/sbom/android-compile.cdx.json
+          python3 .github/scripts/gradle-report-to-cyclonedx.py \
+            --input osv-input/runtime/debugRuntimeClasspath.txt \
+            --output osv-input/sbom/android-runtime.cdx.json
+          python3 .github/scripts/gradle-report-to-cyclonedx.py \
+            --input osv-input/test/debugUnitTestRuntimeClasspath.txt \
+            --input osv-input/test/debugAndroidTestRuntimeClasspath.txt \
+            --output osv-input/sbom/android-test.cdx.json
+          echo "lintClassPath is not exposed as a project configuration; lint tool dependencies are represented in the AGP build-tool graph." > osv-input/sbom/LINT-SCOPE.txt
 
-      - name: Upload resolved dependency inputs for OSV
+      - name: Upload resolved SBOM inputs for OSV
         uses: actions/upload-artifact@v4
         with:
-          name: maalenex-resolved-dependency-inputs
+          name: maalenex-osv-inputs
           path: osv-input/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Gradle verification metadata for branch integrity
+        uses: actions/upload-artifact@v4
+        with:
+          name: maalenex-gradle-verification-metadata
+          path: metadata-input/verification-metadata.xml
           if-no-files-found: error
           retention-days: 14
 
@@ -231,10 +261,11 @@ jobs:
     needs: android-build-and-emulator
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.7.1
     with:
-      download-artifact: maalenex-resolved-dependency-inputs
+      download-artifact: maalenex-osv-inputs
       scan-args: |-
         --recursive
-        ./
+        ./sbom
+        --lockfile=./package-lock.json
     permissions:
       actions: read
       contents: read
@@ -255,15 +286,15 @@ jobs:
       - name: Download resolved dependency metadata
         uses: actions/download-artifact@v4
         with:
-          name: maalenex-resolved-dependency-inputs
+          name: maalenex-gradle-verification-metadata
           path: /tmp/maalenex-dependency-inputs
       - name: Commit Gradle verification metadata only
         shell: bash
         run: |
           set -euo pipefail
-          test -s /tmp/maalenex-dependency-inputs/gradle/verification-metadata.xml
+          test -s /tmp/maalenex-dependency-inputs/verification-metadata.xml
           mkdir -p android/gradle
-          cp /tmp/maalenex-dependency-inputs/gradle/verification-metadata.xml android/gradle/verification-metadata.xml
+          cp /tmp/maalenex-dependency-inputs/verification-metadata.xml android/gradle/verification-metadata.xml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add android/gradle/verification-metadata.xml
