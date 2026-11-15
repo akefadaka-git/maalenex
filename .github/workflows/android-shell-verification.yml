@@ -17,6 +17,7 @@ jobs:
   android-build-and-emulator:
     name: Android assemble, lint and emulator launch
     runs-on: ubuntu-24.04
+    timeout-minutes: 35
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@v4
@@ -146,13 +147,16 @@ jobs:
             --output osv-input/sbom/android-test.cdx.json
           echo "lintClassPath is not exposed as a project configuration; lint tool dependencies are represented in the AGP build-tool graph." > osv-input/sbom/LINT-SCOPE.txt
 
+      - name: Validate categorized Gradle SBOMs and remediation pins
+        run: python3 .github/scripts/verify-gradle-sbom.py --root osv-input/sbom
+
       - name: Upload resolved SBOM inputs for OSV
         uses: actions/upload-artifact@v4
         with:
           name: maalenex-osv-inputs
           path: osv-input/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
       - name: Upload Gradle verification metadata for branch integrity
         uses: actions/upload-artifact@v4
