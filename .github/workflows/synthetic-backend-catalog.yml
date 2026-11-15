@@ -1,0 +1,113 @@
+name: Synthetic backend catalog verification
+
+on:
+  push:
+    branches:
+      - feat/biker-first-platform-a1-test-catalog
+  pull_request:
+    branches:
+      - feat/a3-passenger-mvp
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-catalog:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: maalenex_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d maalenex_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/maalenex_dev
+      CORS_ORIGINS: http://localhost:5173
+      SYNTHETIC_DATA_ONLY: "true"
+      SECURE_COOKIES: "false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Install backend
+        run: python -m pip install -e ".[dev]"
+      - name: Apply database migrations
+        run: alembic upgrade head
+      - name: Seed synthetic catalog and passenger inventory twice (idempotency)
+        run: |
+          python -m scripts.seed_synthetic_routes
+          python -m scripts.seed_synthetic_routes
+      - name: Start test API and wait for health
+        run: |
+          uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/maalenex-test-api.log 2>&1 &
+          healthy=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/api/v1/health; then
+              healthy=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$healthy" -ne 1 ]; then
+            cat /tmp/maalenex-test-api.log
+            exit 1
+          fi
+      - name: Verify catalog and Jinka–Wolaita–Addis passenger search
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timedelta
+          from urllib.parse import urlencode
+          from urllib.request import urlopen
+          from zoneinfo import ZoneInfo
+
+          base = "http://127.0.0.1:8000/api/v1"
+          with urlopen(base + "/catalog/locations") as response:
+              locations = json.load(response)
+          with urlopen(base + "/catalog/routes") as response:
+              routes = json.load(response)
+          assert {item["name"] for item in locations} >= {"Koybe", "Jinka", "Wolaita Sodo", "Addis Ababa"}
+          assert len(routes) >= 7
+          assert any(
+              item["origin"]["name"] == "Jinka"
+              and item["destination"]["name"] == "Addis Ababa"
+              for item in routes
+          )
+
+          tomorrow = datetime.now(ZoneInfo("Africa/Addis_Ababa")).date() + timedelta(days=1)
+          query = urlencode({
+              "origin_id": "10000000-0000-4000-8000-000000000002",
+              "destination_id": "10000000-0000-4000-8000-000000000004",
+              "travel_date": tomorrow.isoformat(),
+              "passenger_count": 1,
+          })
+          with urlopen(base + "/trips/search?" + query) as response:
+              trips = json.load(response)
+          assert trips, "Expected synthetic Jinka-to-Addis trips for tomorrow"
+          assert trips[0]["available_seats"] >= 1
+          assert trips[0]["fare"]["currency_code"] == "ETB"
+          assert trips[0]["reservation_only"] is True
+          assert trips[0]["payment_enabled"] is False
+          print(
+              f"PASS: {len(locations)} locations, {len(routes)} routes, "
+              f"{len(trips)} synthetic Jinka–Addis departures on {tomorrow}"
+          )
+          PY
