@@ -86,9 +86,9 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Bootstrap Gradle SHA-256 dependency verification metadata
+      - name: Bootstrap complete Gradle SHA-256 dependency verification metadata
         working-directory: android
-        run: gradle --no-daemon --write-verification-metadata sha256 :app:dependencies
+        run: gradle --no-daemon --write-verification-metadata sha256 :app:dependencies :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
 
       - name: Prepare resolved dependency inputs for OSV
         shell: bash
