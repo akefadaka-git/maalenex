@@ -9,8 +9,17 @@ class TrustedNavigationPolicyTest {
         assertTrue(TrustedNavigationPolicy.isTrustedDocumentUrl(
             "https://appassets.androidplatform.net/assets/www/index.html"
         ))
-        assertTrue(TrustedNavigationPolicy.isTrustedDocumentUrl(
+        assertFalse(TrustedNavigationPolicy.isTrustedDocumentUrl(
             "https://appassets.androidplatform.net:443/assets/www/chunk.js"
+        ))
+    }
+
+    @Test fun rejectsEveryDocumentExceptTheExactPackagedEntryPoint() {
+        assertFalse(TrustedNavigationPolicy.isTrustedDocumentUrl(
+            "https://appassets.androidplatform.net/assets/www/other.html"
+        ))
+        assertFalse(TrustedNavigationPolicy.isTrustedDocumentUrl(
+            "https://appassets.androidplatform.net/assets/other/index.html"
         ))
     }
 
