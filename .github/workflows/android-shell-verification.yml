@@ -81,14 +81,14 @@ jobs:
           test -r /dev/kvm && test -w /dev/kvm
           ls -l /dev/kvm
 
-      - name: Set up Gradle 8.9
+      - name: Set up Gradle 9.9.1
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.9"
+          gradle-version: "9.9.1"
 
       - name: Bootstrap complete Gradle SHA-256 dependency verification metadata
         working-directory: android
-        run: gradle --no-daemon --write-verification-metadata sha256 :app:assembleDebug :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
+        run: gradle --no-daemon --write-verification-metadata sha256 :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 
       - name: Prepare resolved dependency inputs for OSV
         shell: bash
