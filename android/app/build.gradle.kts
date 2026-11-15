@@ -23,10 +23,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/web-assets"))
 }
 
