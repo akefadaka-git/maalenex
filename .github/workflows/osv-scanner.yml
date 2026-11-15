@@ -17,6 +17,13 @@ jobs:
   scan-pr:
     if: github.event_name == 'pull_request'
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.7.1
+    with:
+      # Compare the frontend's committed lockfile only. Gradle verification metadata
+      # is an integrity/checksum inventory, not a dependency lockfile; Android
+      # dependencies are scanned from resolved CycloneDX SBOMs in the Android workflow.
+      scan-args: >-
+        --allow-no-lockfiles
+        --lockfile=frontend/package-lock.json
     permissions:
       actions: read
       contents: read
