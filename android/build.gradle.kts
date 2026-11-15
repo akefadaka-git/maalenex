@@ -1,4 +1,9 @@
 buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
     dependencies {
         // AGP 9.3.1 supplies KGP 2.2.10 by default. Pin patched build-tool dependencies
         // on the shared buildscript classpath so transitive AGP dependencies resolve safely.
