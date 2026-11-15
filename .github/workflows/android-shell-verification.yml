@@ -90,11 +90,28 @@ jobs:
         working-directory: android
         run: gradle --no-daemon --write-verification-metadata sha256 :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 
-      - name: Capture application runtime dependency graph
+      - name: Capture application runtime and non-runtime dependency configurations
         working-directory: android
+        shell: bash
         run: |
-          mkdir -p ../osv-input/runtime
+          set -euo pipefail
+          mkdir -p ../osv-input/runtime ../osv-input/test ../osv-input/lint ../osv-input/build
           gradle --no-daemon :app:dependencies --configuration debugRuntimeClasspath --console=plain > ../osv-input/runtime/debugRuntimeClasspath.txt
+          for configuration in debugCompileClasspath debugUnitTestCompileClasspath debugUnitTestRuntimeClasspath debugAndroidTestCompileClasspath debugAndroidTestRuntimeClasspath lintClassPath; do
+            case "$configuration" in
+              debugUnitTest*) output_dir=test ;;
+              debugAndroidTest*) output_dir=test ;;
+              lintClassPath) output_dir=lint ;;
+              *) output_dir=build ;;
+            esac
+            if gradle --no-daemon :app:dependencies --configuration "$configuration" --console=plain > "../osv-input/$output_dir/$configuration.txt" 2>&1; then
+              echo "CAPTURED $configuration"
+            else
+              echo "UNAVAILABLE $configuration" | tee "../osv-input/$output_dir/$configuration.status"
+            fi
+          done
+          gradle --no-daemon buildEnvironment --console=plain > ../osv-input/build/root-buildEnvironment.txt
+          gradle --no-daemon :app:buildEnvironment --console=plain > ../osv-input/build/app-buildEnvironment.txt
 
       - name: Prepare resolved dependency inputs for OSV
         shell: bash
@@ -225,8 +242,8 @@ jobs:
 
   commit-gradle-verification-metadata:
     name: Commit generated Gradle verification metadata to A3 branch
-    needs: osv-dependency-scan
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: [android-build-and-emulator, osv-dependency-scan]
+    if: always() && needs.android-build-and-emulator.result == 'success' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: write
