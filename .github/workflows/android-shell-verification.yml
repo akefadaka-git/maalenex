@@ -86,6 +86,28 @@ jobs:
         with:
           gradle-version: "8.9"
 
+      - name: Bootstrap Gradle SHA-256 dependency verification metadata
+        working-directory: android
+        run: gradle --no-daemon --write-verification-metadata sha256 :app:dependencies
+
+      - name: Prepare resolved dependency inputs for OSV
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s android/gradle/verification-metadata.xml
+          test -s frontend/package-lock.json
+          mkdir -p osv-input/gradle
+          cp android/gradle/verification-metadata.xml osv-input/gradle/verification-metadata.xml
+          cp frontend/package-lock.json osv-input/package-lock.json
+
+      - name: Upload resolved dependency inputs for OSV
+        uses: actions/upload-artifact@v4
+        with:
+          name: maalenex-resolved-dependency-inputs
+          path: osv-input/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Run trusted navigation policy unit tests, assemble APK and run Android lint
         working-directory: android
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
@@ -179,3 +201,51 @@ jobs:
           path: artifacts/android-smoke/
           if-no-files-found: warn
           retention-days: 14
+
+  osv-dependency-scan:
+    name: OSV scan resolved frontend and Android dependencies
+    needs: android-build-and-emulator
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.7.1
+    with:
+      download-artifact: maalenex-resolved-dependency-inputs
+      scan-args: |-
+        --recursive
+        ./
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+  commit-gradle-verification-metadata:
+    name: Commit generated Gradle verification metadata to A3 branch
+    needs: osv-dependency-scan
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Download resolved dependency metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: maalenex-resolved-dependency-inputs
+          path: /tmp/maalenex-dependency-inputs
+      - name: Commit Gradle verification metadata only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s /tmp/maalenex-dependency-inputs/gradle/verification-metadata.xml
+          mkdir -p android/gradle
+          cp /tmp/maalenex-dependency-inputs/gradle/verification-metadata.xml android/gradle/verification-metadata.xml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add android/gradle/verification-metadata.xml
+          if git diff --cached --quiet; then
+            echo "Gradle verification metadata already matches the generated dependency graph."
+          else
+            git commit -m "build: add Gradle dependency verification metadata"
+            git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
+          fi
