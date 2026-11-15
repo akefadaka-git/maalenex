@@ -7,7 +7,10 @@ on:
       - "android/**"
       - "frontend/**"
       - ".github/scripts/android-emulator-smoke.sh"
+      - ".github/scripts/gradle-report-to-cyclonedx.py"
+      - ".github/scripts/verify-gradle-sbom.py"
       - ".github/workflows/android-shell-verification.yml"
+      - ".github/workflows/osv-scanner.yml"
   workflow_dispatch:
 
 permissions:
