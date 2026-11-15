@@ -29,7 +29,7 @@ export default function App() {
   const [guest, setGuest] = useState(false);
   const t = text[language];
   useEffect(() => { document.documentElement.lang = language; }, [language]);
-  return <main className="page" lang={language}>
+  return <div className="page" lang={language}>
     <a className="skip-link" href="#main-content">{language === "am" ? "ወደ ዋና ይዘት ዝለል" : "Skip to main content"}</a>
     <header className="topbar">
       <a className="brand" href="./" aria-label="MaaleNex home">
@@ -39,7 +39,7 @@ export default function App() {
       <button className="language" type="button" aria-label={t.language}
         onClick={() => setLanguage(language === "am" ? "en" : "am")}>{language === "am" ? "EN" : "አማ"}</button>
     </header>
-    <section id="main-content" className="hero" tabIndex={-1}>
+    <main id="main-content" className="hero" tabIndex={-1}>
       <p className="eyebrow">{t.eyebrow}</p>
       <h1>{t.title}</h1>
       <p className="subtitle">{t.intro}</p>
@@ -56,7 +56,7 @@ export default function App() {
       <section className="future-panel">
         <h2>{t.future}</h2><p>{t.futureText}</p>
       </section>
-    </section>
+    </main>
     <footer><span>{t.footer}</span><span>© MaaleNex</span></footer>
-  </main>;
+  </div>;
 }
