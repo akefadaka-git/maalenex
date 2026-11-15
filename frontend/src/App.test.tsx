@@ -37,6 +37,7 @@ describe("MaaleNex passenger-only public preview", () => {
 
   it("does not collect credentials or personal data and does not claim authentication", () => {
     render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Switch language to English" }));
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByLabelText(/password|email|phone|full name|የይለፍ ቃል|ስልክ|ሙሉ ስም/i)).toBeNull();
     expect(screen.queryByRole("button", { name: /sign in|login|submit|ይግቡ/i })).toBeNull();
@@ -45,6 +46,7 @@ describe("MaaleNex passenger-only public preview", () => {
 
   it("removes unsupported route distance and fare claims", () => {
     render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Switch language to English" }));
     expect(screen.queryByText(/\b\d+\s?km\b/i)).toBeNull();
     expect(screen.queryByText(/\b\d+\s?ETB\b/i)).toBeNull();
     expect(screen.getByText(/No verified schedules, fares, or operating services/i)).toBeTruthy();
