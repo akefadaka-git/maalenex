@@ -26,8 +26,14 @@ if len(parser.policies) != 1:
 directives = {}
 for item in parser.policies[0].split(";"):
     parts = item.strip().split()
-    if parts:
-        directives[parts[0].lower()] = parts[1:]
+    if not parts:
+        continue
+    name = parts[0].lower()
+    if name in directives:
+        raise SystemExit(f"FAIL: duplicate CSP directive: {name}")
+    directives[name] = parts[1:]
+if not directives:
+    raise SystemExit("FAIL: CSP policy is empty")
 
 required = {
     "default-src": ["'none'"],
