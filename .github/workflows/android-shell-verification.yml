@@ -90,12 +90,19 @@ jobs:
         working-directory: android
         run: gradle --no-daemon --write-verification-metadata sha256 :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 
+      - name: Capture application runtime dependency graph
+        working-directory: android
+        run: |
+          mkdir -p ../osv-input/runtime
+          gradle --no-daemon :app:dependencies --configuration debugRuntimeClasspath --console=plain > ../osv-input/runtime/debugRuntimeClasspath.txt
+
       - name: Prepare resolved dependency inputs for OSV
         shell: bash
         run: |
           set -euo pipefail
           test -s android/gradle/verification-metadata.xml
           test -s frontend/package-lock.json
+          test -s osv-input/runtime/debugRuntimeClasspath.txt
           mkdir -p osv-input/gradle
           cp android/gradle/verification-metadata.xml osv-input/gradle/verification-metadata.xml
           cp frontend/package-lock.json osv-input/package-lock.json
