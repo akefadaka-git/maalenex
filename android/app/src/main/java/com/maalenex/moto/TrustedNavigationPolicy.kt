@@ -10,7 +10,7 @@ import java.net.URI
  */
 internal object TrustedNavigationPolicy {
     private const val TRUSTED_HOST = "appassets.androidplatform.net"
-    private const val TRUSTED_PATH_PREFIX = "/assets/"
+    private const val TRUSTED_DOCUMENT_PATH = "/assets/www/index.html"
 
     fun isTrustedDocumentUrl(rawUrl: String): Boolean {
         val uri = try {
@@ -34,7 +34,7 @@ internal object TrustedNavigationPolicy {
         if (uri.rawQuery != null || uri.rawFragment != null) return false
 
         val path = uri.rawPath ?: return false
-        if (!path.startsWith(TRUSTED_PATH_PREFIX)) return false
+        if (path != TRUSTED_DOCUMENT_PATH) return false
         if ('%' in path || '\\' in path || "//" in path) return false
         if (path.split('/').any { it == "." || it == ".." }) return false
 
