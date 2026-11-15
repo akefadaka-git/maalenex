@@ -2,7 +2,6 @@ import org.gradle.api.tasks.Sync
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
 }
 
 val frontendDist = rootProject.layout.projectDirectory.dir("../frontend/dist")
