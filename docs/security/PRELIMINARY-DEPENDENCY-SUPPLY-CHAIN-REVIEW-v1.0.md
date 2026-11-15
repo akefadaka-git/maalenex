@@ -1,71 +1,83 @@
-# MaaleNex — Preliminary Dependency and Supply-Chain Review v1.0
+# MaaleNex — Dependency and Supply-Chain Review v1.1
 
-**Status:** PRELIMINARY INTERNAL REVIEW — NOT AN INDEPENDENT AUDIT  
-**Application review target:** e2dd491757a919b87a5f26478982f758493ecb6f  
-**Repository:** ake fadaka-git/maalenex  
+**Status:** ACTIVE REMEDIATION — INTERNAL REVIEW; NOT AN INDEPENDENT AUDIT  
+**Current application / Android verification target:** ae0fd402d42626e82b24c37ec46af0c3158bc680  
+**Repository:** akefadaka-git/maalenex  
 **PR:** #25
 
-## Scope and method
+This v1.1 update supersedes the initial dependency observations in v1.0 where newer evidence exists. It does not certify production readiness or independent security review.
 
-This note records a source-level inspection of dependency declarations and the frontend verification workflow at the exact application review target. It does not claim a complete dependency inventory, vulnerability scan, malware scan, reproducible build, or independent security assessment.
+## 1. Frontend dependency controls
 
-Files inspected:
-- frontend/package.json (blob 42c5f617772d94f6175102120f4ba64594d35149)
-- android/build.gradle.kts (blob c7ad7549e74f63b6958ba4e171cc08161976da49)
-- android/app/build.gradle.kts (blob 9fcc2e5580376da7efcb351d4994e8219801758a)
-- android/settings.gradle.kts (blob 587c586781388b6f5a92ec6971426870fbdd8367)
-- android/gradle.properties (blob 6c5ec4ed4945ec59113f3815a200b99475f83e8a)
-- .github/workflows/a3-verify.yml (blob 536adff08af01a9923e95af4ca12755fe581e02b)
+**Status: PASS for current lockfile and npm audit evidence.**
 
-## Preliminary findings
+- A committed npm lockfile v3 now exists at `frontend/package-lock.json`.
+- Lockfile inventory: 160 packages; package resolution and integrity metadata are recorded.
+- Resolved direct versions include React 18.3.1, React DOM 18.3.1, Vite 8.3.8, Vitest 5.1.0 and @vitejs/plugin-react 6.3.0.
+- Frontend CI uses Node 22 and `npm ci`, rather than resolving an unlocked dependency graph at build time.
+- The blocking npm audit on the upgraded graph reported zero vulnerabilities.
+- Exact-head frontend verification passed on PR head `bea1d49e91b91b6b1051737402e59cb07ec86e2c`: [run #43713719757](https://github.com/akefadaka-git/maalenex/actions/runs/43713719757).
+- OSV PR scan for the frontend at that head passed: [run #43713719995](https://github.com/akefadaka-git/maalenex/actions/runs/43713719995).
 
-### SUPPLY-001 — No committed npm lockfile found at reviewed target
+The prior six npm findings (2 critical, 1 high, 3 moderate) were eliminated by the dependency upgrade and re-resolution. This statement applies to the new committed npm graph scanned by the successful audit, not to every tool or runtime dependency in the repository.
 
-**Severity:** Medium (supply-chain/reproducibility control gap; not evidence of a known exploitable vulnerability)  
-**Evidence:** frontend/package.json declares semver ranges, including React ^18.3.1, Vite ^5.4.11 and Vitest ^2.1.5. A frontend/package-lock.json was not present at the reviewed target. The workflow runs npm install --no-audit --no-fund, which resolves dependencies without a committed lockfile and explicitly suppresses npm's audit step.  
-**Impact:** Dependency resolution can vary between builds; exact transitive versions are not established by the repository snapshot. A reviewer cannot reliably reproduce the dependency graph from this commit alone. The current CI pass establishes that the build/test ran, not that dependencies were vulnerability-free.  
-**Required action:** Generate and commit a reviewed package-lock.json; change CI to npm ci; add a separate dependency-audit step that records results and does not silently ignore high/critical findings. Pin or otherwise control Node/npm toolchain versions. Re-run exact-head CI and review resulting lockfile diffs.
+## 2. Android build-tool dependency findings
 
-### SUPPLY-002 — Android dependency freshness and transitive resolution are not yet evidenced
+**Status: FINDINGS IDENTIFIED; REMEDIATION IN PROGRESS.**
 
-**Severity:** Low / Informational pending full resolution  
-**Evidence:** Android Gradle plugin 8.7.3, Kotlin Android plugin 2.0.21, AndroidX WebKit 1.12.1, AndroidX Core KTX 1.15.0 and JUnit 4.13.2 are declared. No Gradle dependency lockfiles or dependency verification metadata were found at the inspected conventional paths.  
-**Impact:** Direct versions are visible, but the complete resolved transitive graph, integrity verification and current advisory status have not been established. AndroidX WebKit 1.12.1 is substantially older than the AndroidX release page's stable 1.18.0 entry dated 2026-10-21 / latest update 2026-11-04. This is a freshness review item, not a claim that 1.12.1 contains a confirmed vulnerability.  
-**Required action:** Resolve and record the complete Gradle graph; run dependency vulnerability scanning; assess an upgrade to a current stable WebKit release in a separate tested change; enable Gradle dependency locking and dependency verification where practical.
+The first complete Gradle verification bootstrap on PR head `bea1d49e91b91b6b1051737402e59cb07ec86e2c` completed the Android assemble, lint and emulator job successfully. Its OSV scan of the generated Gradle verification metadata reported:
 
-### SUPPLY-003 — No repository evidence yet of automated dependency advisory monitoring
+- 16 packages with affected dependency records.
+- 62 advisory records: 3 critical, 24 high, 33 medium, 1 low, 1 unknown.
+- Affected package families in the scan output include Guava, protobuf-java, commons-io, Netty codec/http/http2/common/handler modules, commons-compress, Apache HttpClient, jose4j, Bouncy Castle, JDOM2 and the Kotlin Gradle plugin.
+- The scanner attributed these records to `gradle/verification-metadata.xml`; it did not establish that all listed packages are shipped in the APK or reachable at runtime.
+- The OSV workflow failed closed because the scan contained findings. This is not a clean scan and must not be represented as one.
 
-**Severity:** Low / Informational pending broader repository inspection  
-**Evidence:** The inspected frontend workflow does not run npm audit or an equivalent dependency scanner. The Android workflow evidence reviewed to date establishes build/lint/test execution, not dependency advisory scanning.  
-**Impact:** Vulnerability detection is not demonstrated by the current CI evidence.  
-**Required action:** Add automated advisory scanning for npm and Gradle dependencies, with documented triage, suppression justification, and update cadence. Confirm whether repository-level Dependabot or equivalent controls already exist before duplicating them.
+Evidence: [Android shell verification run #43713719930](https://github.com/akefadaka-git/maalenex/actions/runs/43713719930). The Android build/emulator job succeeded; the downstream OSV job failed on the detected findings. SARIF artifact: [OSV Scanner SARIF](https://github.com/akefadaka-git/maalenex/actions/runs/43713719930/artifacts/14161548877).
 
-## Advisory research notes
+### 2.1 Remediation applied for re-verification
 
-- The official Vite advisory index contains multiple 2026 advisories, including issues specifically scoped to newer Vite major versions and development-server behavior. Their existence does not by itself establish that this project's declared Vite 5.4.11 or production bundle is affected. Exact package versions and affected-version ranges must be checked against a lockfile and usage context.
-- The Vitest advisory index also lists 2026 issues, some scoped to Browser Mode or newer Vitest versions. No applicability conclusion is made for the declared Vitest 2.1.5 without an exact resolved graph and advisory range analysis.
-- Android Developers' AndroidX WebKit release notes show stable 1.18.0 as the current release entry in late October/early November 2026; the project's declared 1.12.1 should be reviewed for upgrade, compatibility and regression risk.
+The following version changes are now on the A3 branch:
 
-References:
-- Vite advisories: https://github.com/vitejs/vite/security/advisories
-- Vitest advisories: https://github.com/vitest-dev/vitest/security/advisories
-- AndroidX WebKit release notes: https://developer.android.com/jetpack/androidx/releases/webkit
+- Android Gradle Plugin: 8.7.3 → 9.3.1.
+- Kotlin Android Gradle plugin: 2.0.21 → 2.4.21.
+- Gradle CI runtime: 8.9 → 9.9.1.
+- AndroidX WebKit: 1.12.1 → 1.15.0 (selected to retain minSdk 23 compatibility).
 
-## Required next verification
+Official compatibility evidence:
+- AGP 9.3 requires Gradle 9.5 or newer; AGP 9.4 requires Gradle 9.6 or newer. https://developer.android.com/build/releases/about-agp
+- Kotlin Gradle plugin 2.4.21 is documented as fully supported with Gradle through 9.7.0 and AGP through 9.3.1. Gradle 9.9.1 is newer than that fully supported range; the exact project build must therefore prove compatibility rather than assuming it. https://kotlinlang.org/docs/gradle-configure-project.html
+- Gradle 9.9.1 is the current patch release and addresses three Gradle security vulnerabilities. https://docs.gradle.org/current/release-notes.html
 
-1. Create and review the npm lockfile.
-2. Run npm audit against the locked graph and document all findings.
-3. Resolve Gradle dependencies and produce a full dependency inventory.
-4. Run an Android/Gradle vulnerability scan against the exact resolved graph.
-5. Review any proposed updates and rerun frontend, Android lint, unit tests, APK assembly and emulator smoke.
-6. Have the independent reviewer verify the resulting exact commit and APK SHA-256.
+The new exact-head workflows are running against `ae0fd402d42626e82b24c37ec46af0c3158bc680`:
+- Android shell verification: [run #43714326716](https://github.com/akefadaka-git/maalenex/actions/runs/43714326716) — IN PROGRESS at this record.
+- OSV dependency scan: [run #43714326830](https://github.com/akefadaka-git/maalenex/actions/runs/43714326830) — IN PROGRESS at this record.
+- Frontend verification: [run #43714326381](https://github.com/akefadaka-git/maalenex/actions/runs/43714326381) — PASS.
+- Cloudflare Pages build: [run #43714326389](https://github.com/akefadaka-git/maalenex/actions/runs/43714326389) — PASS; deployment was not performed.
 
-## Disposition
+The Android workflow now also captures `debugRuntimeClasspath` separately so the shipped application's runtime dependency graph can be distinguished from Gradle/AGP build-tool dependencies. That report has not yet been inspected at this record.
 
-- Preliminary source-level dependency review: PARTIAL.
-- Known exploitable vulnerability confirmed in this note: NONE ESTABLISHED.
-- Dependency vulnerability scan: NOT RUN / NOT EVIDENCED.
-- Reproducible npm dependency graph: MISSING.
-- Independent security review: MISSING.
-- A4: remains PARTIAL / NOT VERIFIED-CLOSED.
-- No merge, deployment, release, production activation or main-branch modification is authorized.
+## 3. Required triage and closure conditions
+
+1. Confirm the AGP 9.3.1 / Kotlin 2.4.21 / Gradle 9.9.1 build, tests, lint, APK assembly and emulator smoke all pass on the same exact head.
+2. Inspect the captured `debugRuntimeClasspath` report and map every OSV finding to runtime, test-only, lint-only or build-tool-only configurations.
+3. Review each advisory's affected-version range and exploitability context; do not blanket-suppress or label findings false positives.
+4. Upgrade or constrain vulnerable dependencies where they are in an active build or runtime path. For any accepted residual finding, record package, advisory, configuration, reachability rationale, compensating control, owner and review date.
+5. Re-run OSV on the exact resolved graph and retain the SARIF/report artifacts.
+6. Commit generated Gradle verification metadata only after successful generation and scan triage; then rerun CI against the resulting final commit.
+7. Obtain independent security reviewer sign-off against the exact final commit and APK SHA-256.
+
+## 4. Current disposition
+
+- Frontend lockfile / deterministic npm installation: **PASS**.
+- Frontend npm audit: **PASS — zero findings on upgraded lockfile**.
+- Frontend OSV PR scan: **PASS** on the previously scanned head.
+- Android assemble/lint/emulator: **PASS** on the initial full-graph scan head; re-verification pending after toolchain upgrade.
+- Android full Gradle dependency scan: **FINDINGS — 16 packages / 62 advisory records; remediation and runtime/build-time triage pending**.
+- Android runtime dependency graph separation: **PENDING**.
+- Gradle dependency verification metadata committed to branch: **NOT YET**; generated metadata is currently artifact-backed pending scan triage.
+- Independent security review: **MISSING**.
+- A4: **PARTIAL / NOT VERIFIED-CLOSED**.
+- A5: **NOT STARTED**.
+
+No merge, deployment, release, production activation, real passenger-data processing, or main-branch modification is authorized by this review.
