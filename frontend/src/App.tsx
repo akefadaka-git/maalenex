@@ -32,8 +32,8 @@ export default function App() {
   return <main className="page" lang={language}>
     <a className="skip-link" href="#main-content">{language === "am" ? "ወደ ዋና ይዘት ዝለል" : "Skip to main content"}</a>
     <header className="topbar">
-      <a className="brand" href="/" aria-label="MaaleNex home">
-        <img src="/brand/maalenex-symbol.svg" alt="" width="38" height="38" />
+      <a className="brand" href="./" aria-label="MaaleNex home">
+        <img src="./brand/maalenex-symbol.svg" alt="" width="38" height="38" />
         <span>{t.brand}</span>
       </a>
       <button className="language" type="button" aria-label={t.language}
