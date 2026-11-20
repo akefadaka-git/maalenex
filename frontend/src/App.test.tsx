@@ -55,6 +55,12 @@ describe("MaaleNex NEXUS passenger preview", () => {
     }
   });
 
+  it("shows an empty journey-information state instead of inventing routes or schedules", () => {
+    render(<App />);
+    expect(screen.getByText("ገና የታተመ የጉዞ መረጃ የለም")).toBeTruthy();
+    expect(screen.getByText(/የተረጋገጠ መረጃ እስኪገኝ ድረስ/)).toBeTruthy();
+  });
+
   it("retains a clear development-only operating boundary", () => {
     render(<App />);
     expect(screen.getByText(/የልማት ማሳያ ነው/)).toBeTruthy();
