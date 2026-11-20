@@ -1,7 +1,8 @@
+import hashlib
 from secrets import token_hex
 from uuid import UUID
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, select, text
 from sqlalchemy.orm import Session
 
 from app.domains.audit.service import record_event
@@ -56,6 +57,10 @@ def post_balanced_transaction(
     if debit_account_id == credit_account_id:
         raise LedgerInvariantError("A transaction must use two distinct ledger accounts.")
 
+    if db.get_bind().dialect.name == "postgresql":
+        lock_key = int.from_bytes(hashlib.sha256(idempotency_key.encode()).digest()[:8], "big", signed=True)
+        db.execute(text("SELECT pg_advisory_xact_lock(:lock_key)"), {"lock_key": lock_key})
+
     existing = db.scalar(select(LedgerTransaction).where(
         LedgerTransaction.idempotency_key == idempotency_key
     ))
@@ -76,7 +81,7 @@ def post_balanced_transaction(
 
     accounts = db.scalars(select(LedgerAccount).where(
         LedgerAccount.id.in_([debit_account_id, credit_account_id])
-    ).with_for_update()).all()
+    ).order_by(LedgerAccount.id).with_for_update()).all()
     by_id = {item.id: item for item in accounts}
     if len(by_id) != 2:
         raise LedgerInvariantError("Ledger account not found.")
