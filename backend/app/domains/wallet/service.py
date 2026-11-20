@@ -2,7 +2,6 @@ from secrets import token_hex
 from uuid import UUID
 
 from sqlalchemy import case, func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.domains.audit.service import record_event
