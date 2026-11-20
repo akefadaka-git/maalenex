@@ -3,8 +3,8 @@
 Revision ID: 0008_wallet_double_entry_ledger
 Revises: 0007_operator_invites_support
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "0008_wallet_double_entry_ledger"
