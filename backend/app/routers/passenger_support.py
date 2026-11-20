@@ -71,6 +71,7 @@ def _case_payload(case: PassengerSupportCase) -> dict:
         "subject": case.subject,
         "message": case.message,
         "status": case.status,
+        "resolution_code": case.resolution_code,
         "resolution_note": case.resolution_note,
         "created_at": case.created_at.isoformat(),
         "updated_at": case.updated_at.isoformat(),
