@@ -22,6 +22,7 @@ from app.domains.identity.security import (
     verify_secret,
 )
 
+
 class PassengerAuthenticationError(Exception):
     pass
 
@@ -47,7 +48,7 @@ def _now(db: Session) -> datetime:
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 def _utc(value: datetime) -> datetime:
-    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 def register_passenger(db: Session, *, login_identifier: str, display_name: str, password: str) -> PassengerAccount:
     passenger = PassengerAccount(
