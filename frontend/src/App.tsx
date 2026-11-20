@@ -8,7 +8,8 @@ const labels = {
   en: { dashboard:"Dashboard", map:"Map", wallet:"Wallet", profile:"Profile", help:"Help", report:"Report", login:"Log in", register:"Create account", about:"About", welcome:"Welcome to MaaleNex", subtitle:"Your mobility tools, information and support in one place.", search:"Search origin or destination", quick:"Quick access", journeys:"Journey information", empty:"Verified journey information will appear here when published.", balance:"Wallet balance", demo:"DEMO MODE", noFunds:"Real-money transactions are not enabled.", mapNote:"This is a map preview. No verified operating routes have been published yet.", name:"Full name", phone:"Phone number", password:"Password", email:"Email", submit:"Continue", coming:"This capability will activate after security and service-provider verification.", support:"How can we help?", reportTitle:"Report an issue", message:"Your message", send:"Submit report", sent:"Demo report captured locally. It has not been sent to a support server.", account:"Manage your account", language:"Language", notifications:"Notifications", signout:"Sign out", noLogin:"This is currently a demonstration session only." }
 } as const;
 
-const nav: Page[] = ["dashboard","map","wallet","profile","help","report"];
+type NavPage = Exclude<Page, "login" | "register" | "forgot" | "about">;
+const nav: NavPage[] = ["dashboard","map","wallet","profile","help","report"];
 const iconFor: Record<Page, "home"|"map"|"wallet"|"user"|"help"|"flag"|"compass"|"globe"|"shield"|"route"|"arrow"> = {
  dashboard:"home", map:"map", wallet:"wallet", profile:"user", help:"help", report:"flag", login:"user", register:"user", forgot:"shield", about:"compass"
 };
