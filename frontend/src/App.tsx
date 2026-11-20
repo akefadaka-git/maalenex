@@ -11,6 +11,7 @@ import {
   type PassengerLocation,
   type PassengerTrip,
 } from "./passenger-api";
+import { BookingFlow } from "./BookingFlow";
 import { Icon } from "./components/nexus-icons";
 
 type Language = "am" | "en";
@@ -56,6 +57,7 @@ export default function App() {
  const [tripResults,setTripResults]=useState<PassengerTrip[]>([]);
  const [tripLoading,setTripLoading]=useState(false);
  const [tripError,setTripError]=useState("");
+ const [selectedTrip,setSelectedTrip]=useState<PassengerTrip|null>(null);
  const todayLocal=(()=>{const now=new Date();return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);})();
  const t=labels[language];
  useEffect(()=>{document.documentElement.lang=language;},[language]);
@@ -192,6 +194,7 @@ export default function App() {
           <p className="field-hint">{language==="am" ? "የታተሙ መስመሮችና ጉዞዎች ብቻ ይታያሉ።" : "Only published routes and trips with current ETB fares are shown."}</p>
         </form>
         {tripError && <p className="notice-panel" role="alert">{tripError}</p>}
+        {selectedTrip && <BookingFlow trip={selectedTrip} passengerCount={passengerCount} language={language} onClose={()=>setSelectedTrip(null)} />}
         {tripResults.length>0 && (
           <div className="trip-results">
             <div className="section-heading">
@@ -210,7 +213,7 @@ export default function App() {
                 <p>{language==="am" ? "የተገኙ መቀመጫዎች" : "Available seats"}: {trip.available_seats}</p>
                 {trip.arrival_estimate_at && <p>{language==="am" ? "የመድረሻ ግምት" : "Estimated arrival"}: {formatTripTime(trip.arrival_estimate_at)}</p>}
                 <span className="wallet-badge">{language==="am" ? "የቦታ ማስያዣ ብቻ" : "Reservation only"}</span>
-                <p className="field-hint">{language==="am" ? "ክፍያና ትኬት ገና አልነቁም።" : "Payment and ticket issuance are not enabled."}</p>
+                <p className="field-hint">{language==="am" ? "ክፍያና ትኬት ገና አልነቁም።" : "Payment and ticket issuance are not enabled."}</p><button type="button" className="primary-action" onClick={()=>setSelectedTrip(trip)}>{language==="am" ? "መቀመጫ ምረጥ" : "Choose seats"}</button>
               </article>
             ))}
           </div>
