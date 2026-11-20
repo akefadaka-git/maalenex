@@ -34,13 +34,13 @@ export default function App() {
    <div className="header-actions"><button className="icon-button" aria-label={t.notifications} onClick={()=>setNotice(t.coming)}><Icon name="bell"/></button><button className="language-switch" onClick={()=>setLanguage(language==="am"?"en":"am")}><Icon name="globe"/>{language==="am"?"EN":"አማ"}</button><button className="profile-chip" onClick={()=>go("profile")}><Icon name="user"/><span>{language==="am"?"መገለጫ":"Profile"}</span></button></div>
   </header>
   <div className="platform-layout">
-   <aside className="side-nav" aria-label="Main navigation">
+   <nav className="side-nav" aria-label="Main navigation">
     <p className="nav-caption">{language==="am"?"ዋና ማሰሻ":"WORKSPACE"}</p>
     {nav.map(item=><button key={item} className={page===item?"side-link active":"side-link"} onClick={()=>go(item)}><Icon name={iconFor[item]}/><span>{t[item]}</span></button>)}
     <div className="side-spacer"/>
     <button className="side-link" onClick={()=>go("about")}><Icon name="compass"/><span>{t.about}</span></button>
     <div className="side-account"><span className="avatar-mark">M</span><span><strong>MaaleNex</strong><small>{language==="am"?"የእንግዳ ማሳያ":"Guest preview"}</small></span></div>
-   </aside>
+   </nav>
    <main id="main-content" className="platform-main" tabIndex={-1}>
     <div className="page-heading"><div><p className="eyebrow"><span className="eyebrow-dot"/>MAALENEX / {page.toUpperCase()}</p><h1>{page==="dashboard"?t.welcome:title}</h1><p>{page==="dashboard"?t.subtitle:""}</p></div><span className="mode-pill">{t.demo}</span></div>
     {notice&&<p className="notice-panel" role="status">{notice}</p>}
