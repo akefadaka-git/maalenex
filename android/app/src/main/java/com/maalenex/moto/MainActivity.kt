@@ -4,6 +4,7 @@ import android.app.Activity
 import android.graphics.Color
 import android.os.Bundle
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
 import android.view.Gravity
 import android.widget.FrameLayout
@@ -123,6 +124,7 @@ class MainActivity : Activity() {
                         TAG,
                         "WEBVIEW_RENDERER_GONE didCrash=${detail.didCrash()} priorityAtExit=${detail.rendererPriorityAtExit()}"
                     )
+                    hideSplashOverlay()
                     return true
                 }
 
