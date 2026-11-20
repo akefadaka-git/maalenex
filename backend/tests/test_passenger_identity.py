@@ -23,6 +23,7 @@ from app.domains.identity.passenger_service import (
     verify_passenger_csrf,
 )
 
+
 @pytest.fixture
 def db():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
