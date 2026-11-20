@@ -160,7 +160,7 @@ def test_evidence_rejects_mismatched_file_signature(report_client, monkeypatch, 
 def staff_report_client(monkeypatch):
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine, tables=[
-        PassengerAccount.__table__, PassengerReport.__table__, AuditEvent.__table__,
+        PassengerAccount.__table__, PassengerReport.__table__, PassengerReportAttachment.__table__, AuditEvent.__table__,
     ])
     db = Session(engine)
     passenger = PassengerAccount(
@@ -207,3 +207,33 @@ def test_staff_can_filter_claim_and_resolve_complaints(staff_report_client):
     db.refresh(report)
     assert report.resolved_at is not None
     assert report.resolution_note.startswith("The safety issue")
+
+
+
+def test_staff_can_download_report_evidence_with_audit(
+    staff_report_client, monkeypatch, tmp_path
+):
+    client, db, report = staff_report_client
+    monkeypatch.setenv("MAALENEX_PRIVATE_UPLOAD_DIR", str(tmp_path))
+    payload = b"\\x89PNG\\r\\n\\x1a\\n" + b"\\x00" * 16
+    storage_key = "staff-evidence.png"
+    (tmp_path / storage_key).write_bytes(payload)
+    attachment = PassengerReportAttachment(
+        report_id=report.id,
+        original_filename="vehicle-evidence.png",
+        content_type="image/png",
+        size_bytes=len(payload),
+        sha256="0" * 64,
+        storage_key=storage_key,
+    )
+    db.add(attachment)
+    db.commit()
+    response = client.get(
+        f"/api/v1/reports/passenger/{report.id}/attachments/{attachment.id}"
+    )
+    assert response.status_code == 200
+    assert response.content == payload
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert db.query(AuditEvent).filter_by(
+        event_type="passenger.report.attachment.downloaded"
+    ).count() == 1
