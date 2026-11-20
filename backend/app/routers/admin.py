@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
@@ -949,7 +949,7 @@ def resolve_passenger_support_case(
     case.status = "resolved"
     case.resolution_code = payload.resolution_code.strip()
     case.resolution_note = payload.resolution_note.strip()
-    case.resolved_at = db.scalar(select(func.now()))
+    case.resolved_at = datetime.now(UTC)
     _audit(
         db, context=context, event="passenger.support.case.resolved",
         resource_type="passenger_support_case", resource_id=case.id,
