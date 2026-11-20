@@ -136,7 +136,7 @@ def test_private_evidence_upload_and_owner_scoped_download(report_client, monkey
     assert downloaded.status_code == 200
     assert downloaded.content == png
     assert downloaded.headers["x-content-type-options"] == "nosniff"
-    assert list(tmp_path.iterdir())[0].stat().st_mode & 0o777 == 0o600
+    assert next(iter(tmp_path.iterdir())).stat().st_mode & 0o777 == 0o600
 
 
 def test_evidence_rejects_mismatched_file_signature(report_client, monkeypatch, tmp_path):
