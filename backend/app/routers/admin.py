@@ -1,11 +1,14 @@
 """Platform administration and staff workflow endpoints."""
 # FastAPI dependency injection requires Depends instances in endpoint defaults.
 # ruff: noqa: B008, I001
+import os
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -28,7 +31,7 @@ from app.domains.organizations.models import Organization, OrganizationInvitatio
 from app.domains.organizations.service import create_candidate_operator
 from app.domains.support.models import SupportCase
 from app.domains.support.passenger_models import PassengerSupportCase
-from app.domains.support.report_models import PassengerReport
+from app.domains.support.report_models import PassengerReport, PassengerReportAttachment
 from app.domains.trips.models import Trip, TripSeat
 from app.routers.auth import current_staff_context, require_csrf
 
@@ -1002,7 +1005,50 @@ def list_passenger_reports(
         "resolution_note": item.resolution_note,
         "created_at": item.created_at.isoformat(),
         "resolved_at": item.resolved_at.isoformat() if item.resolved_at else None,
+        "attachments": [{
+            "id": str(file.id), "file_name": file.original_filename,
+            "content_type": file.content_type, "size_bytes": file.size_bytes,
+            "sha256": file.sha256,
+        } for file in db.scalars(select(PassengerReportAttachment).where(
+            PassengerReportAttachment.report_id == item.id
+        )).all()],
     } for item in records]
+
+
+@router.get("/reports/passenger/{report_id}/attachments/{attachment_id}")
+def download_passenger_report_evidence(
+    report_id: UUID,
+    attachment_id: UUID,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    _authorize(db, context, "platform.support.manage")
+    report = db.get(PassengerReport, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Passenger report not found.")
+    attachment = db.scalar(select(PassengerReportAttachment).where(
+        PassengerReportAttachment.id == attachment_id,
+        PassengerReportAttachment.report_id == report.id,
+    ))
+    if attachment is None:
+        raise HTTPException(status_code=404, detail="Evidence attachment not found.")
+    root = Path(os.environ.get(
+        "MAALENEX_PRIVATE_UPLOAD_DIR", "/var/lib/maalenex/private-uploads"
+    )).expanduser().resolve()
+    target = (root / attachment.storage_key).resolve()
+    if target.parent != root or not target.is_file():
+        raise HTTPException(status_code=404, detail="Evidence attachment is unavailable.")
+    _audit(
+        db, context=context, event="passenger.report.attachment.downloaded",
+        resource_type="passenger_report", resource_id=report.id,
+        action="download_evidence",
+        metadata={"attachment_id": str(attachment.id), "content_type": attachment.content_type},
+    )
+    db.commit()
+    return FileResponse(
+        target, media_type=attachment.content_type, filename=attachment.original_filename,
+        headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store"},
+    )
 
 
 @router.post("/reports/passenger/{report_id}/claim")
