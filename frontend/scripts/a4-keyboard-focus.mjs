@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
-import axe from "axe-core";
 
 const browser = await chromium.launch({ headless: true });
 const focusIsVisible = async (locator) => locator.evaluate((el) => {
@@ -8,7 +7,9 @@ const focusIsVisible = async (locator) => locator.evaluate((el) => {
   return style.outlineStyle !== "none" && style.outlineWidth !== "0px";
 });
 const auditAccessibility = async (page, language, viewport) => {
-  await page.addScriptTag({ content: axe.source });
+  // Load axe from the same-origin production preview. This preserves the app's
+  // production CSP (script-src 'self') instead of injecting an inline script.
+  await page.addScriptTag({ url: "http://127.0.0.1:4173/a4/axe.min.js" });
   const results = await page.evaluate(async () => window.axe.run(document, {
     runOnly: {
       type: "tag",
