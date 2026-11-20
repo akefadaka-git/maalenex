@@ -34,7 +34,7 @@ describe("MaaleNex full-platform interface foundation", () => {
   it("provides login and registration screens", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /EN/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Profile/ }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Profile/ })[0]);
     fireEvent.click(screen.getByRole("button", { name: /Log in/ }));
     expect(screen.getByLabelText("Phone number")).toBeTruthy();
   });
