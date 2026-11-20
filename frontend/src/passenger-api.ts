@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 export type PassengerSession = {
   id: string;
   display_name: string;
