@@ -23,10 +23,9 @@ def upgrade() -> None:
         sa.Column("contact_verified_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.UniqueConstraint("login_identifier", name="uq_passenger_accounts_login_identifier"),
         sa.CheckConstraint("status IN ('active', 'suspended', 'closed')", name="ck_passenger_accounts_status"),
     )
-    op.create_index("ix_passenger_accounts_login_identifier", "passenger_accounts", ["login_identifier"])
+    op.create_index("ix_passenger_accounts_login_identifier", "passenger_accounts", ["login_identifier"], unique=True)
     op.create_index("ix_passenger_accounts_status", "passenger_accounts", ["status"])
     op.create_table(
         "passenger_credentials",
