@@ -1,15 +1,26 @@
+from datetime import UTC, datetime
+
+import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
-import pytest
 
 from app.db.base import Base
 from app.domains.audit.models import AuditEvent
-from app.domains.identity.models import User, Credential
-from app.domains.identity.passenger_models import PassengerAccount, PassengerCredential, PassengerLoginAttempt, PassengerSession
+from app.domains.identity.models import Credential, User
+from app.domains.identity.passenger_models import (
+    PassengerAccount,
+    PassengerCredential,
+    PassengerLoginAttempt,
+    PassengerSession,
+)
 from app.domains.identity.passenger_service import (
-    PassengerAuthenticationError, PassengerRateLimited, create_passenger_session,
-    register_passenger, resolve_passenger_session, verify_passenger_csrf,
+    PassengerAuthenticationError,
+    PassengerRateLimited,
+    create_passenger_session,
+    register_passenger,
+    resolve_passenger_session,
+    verify_passenger_csrf,
 )
 
 @pytest.fixture
@@ -56,8 +67,7 @@ def test_revoked_session_is_rejected(db):
     register_passenger(db, login_identifier="rider@example.test", display_name="Synthetic Rider", password="correct-horse-battery")
     issued = create_passenger_session(db, login_identifier="rider@example.test", password="correct-horse-battery", client_ip="127.0.0.1")
     db.commit()
-    from datetime import datetime, timezone
-    issued.session.revoked_at = datetime.now(timezone.utc)
+    issued.session.revoked_at = datetime.now(UTC)
     db.commit()
     with pytest.raises(PassengerAuthenticationError):
         resolve_passenger_session(db, raw_token=issued.session_token)
