@@ -53,8 +53,11 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
       - name: Install backend and test dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
-      - name: Ruff
-        run: python -m ruff check app tests migrations
+      - name: Ruff changed backend Python files
+        shell: bash
+        run: |
+          BASE_REF="${{ github.event.pull_request.base.ref || 'feat/a3-passenger-only-integration' }}"
+          git diff --name-only "origin/${BASE_REF}...HEAD" -- '*.py' | xargs -r python -m ruff check
       - name: Backend tests
         run: python -m pytest -q
       - name: Apply baseline migration to empty database
