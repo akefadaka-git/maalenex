@@ -71,7 +71,7 @@ describe("MaaleNex full-platform interface foundation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
     fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Synthetic Passenger" } });
     fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
-    expect(screen.getByText(/preview-only until you sign in/i)).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toMatch(/preview changes are local only/i);
     expect(screen.getByRole("heading", { name: "Synthetic Passenger" })).toBeTruthy();
   });
 
