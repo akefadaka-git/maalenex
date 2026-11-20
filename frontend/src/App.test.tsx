@@ -9,7 +9,7 @@ describe("MaaleNex full-platform interface foundation", () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: "ወደ MaaleNex እንኳን በደህና መጡ" })).toBeTruthy();
     expect(screen.getByRole("navigation")).toBeTruthy();
-    expect(screen.getByText("MaaleNex")).toBeTruthy();
+    expect(screen.getAllByText("MaaleNex").length).toBeGreaterThan(0);
   });
   it("switches language to English", () => {
     render(<App />);
@@ -19,25 +19,29 @@ describe("MaaleNex full-platform interface foundation", () => {
   });
   it("opens map and displays verified-data boundary", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /ካርታ/ }));
+    fireEvent.click(screen.getByRole("button", { name: /EN/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Map/ }));
     expect(screen.getByText(/No verified operating routes/)).toBeTruthy();
   });
   it("shows wallet preview without enabling real-money movement", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /ቦርሳ/ }));
+    fireEvent.click(screen.getByRole("button", { name: /EN/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Wallet/ }));
     expect(screen.getByText(/Real-money transactions are not enabled/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Add funds/ }));
     expect(screen.getByRole("status")).toBeTruthy();
   });
   it("provides login and registration screens", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /መገለጫ/ }));
+    fireEvent.click(screen.getByRole("button", { name: /EN/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Profile/ }));
     fireEvent.click(screen.getByRole("button", { name: /Log in/ }));
     expect(screen.getByLabelText("Phone number")).toBeTruthy();
   });
   it("captures a report locally and explains that it is not transmitted", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /ሪፖርት/ }));
+    fireEvent.click(screen.getByRole("button", { name: /EN/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Report/ }));
     fireEvent.change(screen.getByLabelText("Your message"), { target: { value: "Test issue" } });
     fireEvent.click(screen.getByRole("button", { name: /Submit report/ }));
     expect(screen.getByRole("status")).toBeTruthy();
