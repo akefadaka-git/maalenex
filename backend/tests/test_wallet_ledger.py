@@ -8,8 +8,11 @@ from app.db.base import Base
 from app.domains.audit.models import AuditEvent
 from app.domains.wallet.models import LedgerAccount, LedgerPosting, LedgerTransaction
 from app.domains.wallet.service import (
-    IdempotencyConflict, LedgerInvariantError, create_ledger_account,
-    get_account_balance_minor, post_balanced_transaction,
+    IdempotencyConflict,
+    LedgerInvariantError,
+    create_ledger_account,
+    get_account_balance_minor,
+    post_balanced_transaction,
 )
 
 
@@ -65,12 +68,15 @@ def test_idempotent_replay_returns_original_transaction(db):
         owner_type="passenger", owner_ref=uuid4(), currency_code="ETB",
         normal_balance="credit",
     )
-    args = dict(
-        idempotency_key="deposit-test-0002", transaction_type="sandbox_deposit",
-        amount_minor_units=4000, currency_code="ETB",
-        debit_account_id=settlement.id, credit_account_id=wallet.id,
-        description="Synthetic test deposit",
-    )
+    args = {
+        "idempotency_key": "deposit-test-0002",
+        "transaction_type": "sandbox_deposit",
+        "amount_minor_units": 4000,
+        "currency_code": "ETB",
+        "debit_account_id": settlement.id,
+        "credit_account_id": wallet.id,
+        "description": "Synthetic test deposit",
+    }
     first = post_balanced_transaction(db, **args)
     second = post_balanced_transaction(db, **args)
     assert first.id == second.id
@@ -87,12 +93,15 @@ def test_idempotency_key_cannot_be_reused_for_different_amount(db):
         owner_type="passenger", owner_ref=uuid4(), currency_code="ETB",
         normal_balance="credit",
     )
-    args = dict(
-        idempotency_key="deposit-test-0003", transaction_type="sandbox_deposit",
-        amount_minor_units=4000, currency_code="ETB",
-        debit_account_id=settlement.id, credit_account_id=wallet.id,
-        description="Synthetic test deposit",
-    )
+    args = {
+        "idempotency_key": "deposit-test-0003",
+        "transaction_type": "sandbox_deposit",
+        "amount_minor_units": 4000,
+        "currency_code": "ETB",
+        "debit_account_id": settlement.id,
+        "credit_account_id": wallet.id,
+        "description": "Synthetic test deposit",
+    }
     post_balanced_transaction(db, **args)
     with pytest.raises(IdempotencyConflict):
         post_balanced_transaction(db, **{**args, "amount_minor_units": 4500})
