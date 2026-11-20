@@ -245,6 +245,66 @@ describe("MaaleNex full-platform interface foundation", () => {
     expect(fetchMock.mock.calls.some(([input, init]) => String(input).endsWith("/bookings/booking-id/reservation") && init?.headers && new Headers(init.headers).get("X-CSRF-Token") === "csrf-test")).toBe(true);
   });
 
+  it("loads bilingual Help content and submits a support case through the passenger API", async () => {
+    document.cookie = "mnm_passenger_csrf=support-csrf-test; path=/";
+    const account = {
+      id: "passenger-support-test",
+      display_name: "Support Test Rider",
+      login_identifier: "support-rider@example.test",
+      contact_verified: true,
+      expires_at: "2026-11-21T00:00:00+00:00",
+    };
+    const supportCase = {
+      case_reference: "MN-SUP-TEST-0001",
+      category: "technical",
+      subject: "Connection issue",
+      message: "The app does not reconnect after internet returns.",
+      status: "open",
+      resolution_note: null,
+      created_at: "2026-11-20T17:00:00+00:00",
+      updated_at: "2026-11-20T17:00:00+00:00",
+      resolved_at: null,
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/passenger/auth/sessions/current")) {
+        return { ok: true, status: 200, json: async () => account } as Response;
+      }
+      if (url.includes("/passenger/support/faqs?language=en")) {
+        return { ok: true, status: 200, json: async () => ({
+          language: "en",
+          items: [{ id: "help-test", category: "technical", question: "How do I get help?", answer: "Send a support request here." }],
+        }) } as Response;
+      }
+      if (url.endsWith("/passenger/support/cases") && init?.method === "POST") {
+        return { ok: true, status: 201, json: async () => supportCase } as Response;
+      }
+      if (url.endsWith("/passenger/support/cases")) {
+        return { ok: true, status: 200, json: async () => ({ items: [] }) } as Response;
+      }
+      throw new Error("Unexpected API request: " + url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/passenger/auth/sessions/current",
+      expect.objectContaining({ credentials: "include" }),
+    ));
+    fireEvent.click(screen.getByRole("button", { name: /EN/ }));
+    fireEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: /Help/ }));
+    expect(await screen.findByText("How do I get help?")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Request category"), { target: { value: "technical" } });
+    fireEvent.change(screen.getByLabelText("Subject"), { target: { value: "Connection issue" } });
+    fireEvent.change(screen.getByLabelText("Message"), { target: { value: "The app does not reconnect after internet returns." } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+    expect(await screen.findByText(/MN-SUP-TEST-0001/)).toBeTruthy();
+    const submission = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).endsWith("/passenger/support/cases") && init?.method === "POST",
+    );
+    expect(submission).toBeTruthy();
+    expect(new Headers(submission?.[1]?.headers).get("X-CSRF-Token")).toBe("support-csrf-test");
+  });
+
   it("keeps internal provider labels out of public UI", () => {
     render(<App />);
     expect(screen.queryByText(/internal provider/i)).toBeNull();
