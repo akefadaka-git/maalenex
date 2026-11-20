@@ -2,131 +2,68 @@ import { useEffect, useState } from "react";
 import { Icon } from "./components/nexus-icons";
 
 type Language = "am" | "en";
-type Page = "home" | "about" | "iroka";
-
-const copy = {
-  am: {
-    brand: "MaaleNex", navHome: "መነሻ", navAbout: "ስለ እኛ", navIroka: "IROKA",
-    language: "ቋንቋውን ወደ እንግሊዝኛ ቀይር",
-    eyebrow: "የተሳፋሪ መጓጓዣ · የወደፊት እይታ",
-    title: "መንገድዎን በእርጋታ። ወደፊትዎን በእምነት።",
-    intro: "MaaleNex የኢትዮጵያን የተሳፋሪ መጓጓዣ ተሞክሮ ለማሻሻል እየተዘጋጀ ያለ ቴክኖሎጂ መድረክ ነው። ይህ የምርቱ የህዝብ ቅድመ እይታ ነው።",
-    welcome: "እንኳን ወደ MaaleNex በደህና መጡ", welcomeSub: "በአካባቢያዊ ግንዛቤ የተመራ፣ በቴክኖሎጂ የተገነባ።",
-    guest: "እንደ እንግዳ ይቀጥሉ", guestHint: "የህዝብ መረጃን ያለ መለያ ይመልከቱ።",
-    current: "የአሁኑ ወሰን", currentText: "የተሳፋሪ ምርት ዝግጅት ብቻ። የተረጋገጡ የጉዞ መርሐ ግብሮች፣ ታሪፎች ወይም የሚሰሩ አገልግሎቶች አልተገለጹም።",
-    future: "የወደፊት እይታ", futureText: "በተጠናከረ መረጃ፣ በግልጽ አሰራር እና በተጠያቂነት የተመራ የመጓጓዣ ልምድ።",
-    journeyTitle: "የጉዞ መረጃ", journeyText: "የተረጋገጡ መነሻዎች፣ መድረሻዎች እና መርሐ ግብሮች ከተፈቀዱ በኋላ እዚህ ይታያሉ።", journeyStatus: "ገና የታተመ የጉዞ መረጃ የለም",
-    safety: "ይህ የልማት ማሳያ ነው። መለያ፣ የግል መረጃ ማስገቢያ፣ ቦታ ማስያዣ፣ ክፍያ ወይም ትኬት አይኖርም።",
-    aboutTitle: "ስለ MaaleNex", aboutLead: "ከአካባቢው የሚነሳ የመጓጓዣ ቴክኖሎጂ።",
-    aboutText: "MaaleNex በኢትዮጵያ ውስጥ ለተሳፋሪዎች የተሻለ የመረጃ እና የጉዞ ዝግጅት ተሞክሮ ለመፍጠር የሚዘጋጅ መድረክ ነው። የመጀመሪያው የልማት ትኩረት በጂንካ እና በደቡብ ኦሞ አካባቢ ላይ ነው።",
-    mission: "ተልዕኮ", missionText: "ተደራሽ፣ ግልጽ እና በአካባቢያዊ እውነታ የተመሠረተ የመጓጓዣ ቴክኖሎጂ መገንባት።",
-    principles: "መርሆዎቻችን", principlesText: "ደህንነት፣ ግልጽነት፣ የተጠቃሚ ክብር፣ የአካባቢ ተስማሚነት እና በደረጃ የሚከናወን ልማት።",
-    pilot: "የልማት አቅጣጫ", pilotText: "የመጀመሪያው የልማት አቅጣጫ ኮይቤ፣ ጂንካ እና የደቡብ ኦሞ አካባቢ ነው። ይህ የአሁኑ የስራ ቦታ እንጂ የሚሰራ የመጓጓዣ መስመር ማስታወቂያ አይደለም።",
-    irokaTitle: "IROKA የኢንተለጀንስ ንብርብር", irokaText: "MaaleNex የወደፊት የኢንተለጀንስ ችሎታዎችን በተለየ እና በቁጥጥር ስር ባለ የውህደት መዋቅር ለመደገፍ IROKA የሚባለውን የተለየ የAI መሠረት ይመድባል።",
-    irokaState: "የመዋቅር ዝግጅት · ገና አልተገናኘም", boundary: "የአሁኑ የውህደት ሁኔታ",
-    boundaryText: "የIROKA አገልግሎት፣ API፣ ማረጋገጫ ወይም የሩጫ አካባቢ ከMaaleNex ጋር አልተገናኘም። ይህ ገጽ የታቀደውን መዋቅር ብቻ ያሳያል።",
-    back: "ወደ መነሻ ተመለስ", footer: "የልማት ቅድመ እይታ · እውነተኛ የመጓጓዣ አገልግሎት አይደለም",
-    status: "የልማት ሁኔታ", statusValue: "የህዝብ ቅድመ እይታ"
-  },
-  en: {
-    brand: "MaaleNex", navHome: "Home", navAbout: "About", navIroka: "IROKA",
-    language: "ቋንቋውን ወደ አማርኛ ቀይር", eyebrow: "PASSENGER MOBILITY · A NEW PERSPECTIVE",
-    title: "Move with ease. Move forward with confidence.",
-    intro: "MaaleNex is a technology platform being prepared to improve the passenger mobility experience in Ethiopia. This is a public preview of the product.",
-    welcome: "A warm welcome to MaaleNex", welcomeSub: "Rooted in local understanding. Built with thoughtful technology.",
-    guest: "Explore as a guest", guestHint: "Discover public information without creating an account.",
-    current: "Current scope", currentText: "Passenger product preparation only. No verified schedules, fares, or operating services are being represented.",
-    future: "A better mobility experience", futureText: "A mobility experience shaped by useful information, clear operations, and responsible technology.",
-    journeyTitle: "Journey information", journeyText: "Verified origins, destinations, and schedules will appear here only after they are approved for publication.", journeyStatus: "No published journey information yet",
-    safety: "Development preview only. There is no account, personal-data form, booking, payment, or ticketing in this experience.",
-    aboutTitle: "About MaaleNex", aboutLead: "Mobility technology with local roots.",
-    aboutText: "MaaleNex is being developed to create a better information and journey-planning experience for passengers in Ethiopia. The initial development focus is the Jinka and South Omo area.",
-    mission: "Our mission", missionText: "Build accessible, transparent mobility technology grounded in local realities.",
-    principles: "Our principles", principlesText: "Safety, transparency, user dignity, local relevance, and staged delivery.",
-    pilot: "Development focus", pilotText: "The initial development direction includes Koybe, Jinka, and the South Omo area. This describes the project focus, not an announcement of an operating route.",
-    irokaTitle: "IROKA intelligence layer", irokaText: "MaaleNex reserves a governed integration boundary for IROKA, a separate AI foundation, to support future intelligence capabilities.",
-    irokaState: "Architecture prepared · not connected", boundary: "Current integration status",
-    boundaryText: "No IROKA service, API, authentication, or runtime is connected to MaaleNex. This page describes the intended architecture only.",
-    back: "Back to home", footer: "Development preview · not a live transport service",
-    status: "Product status", statusValue: "Public preview"
-  }
+type Page = "dashboard" | "map" | "wallet" | "profile" | "help" | "report" | "login" | "register" | "about";
+const labels = {
+  am: { dashboard:"ዳሽቦርድ", map:"ካርታ", wallet:"ቦርሳ", profile:"መገለጫ", help:"እገዛ", report:"ሪፖርት", login:"ግባ", register:"መለያ ፍጠር", about:"ስለ እኛ", welcome:"ወደ MaaleNex እንኳን በደህና መጡ", subtitle:"የጉዞዎን ቀጣይ እርምጃ በአንድ ቦታ ያቀናብሩ።", search:"መነሻ ወይም መድረሻ ይፈልጉ", quick:"ፈጣን አገልግሎቶች", journeys:"የጉዞ መረጃ", empty:"የተረጋገጠ የጉዞ መረጃ ሲገኝ እዚህ ይታያል።", balance:"የቦርሳ ቀሪ ሂሳብ", demo:"የማሳያ ሁኔታ", noFunds:"የእውነተኛ ገንዘብ ግብይት አልነቃም።", mapNote:"ካርታው የአካባቢ ማሳያ ነው፤ የተረጋገጡ መስመሮች ገና አልታተሙም።", name:"ሙሉ ስም", phone:"ስልክ ቁጥር", password:"የይለፍ ቃል", email:"ኢሜይል", submit:"ቀጥል", coming:"ይህ ባህሪ ከደህንነት እና ከአገልግሎት ማገናኛ ማረጋገጫ በኋላ ይነቃል።", support:"እንዴት ልንርዳዎ?", reportTitle:"ችግር ሪፖርት ያድርጉ", message:"መልዕክትዎ", send:"ሪፖርት ላክ", sent:"የማሳያ ሪፖርት ተመዝግቧል። አሁንም ወደ ድጋፍ ሰርቨር አልተላከም።", account:"መለያዎን ያስተዳድሩ", language:"ቋንቋ", notifications:"ማሳወቂያዎች", signout:"ውጣ", noLogin:"አሁን የማሳያ ሁኔታ ብቻ ነው።" },
+  en: { dashboard:"Dashboard", map:"Map", wallet:"Wallet", profile:"Profile", help:"Help", report:"Report", login:"Log in", register:"Create account", about:"About", welcome:"Welcome to MaaleNex", subtitle:"Your mobility tools, information and support in one place.", search:"Search origin or destination", quick:"Quick access", journeys:"Journey information", empty:"Verified journey information will appear here when published.", balance:"Wallet balance", demo:"DEMO MODE", noFunds:"Real-money transactions are not enabled.", mapNote:"This is a map preview. No verified operating routes have been published yet.", name:"Full name", phone:"Phone number", password:"Password", email:"Email", submit:"Continue", coming:"This capability will activate after security and service-provider verification.", support:"How can we help?", reportTitle:"Report an issue", message:"Your message", send:"Submit report", sent:"Demo report captured locally. It has not been sent to a support server.", account:"Manage your account", language:"Language", notifications:"Notifications", signout:"Sign out", noLogin:"This is currently a demonstration session only." }
 } as const;
 
+const nav: Page[] = ["dashboard","map","wallet","profile","help","report"];
+const iconFor: Record<Page, "home"|"map"|"wallet"|"user"|"help"|"flag"|"compass"|"globe"|"shield"|"route"|"arrow"> = {
+ dashboard:"home", map:"map", wallet:"wallet", profile:"user", help:"help", report:"flag", login:"user", register:"user", about:"compass"
+};
+
+function Tile({title,detail,onClick,icon}:{title:string;detail:string;onClick:()=>void;icon:Page}) {
+ return <button className="service-tile" onClick={onClick}><span className="tile-icon"><Icon name={iconFor[icon]}/></span><span><strong>{title}</strong><small>{detail}</small></span><Icon name="arrow"/></button>;
+}
+
 export default function App() {
-  const [language, setLanguage] = useState<Language>("am");
-  const [page, setPage] = useState<Page>("home");
-  const [guestNotice, setGuestNotice] = useState(false);
-  const t = copy[language];
-  useEffect(() => { document.documentElement.lang = language; }, [language]);
-  const navigate = (next: Page) => {
-    setPage(next);
-    setGuestNotice(false);
-  };
-
-  return <div className="app-shell" lang={language}>
-    <a className="skip-link" href="#main-content">{language === "am" ? "ወደ ዋና ይዘት ዝለል" : "Skip to main content"}</a>
-    <header className="site-header">
-      <button className="brand-lockup" type="button" onClick={() => navigate("home")} aria-label="MaaleNex home">
-        <img src="./brand/maalenex-nexus-emblem.svg" alt="" width="42" height="42" /><span>MaaleNex</span>
-      </button>
-      <nav className="main-nav" aria-label={language === "am" ? "ዋና ማሰሻ" : "Main navigation"}>
-        <button type="button" className={page === "home" ? "nav-link active" : "nav-link"} onClick={() => navigate("home")} aria-current={page === "home" ? "page" : undefined}><Icon name="home" />{t.navHome}</button>
-        <button type="button" className={page === "about" ? "nav-link active" : "nav-link"} onClick={() => navigate("about")} aria-current={page === "about" ? "page" : undefined}><Icon name="compass" />{t.navAbout}</button>
-        <button type="button" className={page === "iroka" ? "nav-link active" : "nav-link"} onClick={() => navigate("iroka")} aria-current={page === "iroka" ? "page" : undefined}><Icon name="spark" />{t.navIroka}</button>
-      </nav>
-      <button className="language-switch" type="button" aria-label={t.language} onClick={() => setLanguage(language === "am" ? "en" : "am")}><Icon name="globe" />{language === "am" ? "EN" : "አማ"}</button>
-    </header>
-
-    <main id="main-content" tabIndex={-1}>
-      {page === "home" && <div className="home-page">
-        <section className="welcome-hero">
-          <div className="hero-orbit orbit-one" /><div className="hero-orbit orbit-two" /><div className="hero-grid" />
-          <div className="hero-copy">
-            <p className="eyebrow"><span className="eyebrow-dot" />{t.eyebrow}</p>
-            <h1>{t.title}</h1><p className="hero-intro">{t.intro}</p>
-            <div className="welcome-note"><span className="welcome-mark">✦</span><div><strong>{t.welcome}</strong><span>{t.welcomeSub}</span></div></div>
-            <button className="primary-action" type="button" onClick={() => setGuestNotice(true)}>{t.guest}<Icon name="arrow" /></button>
-            <p className="action-caption">{t.guestHint}</p>
-            {guestNotice && <p className="inline-status" role="status">{t.guestHint}</p>}
-          </div>
-          <div className="hero-art" aria-hidden="true">
-            <div className="art-ring ring-a" /><div className="art-ring ring-b" /><div className="art-core"><img src="./brand/maalenex-nexus-emblem.svg" alt="" /></div>
-            <span className="art-node node-a" /><span className="art-node node-b" /><span className="art-node node-c" />
-            <div className="art-label label-a">LOCAL ROOTS</div><div className="art-label label-b">CONNECTED FUTURE</div>
-          </div>
-          <div className="hero-bottom"><span>MAALENEX / 01</span><span>{t.status} · {t.statusValue}</span></div>
-        </section>
-        <section className="intro-grid">
-          <article className="info-card feature-card"><span className="card-icon"><Icon name="compass" /></span><p className="card-kicker">01 / {t.current}</p><h2>{t.current}</h2><p>{t.currentText}</p></article>
-          <article className="info-card feature-card"><span className="card-icon"><Icon name="spark" /></span><p className="card-kicker">02 / {t.future}</p><h2>{t.future}</h2><p>{t.futureText}</p></article>
-          <article className="info-card safety-card"><span className="card-icon"><Icon name="shield" /></span><p className="card-kicker">03 / RESPONSIBLE BY DESIGN</p><h2>{language === "am" ? "ደህንነት ከመጀመሪያ" : "Responsibility first"}</h2><p>{t.safety}</p></article>
-        </section>
-        <section className="journey-preview">
-          <div className="journey-copy"><p className="card-kicker">04 / VERIFIED JOURNEY INFORMATION</p><h2>{t.journeyTitle}</h2><p>{t.journeyText}</p></div>
-          <div className="journey-empty"><Icon name="route" /><strong>{t.journeyStatus}</strong><span>{language === "am" ? "የተረጋገጠ መረጃ እስኪገኝ ድረስ ምንም መስመር አይታይም።" : "No route is shown until verified information is available."}</span></div>
-        </section>
-      </div>}
-      {page === "about" && <section className="content-page">
-        <p className="eyebrow"><span className="eyebrow-dot" />MAALENEX / ABOUT</p><h1>{t.aboutTitle}</h1><p className="page-lead">{t.aboutLead}</p><p className="body-copy">{t.aboutText}</p>
-        <div className="about-grid">
-          <article className="info-card"><span className="card-icon"><Icon name="compass" /></span><h2>{t.mission}</h2><p>{t.missionText}</p></article>
-          <article className="info-card"><span className="card-icon"><Icon name="shield" /></span><h2>{t.principles}</h2><p>{t.principlesText}</p></article>
-          <article className="info-card"><span className="card-icon"><Icon name="globe" /></span><h2>{t.pilot}</h2><p>{t.pilotText}</p></article>
-        </div>
-        <button className="text-action" type="button" onClick={() => navigate("home")}>{t.back}<Icon name="arrow" /></button>
-      </section>}
-      {page === "iroka" && <section className="content-page iroka-page">
-        <p className="eyebrow"><span className="eyebrow-dot" />MAALENEX / INTELLIGENCE ARCHITECTURE</p><h1>{t.irokaTitle}</h1><p className="page-lead">{t.irokaText}</p>
-        <div className="iroka-status"><span className="status-indicator" /><div><strong>{t.irokaState}</strong><span>{t.boundary}</span></div></div>
-        <div className="architecture-flow" aria-label="Planned IROKA integration architecture">
-          <div className="architecture-node"><span>01</span><strong>MaaleNex UI</strong><small>Passenger experience</small></div><div className="flow-connector"><i /></div>
-          <div className="architecture-node"><span>02</span><strong>Integration adapter</strong><small>Typed capability contract</small></div><div className="flow-connector dashed"><i /></div>
-          <div className="architecture-node pending"><span>03</span><strong>IROKA backbone</strong><small>Separate intelligence runtime</small></div>
-        </div>
-        <div className="boundary-note"><strong>{t.boundary}</strong><p>{t.boundaryText}</p></div>
-        <button className="text-action" type="button" onClick={() => navigate("home")}>{t.back}<Icon name="arrow" /></button>
-      </section>}
-    </main>
-    <footer className="site-footer"><div className="footer-brand"><img src="./brand/maalenex-nexus-emblem.svg" alt="" width="26" height="26" /><strong>MaaleNex</strong></div><span>{t.footer}</span><span>© MaaleNex Technologies</span></footer>
-  </div>;
+ const [language,setLanguage]=useState<Language>("am");
+ const [page,setPage]=useState<Page>("dashboard");
+ const [notice,setNotice]=useState("");
+ const [report,setReport]=useState("");
+ const t=labels[language];
+ useEffect(()=>{document.documentElement.lang=language;},[language]);
+ const go=(next:Page)=>{setPage(next);setNotice("");};
+ const title=t[page as keyof typeof t] ?? t.dashboard;
+ return <div className="app-shell platform-shell" lang={language}>
+  <a className="skip-link" href="#main-content">{language==="am"?"ወደ ዋና ይዘት ዝለል":"Skip to main content"}</a>
+  <header className="platform-header">
+   <button className="brand-lockup" onClick={()=>go("dashboard")} aria-label="MaaleNex dashboard"><img src="./brand/maalenex-nexus-emblem.svg" alt="" width="42" height="42"/><span>MaaleNex</span></button>
+   <div className="header-context"><span className="online-dot"/><span>{language==="am"?"የተጠቃሚ ማዕከል":"Passenger hub"}</span></div>
+   <div className="header-actions"><button className="icon-button" aria-label={t.notifications} onClick={()=>setNotice(t.coming)}><Icon name="bell"/></button><button className="language-switch" onClick={()=>setLanguage(language==="am"?"en":"am")}><Icon name="globe"/>{language==="am"?"EN":"አማ"}</button><button className="profile-chip" onClick={()=>go("profile")}><Icon name="user"/><span>{language==="am"?"መገለጫ":"Profile"}</span></button></div>
+  </header>
+  <div className="platform-layout">
+   <aside className="side-nav" aria-label="Main navigation">
+    <p className="nav-caption">{language==="am"?"ዋና ማሰሻ":"WORKSPACE"}</p>
+    {nav.map(item=><button key={item} className={page===item?"side-link active":"side-link"} onClick={()=>go(item)}><Icon name={iconFor[item]}/><span>{t[item]}</span></button>)}
+    <div className="side-spacer"/>
+    <button className="side-link" onClick={()=>go("about")}><Icon name="compass"/><span>{t.about}</span></button>
+    <div className="side-account"><span className="avatar-mark">M</span><span><strong>MaaleNex</strong><small>{language==="am"?"የእንግዳ ማሳያ":"Guest preview"}</small></span></div>
+   </aside>
+   <main id="main-content" className="platform-main" tabIndex={-1}>
+    <div className="page-heading"><div><p className="eyebrow"><span className="eyebrow-dot"/>MAALENEX / {page.toUpperCase()}</p><h1>{page==="dashboard"?t.welcome:title}</h1><p>{page==="dashboard"?t.subtitle:""}</p></div><span className="mode-pill">{t.demo}</span></div>
+    {notice&&<p className="notice-panel" role="status">{notice}</p>}
+    {page==="dashboard"&&<>
+      <section className="dashboard-hero"><div><span className="hero-kicker">{language==="am"?"የጉዞ ማዕከል":"MOBILITY COMMAND CENTER"}</span><h2>{language==="am"?"ቀጣይ ጉዞዎ ከዚህ ይጀምራል":"Your next journey starts here."}</h2><p>{language==="am"?"የጉዞ መረጃ፣ ካርታ እና ድጋፍ በቀላሉ ያግኙ።":"Discover journey information, maps and passenger support."}</p><button className="primary-action" onClick={()=>go("map")}>{language==="am"?"ካርታውን ይመልከቱ":"Explore map"}<Icon name="arrow"/></button></div><div className="hero-emblem"><img src="./brand/maalenex-nexus-emblem.svg" alt=""/></div></section>
+      <section className="stat-grid"><article className="stat-card"><span>{t.balance}</span><strong>— ETB</strong><small>{t.noFunds}</small></article><article className="stat-card"><span>{t.journeys}</span><strong>0</strong><small>{t.empty}</small></article><article className="stat-card"><span>{language==="am"?"የመለያ ሁኔታ":"Account status"}</span><strong>{language==="am"?"እንግዳ":"Guest"}</strong><small>{t.noLogin}</small></article></section>
+      <section className="content-section"><div className="section-heading"><div><span className="section-kicker">DISCOVER</span><h2>{t.quick}</h2></div></div><div className="service-grid">
+       <Tile title={t.map} detail={language==="am"?"አካባቢያዊ ካርታ እና ፍለጋ":"Explore locations"} icon="map" onClick={()=>go("map")}/>
+       <Tile title={t.wallet} detail={language==="am"?"ቀሪ ሂሳብ እና ግብይቶች":"Balance and transactions"} icon="wallet" onClick={()=>go("wallet")}/>
+       <Tile title={t.profile} detail={language==="am"?"የግል ቅንብሮች":"Personal settings"} icon="profile" onClick={()=>go("profile")}/>
+       <Tile title={t.help} detail={language==="am"?"መመሪያ እና ድጋፍ":"Guides and support"} icon="help" onClick={()=>go("help")}/>
+      </div></section>
+      <section className="journey-panel"><div><span className="section-kicker">LIVE INFORMATION</span><h2>{t.journeys}</h2><p>{t.empty}</p></div><span className="empty-orbit"><Icon name="route"/></span></section>
+    </>}
+    {page==="map"&&<section className="content-section"><div className="map-toolbar"><input aria-label={t.search} placeholder={t.search}/><button className="primary-action" onClick={()=>setNotice(t.coming)}>{language==="am"?"ፈልግ":"Search"}<Icon name="arrow"/></button></div><div className="map-canvas"><div className="map-grid-lines"/><div className="map-waterway"/><span className="map-pin pin-one">Koybe</span><span className="map-pin pin-two">Jinka</span><div className="map-center-mark"><img src="./brand/maalenex-nexus-emblem.svg" alt=""/></div><div className="map-legend"><strong>{language==="am"?"የካርታ ቅድመ እይታ":"Map preview"}</strong><span>{t.mapNote}</span></div></div><p className="muted-copy">{t.mapNote}</p></section>}
+    {page==="wallet"&&<section className="content-section wallet-view"><article className="wallet-card"><span>{t.balance}</span><strong>— <small>ETB</small></strong><span className="wallet-badge">{t.demo}</span><p>{t.noFunds}</p></article><div className="wallet-actions"><button onClick={()=>setNotice(t.coming)}><Icon name="plus"/> {language==="am"?"ገንዘብ ጨምር":"Add funds"}</button><button onClick={()=>setNotice(t.coming)}><Icon name="arrow"/> {language==="am"?"ገንዘብ አውጣ":"Withdraw"}</button><button onClick={()=>setNotice(t.coming)}><Icon name="receipt"/> {language==="am"?"ደረሰኞች":"Receipts"}</button></div><div className="panel-card"><h2>{language==="am"?"የግብይት ታሪክ":"Transaction history"}</h2><p>{language==="am"?"ገና ምንም ግብይት የለም።":"No transactions yet."}</p></div><p className="compliance-note">{t.coming}</p></section>}
+    {page==="profile"&&<section className="content-section"><div className="panel-card profile-panel"><span className="large-avatar">M</span><h2>{language==="am"?"የእንግዳ መገለጫ":"Guest profile"}</h2><p>{t.noLogin}</p><button className="primary-action" onClick={()=>go("login")}>{t.login}<Icon name="arrow"/></button></div><div className="panel-card settings-list"><h2>{t.account}</h2><button onClick={()=>setLanguage(language==="am"?"en":"am")}>{t.language}<span>{language==="am"?"አማርኛ":"English"}</span></button><button onClick={()=>setNotice(t.coming)}>{t.notifications}<span>›</span></button><button onClick={()=>go("help")}>{t.help}<span>›</span></button></div></section>}
+    {(page==="login"||page==="register")&&<section className="content-section"><form className="form-card" onSubmit={e=>{e.preventDefault();setNotice(t.coming);}}><h2>{page==="login"?t.login:t.register}</h2>{page==="register"&&<label>{t.name}<input required autoComplete="name"/></label>}<label>{t.phone}<input required inputMode="tel" autoComplete="tel"/></label><label>{t.password}<input required type="password" autoComplete={page==="login"?"current-password":"new-password"}/></label><button className="primary-action" type="submit">{t.submit}<Icon name="arrow"/></button><p>{t.coming}</p><button type="button" className="text-link" onClick={()=>go(page==="login"?"register":"login")}>{page==="login"?t.register:t.login}</button></form></section>}
+    {page==="help"&&<section className="content-section"><div className="panel-card"><h2>{t.support}</h2>{["Account and access","Wallet and payments","Journey information","Safety and privacy"].map(x=><button className="help-row" key={x} onClick={()=>setNotice(t.coming)}><Icon name="help"/><span>{x}</span><Icon name="arrow"/></button>)}</div></section>}
+    {page==="report"&&<section className="content-section"><form className="form-card" onSubmit={e=>{e.preventDefault();setNotice(t.sent);setReport("");}}><h2>{t.reportTitle}</h2><label>{language==="am"?"የሪፖርት አይነት":"Report category"}<select><option>App issue</option><option>Journey information</option><option>Wallet</option><option>Safety</option></select></label><label>{t.message}<textarea required value={report} onChange={e=>setReport(e.target.value)} rows={5}/></label><button className="primary-action" type="submit">{t.send}<Icon name="arrow"/></button></form></section>}
+    {page==="about"&&<section className="content-section"><div className="panel-card"><h2>MaaleNex</h2><p>{language==="am"?"በኢትዮጵያ ውስጥ የተሳፋሪ ተሞክሮን ለማሻሻል የሚገነባ የመጓጓዣ ቴክኖሎጂ መድረክ።":"Mobility technology designed to improve the passenger experience in Ethiopia."}</p></div></section>}
+    <footer className="platform-footer"><span>© MaaleNex</span><span>{language==="am"?"በአካባቢያዊ ግንዛቤ የተመራ":"Built with local understanding"}</span><span>{t.demo}</span></footer>
+   </main>
+  </div>
+ </div>;
 }
