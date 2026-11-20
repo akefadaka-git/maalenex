@@ -6,6 +6,10 @@ import {
   registerPassenger,
   updatePassengerProfile,
   type PassengerSession,
+  listPassengerLocations,
+  searchPassengerTrips,
+  type PassengerLocation,
+  type PassengerTrip,
 } from "./passenger-api";
 import { Icon } from "./components/nexus-icons";
 
@@ -44,8 +48,28 @@ export default function App() {
  const [authPassword,setAuthPassword]=useState("");
  const [authConfirmPassword,setAuthConfirmPassword]=useState("");
  const [authBusy,setAuthBusy]=useState(false);
+ const [locations,setLocations]=useState<PassengerLocation[]>([]);
+ const [originId,setOriginId]=useState("");
+ const [destinationId,setDestinationId]=useState("");
+ const [travelDate,setTravelDate]=useState(()=>{const now=new Date();return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);});
+ const [passengerCount,setPassengerCount]=useState(1);
+ const [tripResults,setTripResults]=useState<PassengerTrip[]>([]);
+ const [tripLoading,setTripLoading]=useState(false);
+ const [tripError,setTripError]=useState("");
+ const todayLocal=(()=>{const now=new Date();return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);})();
  const t=labels[language];
  useEffect(()=>{document.documentElement.lang=language;},[language]);
+ useEffect(()=>{
+  if(page!=="map")return;
+  let active=true;
+  listPassengerLocations().then(items=>{
+   if(!active)return;
+   setLocations(items);
+   setOriginId(current=>current||items[0]?.id||"");
+   setDestinationId(current=>current||items.find(item=>item.id!==items[0]?.id)?.id||"");
+  }).catch(error=>{if(active)setTripError(error instanceof Error?error.message:"Unable to load published locations.");});
+  return()=>{active=false;};
+ },[page]);
  useEffect(()=>{
   let active=true;
   getCurrentPassenger().then(account=>{
@@ -81,6 +105,16 @@ export default function App() {
   }catch(error){setNotice(error instanceof Error?error.message:(language==="am"?"የመለያ ግንኙነት አልተሳካም።":"Account request failed."));}
   finally{setAuthBusy(false);}
  };
+ const submitTripSearch=async(e:FormEvent<HTMLFormElement>)=>{
+  e.preventDefault();setTripError("");setTripResults([]);
+  if(!originId||!destinationId||originId===destinationId){setTripError(language==="am"?"የተለያዩ መነሻ እና መድረሻ ይምረጡ።":"Choose different origin and destination locations.");return;}
+  setTripLoading(true);
+  try{const results=await searchPassengerTrips({origin_id:originId,destination_id:destinationId,travel_date:travelDate,passenger_count:passengerCount});setTripResults(results);}
+  catch(error){setTripError(error instanceof Error?error.message:"Journey search is temporarily unavailable.");}
+  finally{setTripLoading(false);}
+ };
+ const formatTripTime=(value:string)=>new Intl.DateTimeFormat(language==="am"?"am-ET":"en-ET",{dateStyle:"medium",timeStyle:"short",timeZone:"Africa/Addis_Ababa"}).format(new Date(value));
+ const formatTripFare=(minor:number,currency:string)=>new Intl.NumberFormat(language==="am"?"am-ET":"en-ET",{style:"currency",currency}).format(minor/100);
  const signOut=async()=>{
   try{await logoutPassenger();setPassenger(null);setProfileName("");setProfilePhone("");setProfileEmail("");setPage("dashboard");setNotice(language==="am"?"ከመለያዎ ወጥተዋል።":"You have signed out.");}
   catch(error){setNotice(error instanceof Error?error.message:"Unable to sign out.");}
@@ -121,8 +155,87 @@ export default function App() {
       </div></section>
       <section className="journey-panel"><div><span className="section-kicker">LIVE INFORMATION</span><h2>{t.journeys}</h2><p>{t.empty}</p></div><span className="empty-orbit"><Icon name="route"/></span></section>
     </>}
-    {page==="map"&&<section className="content-section"><div className="map-toolbar"><input aria-label={t.search} placeholder={t.search}/><button className="primary-action" onClick={()=>setNotice(t.coming)}>{language==="am"?"ፈልግ":"Search"}<Icon name="arrow"/></button></div><div className="map-canvas"><div className="map-grid-lines"/><div className="map-waterway"/><span className="map-pin pin-one">Koybe</span><span className="map-pin pin-two">Jinka</span><div className="map-center-mark"><img src="./brand/maalenex-nexus-emblem.svg" alt=""/></div><div className="map-legend"><strong>{language==="am"?"የካርታ ቅድመ እይታ":"Map preview"}</strong><span>{t.mapNote}</span></div></div><p className="muted-copy">{t.mapNote}</p></section>}
-    {page==="wallet"&&<section className="content-section wallet-view"><article className="wallet-card"><span>{t.balance}</span><strong>— <small>ETB</small></strong><span className="wallet-badge">{t.demo}</span><p>{t.noFunds}</p></article><div className="wallet-actions"><button onClick={()=>setNotice(t.coming)}><Icon name="plus"/> {language==="am"?"ገንዘብ ጨምር":"Add funds"}</button><button onClick={()=>setNotice(t.coming)}><Icon name="arrow"/> {language==="am"?"ገንዘብ አውጣ":"Withdraw"}</button><button onClick={()=>setNotice(t.coming)}><Icon name="receipt"/> {language==="am"?"ደረሰኞች":"Receipts"}</button></div><div className="panel-card"><h2>{language==="am"?"የግብይት ታሪክ":"Transaction history"}</h2><p>{language==="am"?"ገና ምንም ግብይት የለም።":"No transactions yet."}</p></div><p className="compliance-note">{t.coming}</p></section>}
+    {page==="map" && (
+      <section className="content-section">
+        <form className="form-card journey-search-form" onSubmit={submitTripSearch}>
+          <h2>{language==="am" ? "የጉዞ ፍለጋ" : "Find a journey"}</h2>
+          <label>
+            {language==="am" ? "መነሻ ቦታ" : "Origin"}
+            <select required value={originId} onChange={e=>setOriginId(e.target.value)}>
+              <option value="">{language==="am" ? "መነሻ ይምረጡ" : "Choose origin"}</option>
+              {locations.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </label>
+          <label>
+            {language==="am" ? "መድረሻ ቦታ" : "Destination"}
+            <select required value={destinationId} onChange={e=>setDestinationId(e.target.value)}>
+              <option value="">{language==="am" ? "መድረሻ ይምረጡ" : "Choose destination"}</option>
+              {locations.filter(item=>item.id!==originId).map(item=><option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </label>
+          <div className="journey-search-fields">
+            <label>
+              {language==="am" ? "የጉዞ ቀን" : "Travel date"}
+              <input type="date" required min={todayLocal} value={travelDate} onChange={e=>setTravelDate(e.target.value)} />
+            </label>
+            <label>
+              {language==="am" ? "ተሳፋሪዎች" : "Passengers"}
+              <select value={passengerCount} onChange={e=>setPassengerCount(Number(e.target.value))}>
+                {Array.from({length:10},(_,i)=>i+1).map(n=><option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+          </div>
+          <button className="primary-action" type="submit" disabled={tripLoading||locations.length<2}>
+            {tripLoading ? (language==="am" ? "በመፈለግ ላይ…" : "Searching…") : (language==="am" ? "ጉዞ ፈልግ" : "Search journeys")}
+            <Icon name="arrow"/>
+          </button>
+          <p className="field-hint">{language==="am" ? "የታተሙ መስመሮችና ጉዞዎች ብቻ ይታያሉ።" : "Only published routes and trips with current ETB fares are shown."}</p>
+        </form>
+        {tripError && <p className="notice-panel" role="alert">{tripError}</p>}
+        {tripResults.length>0 && (
+          <div className="trip-results">
+            <div className="section-heading">
+              <h2>{language==="am" ? "የተገኙ ጉዞዎች" : "Available journeys"} ({tripResults.length})</h2>
+            </div>
+            {tripResults.map(trip=>(
+              <article className="panel-card trip-result" key={trip.id}>
+                <div className="trip-result-heading">
+                  <div>
+                    <span className="section-kicker">{language==="am" ? "የጉዞ መነሻ" : "DEPARTURE"}</span>
+                    <h3>{formatTripTime(trip.departure_at)}</h3>
+                  </div>
+                  <strong>{formatTripFare(trip.fare.amount_minor_units,trip.fare.currency_code)}</strong>
+                </div>
+                <p>{language==="am" ? "መሳፈሪያ" : "Boarding point"}: {trip.boarding_model}</p>
+                <p>{language==="am" ? "የተገኙ መቀመጫዎች" : "Available seats"}: {trip.available_seats}</p>
+                {trip.arrival_estimate_at && <p>{language==="am" ? "የመድረሻ ግምት" : "Estimated arrival"}: {formatTripTime(trip.arrival_estimate_at)}</p>}
+                <span className="wallet-badge">{language==="am" ? "የቦታ ማስያዣ ብቻ" : "Reservation only"}</span>
+                <p className="field-hint">{language==="am" ? "ክፍያና ትኬት ገና አልነቁም።" : "Payment and ticket issuance are not enabled."}</p>
+              </article>
+            ))}
+          </div>
+        )}
+        {!tripLoading && tripResults.length===0 && !tripError && (
+          <p className="muted-copy">
+            {locations.length<2
+              ? (language==="am" ? "የታተሙ ቦታዎች ገና አልተገኙም።" : "No published locations are available yet.")
+              : (language==="am" ? "ጉዞ ለማግኘት መነሻና መድረሻ ይምረጡ።" : "Choose an origin and destination to search published trips.")}
+          </p>
+        )}
+        <div className="map-canvas">
+          <div className="map-grid-lines"/>
+          <div className="map-waterway"/>
+          <span className="map-pin pin-one">Koybe</span>
+          <span className="map-pin pin-two">Jinka</span>
+          <div className="map-center-mark"><img src="./brand/maalenex-nexus-emblem.svg" alt=""/></div>
+          <div className="map-legend">
+            <strong>{language==="am" ? "የካርታ ቅድመ እይታ" : "Map preview"}</strong>
+            <span>{t.mapNote}</span>
+          </div>
+        </div>
+        <p className="muted-copy">{t.mapNote}</p>
+      </section>
+    )}{page==="wallet"&&<section className="content-section wallet-view"><article className="wallet-card"><span>{t.balance}</span><strong>— <small>ETB</small></strong><span className="wallet-badge">{t.demo}</span><p>{t.noFunds}</p></article><div className="wallet-actions"><button onClick={()=>setNotice(t.coming)}><Icon name="plus"/> {language==="am"?"ገንዘብ ጨምር":"Add funds"}</button><button onClick={()=>setNotice(t.coming)}><Icon name="arrow"/> {language==="am"?"ገንዘብ አውጣ":"Withdraw"}</button><button onClick={()=>setNotice(t.coming)}><Icon name="receipt"/> {language==="am"?"ደረሰኞች":"Receipts"}</button></div><div className="panel-card"><h2>{language==="am"?"የግብይት ታሪክ":"Transaction history"}</h2><p>{language==="am"?"ገና ምንም ግብይት የለም።":"No transactions yet."}</p></div><p className="compliance-note">{t.coming}</p></section>}
     {page==="profile"&&<section className="content-section"><div className="panel-card profile-panel"><span className="large-avatar">{profileName.trim()?profileName.trim().charAt(0).toUpperCase():"M"}</span><h2>{profileName||(passenger?(language==="am"?"ተሳፋሪ":"Passenger"):(language==="am"?"የእንግዳ መገለጫ":"Guest profile"))}</h2><p>{passenger?.login_identifier||profilePhone||t.noLogin}</p><div className="form-actions"><button className="primary-action" onClick={()=>{setProfileEditing(!profileEditing);setProfileSaved(false);}}>{profileEditing?(language==="am"?"ዝጋ":"Close"):(language==="am"?"መገለጫ አርትዕ":"Edit profile")}<Icon name="arrow"/></button>{!passenger&&<button className="secondary-action" onClick={()=>go("login")}>{t.login}</button>}</div></div>{profileEditing&&<form className="form-card" onSubmit={saveProfile}><h2>{language==="am"?"የመገለጫ መረጃ":"Edit profile"}</h2><label>{t.name}<input value={profileName} onChange={e=>setProfileName(e.target.value)} required minLength={2} maxLength={120} autoComplete="name"/></label><label>{t.phone}<input value={profilePhone} onChange={e=>setProfilePhone(e.target.value)} inputMode="tel" autoComplete="tel" disabled={Boolean(passenger)}/></label><label>{t.email}<input type="email" value={profileEmail} onChange={e=>setProfileEmail(e.target.value)} autoComplete="email" disabled={Boolean(passenger)}/></label><p className="field-hint">{passenger?(language==="am"?"የሙሉ ስም ለውጥ ወደ መለያዎ ይቀመጣል።":"Your display name is saved to your passenger account. Contact changes require verification."):(language==="am"?"ይህ የእንግዳ ማሳያ ነው፤ ለማስቀመጥ ይግቡ።":"Guest profile edits are preview-only until you sign in.")}</p><button className="primary-action" type="submit">{language==="am"?"አስቀምጥ":"Save profile"}</button></form>}<div className="panel-card settings-list"><h2>{t.account}</h2><button onClick={()=>setLanguage(language==="am"?"en":"am")}>{t.language}<span>{language==="am"?"አማርኛ":"English"}</span></button><button onClick={()=>setNotice(t.coming)}>{t.notifications}<span>›</span></button><button onClick={()=>go("forgot")}>{language==="am"?"የይለፍ ቃል መቀየር":"Password and security"}<span>›</span></button><button onClick={()=>go("help")}>{t.help}<span>›</span></button>{passenger&&<button onClick={signOut}>{t.signout}<span>↗</span></button>}</div>{profileSaved&&<p className="notice-panel" role="status">{language==="am"?"መገለጫው ተዘምኗል":"Profile updated"}</p>}</section>}{(page==="login"||page==="register"||page==="forgot")&&<section className="content-section"><form className="form-card" onSubmit={submitAuth} aria-busy={authBusy}><h2>{page==="login"?t.login:page==="register"?t.register:(language==="am"?"የይለፍ ቃል መመለስ":"Recover password")}</h2>{page==="register"&&<label>{t.name}<input required minLength={2} maxLength={120} autoComplete="name" value={authName} onChange={e=>setAuthName(e.target.value)} placeholder={language==="am"?"ሙሉ ስም":"Enter your full name"}/></label>}{page!=="forgot"&&<label>{language==="am"?"ኢሜይል ወይም ዓለም አቀፍ ስልክ ቁጥር":"Email or international phone number"}<input required minLength={5} maxLength={254} autoComplete="username" value={authIdentifier} onChange={e=>setAuthIdentifier(e.target.value)} placeholder="+2519… or name@example.com"/></label>}{page!=="forgot"&&<label>{t.password}<div className="password-field"><input required minLength={page==="register"?12:1} maxLength={128} type={passwordVisible?"text":"password"} value={authPassword} onChange={e=>setAuthPassword(e.target.value)} autoComplete={page==="login"?"current-password":"new-password"}/><button type="button" className="secondary-action" aria-label={passwordVisible?(language==="am"?"ደብቅ":"Hide password"):(language==="am"?"አሳይ":"Show password")} onClick={()=>setPasswordVisible(!passwordVisible)}>{passwordVisible?(language==="am"?"ደብቅ":"Hide"):(language==="am"?"አሳይ":"Show")}</button></div></label>}{page==="register"&&<><label>{language==="am"?"የይለፍ ቃል ድገም":"Confirm password"}<input required minLength={12} maxLength={128} type={passwordVisible?"text":"password"} value={authConfirmPassword} onChange={e=>setAuthConfirmPassword(e.target.value)} autoComplete="new-password"/></label><label className="consent-row"><input type="checkbox" required/><span>{language==="am"?"የአጠቃቀም ውሎችን እና የግላዊነት መመሪያን ተቀብያለሁ":"I agree to the Terms of Use and Privacy Notice."}</span></label></>}{page==="forgot"&&<><label>{language==="am"?"ኢሜይል ወይም ስልክ ቁጥር":"Email or phone number"}<input required minLength={5} maxLength={254} value={authIdentifier} onChange={e=>setAuthIdentifier(e.target.value)}/></label><p className="field-hint">{language==="am"?"የመለያ መመለሻ ማድረሻ አገልግሎት ገና አልተገናኘም።":"Password recovery delivery is not configured yet. No reset email or SMS will be sent."}</p></>}{page!=="forgot"&&<p className="field-hint">{page==="register"?(language==="am"?"የምዝገባ እና የግባ አገልግሎት ከመለያ ሰርቨር ጋር ይገናኛል።":"Your account will be created by the passenger account service. Contact verification is not yet configured."):(language==="am"?"የተሳፋሪ መለያዎን ይጠቀሙ።":"Sign in with your passenger account credentials.")}</p>}<button className="primary-action" type="submit" disabled={authBusy}>{authBusy?(language==="am"?"በመጫን ላይ…":"Working…"):page==="forgot"?(language==="am"?"መመለሻ ጀምር":"Start recovery"):t.submit}<Icon name="arrow"/></button>{page==="login"&&<button type="button" className="text-link" onClick={()=>go("forgot")}>{language==="am"?"የይለፍ ቃል ረሳሁ":"Forgot password?"}</button>}<button type="button" className="text-link" onClick={()=>{setAuthPassword("");setAuthConfirmPassword("");go(page==="login"?"register":"login");}}>{page==="login"?t.register:t.login}</button></form></section>}{page==="help"&&<section className="content-section"><div className="panel-card"><h2>{t.support}</h2>{["Account and access","Wallet and payments","Journey information","Safety and privacy"].map(x=><button className="help-row" key={x} onClick={()=>setNotice(t.coming)}><Icon name="help"/><span>{x}</span><Icon name="arrow"/></button>)}</div></section>}
     {page==="report"&&<section className="content-section"><form className="form-card" onSubmit={e=>{e.preventDefault();setNotice(t.sent);setReport("");}}><h2>{t.reportTitle}</h2><label>{language==="am"?"የሪፖርት አይነት":"Report category"}<select><option>App issue</option><option>Journey information</option><option>Wallet</option><option>Safety</option></select></label><label>{t.message}<textarea required value={report} onChange={e=>setReport(e.target.value)} rows={5}/></label><button className="primary-action" type="submit">{t.send}<Icon name="arrow"/></button></form></section>}
     {page==="about"&&<section className="content-section"><div className="panel-card"><h2>MaaleNex</h2><p>{language==="am"?"በኢትዮጵያ ውስጥ የተሳፋሪ ተሞክሮን ለማሻሻል የሚገነባ የመጓጓዣ ቴክኖሎጂ መድረክ።":"Mobility technology designed to improve the passenger experience in Ethiopia."}</p></div></section>}
