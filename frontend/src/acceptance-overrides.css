@@ -33,3 +33,12 @@
 @media(prefers-reduced-motion:reduce){
  .platform-header .brand-lockup,.side-link,.service-tile,.wallet-actions button,.settings-list button,.help-row{transition:none}
 }
+
+.password-field{display:flex;align-items:stretch;gap:8px}
+.password-field input{min-width:0;flex:1}
+.password-field .secondary-action{flex:0 0 auto;min-width:66px}
+.consent-row{display:flex!important;grid-template-columns:20px minmax(0,1fr);align-items:start;gap:10px!important;line-height:1.7}
+.consent-row input{width:18px!important;min-height:18px!important;accent-color:#83d9b0}
+.consent-row span{color:#b7cec0;font-size:11px}
+.stat-action{display:grid;gap:8px;border:1px solid rgba(180,219,197,.14);border-radius:14px;color:inherit;background:linear-gradient(145deg,rgba(17,49,45,.85),rgba(10,32,34,.96))}
+.stat-action:active{transform:translateY(0) scale(.99)}
