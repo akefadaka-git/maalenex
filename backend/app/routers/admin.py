@@ -1,3 +1,4 @@
+# ruff: noqa: B008
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import UUID
