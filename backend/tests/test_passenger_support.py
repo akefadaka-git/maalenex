@@ -14,6 +14,8 @@ from app.domains.audit.models import AuditEvent
 from app.domains.identity.passenger_models import PassengerAccount
 from app.domains.identity.security import token_digest
 from app.domains.support.passenger_models import PassengerSupportCase
+from app.routers import admin as admin_module
+from app.routers.auth import current_staff_context
 from app.routers.passenger_auth import current_passenger_context
 from app.routers.passenger_support import router
 
@@ -100,3 +102,60 @@ def test_support_case_submission_is_rate_limited_to_five_per_hour(client):
         assert response.status_code == 201
     limited = client.post("/api/v1/passenger/support/cases", json=payload, headers=headers)
     assert limited.status_code == 429
+
+
+@pytest.fixture
+def staff_client(monkeypatch):
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(engine, tables=[
+        PassengerAccount.__table__, PassengerSupportCase.__table__, AuditEvent.__table__,
+    ])
+    db = Session(engine)
+    passenger = PassengerAccount(
+        id=uuid4(), login_identifier="staff-case-rider@example.test",
+        display_name="Support Case Rider", status="active",
+    )
+    db.add(passenger)
+    case = PassengerSupportCase(
+        case_reference="MN-SUP-STAFF-TEST",
+        passenger_id=passenger.id,
+        category="technical",
+        subject="Cannot reconnect",
+        message="The app does not reconnect after the internet returns.",
+        status="open",
+    )
+    db.add(case)
+    db.commit()
+    context = SimpleNamespace(user=SimpleNamespace(id=uuid4()))
+    app = FastAPI()
+    app.include_router(admin_module.router, prefix="/api/v1")
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[current_staff_context] = lambda: context
+    monkeypatch.setattr(admin_module, "_authorize", lambda _db, _context, _permission: None)
+    monkeypatch.setattr(admin_module, "require_csrf", lambda _request, _context: None)
+    with TestClient(app) as test_client:
+        yield test_client, db, case
+    db.close()
+    engine.dispose()
+
+
+def test_staff_can_claim_and_resolve_passenger_support_case(staff_client):
+    client, db, case = staff_client
+    listed = client.get("/api/v1/support/passenger-cases?case_status=open")
+    assert listed.status_code == 200
+    assert listed.json()[0]["case_reference"] == case.case_reference
+
+    claimed = client.post(f"/api/v1/support/passenger-cases/{case.id}/claim")
+    assert claimed.status_code == 200
+    assert claimed.json()["status"] == "in_progress"
+
+    resolved = client.post(
+        f"/api/v1/support/passenger-cases/{case.id}/resolve",
+        json={"resolution_code": "guidance_sent", "resolution_note": "Connection recovery steps provided."},
+    )
+    assert resolved.status_code == 200
+    assert resolved.json()["status"] == "resolved"
+    db.refresh(case)
+    assert case.resolution_code == "guidance_sent"
+    assert case.resolution_note == "Connection recovery steps provided."
+    assert case.resolved_at is not None
