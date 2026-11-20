@@ -42,3 +42,5 @@
 .consent-row span{color:#b7cec0;font-size:11px}
 .stat-action{display:grid;gap:8px;border:1px solid rgba(180,219,197,.14);border-radius:14px;color:inherit;background:linear-gradient(145deg,rgba(17,49,45,.85),rgba(10,32,34,.96))}
 .stat-action:active{transform:translateY(0) scale(.99)}
+
+.offline-dot{background:#e2b36c!important;box-shadow:0 0 12px rgba(226,179,108,.55)!important}
