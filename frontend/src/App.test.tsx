@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import App from "./App";
 import { getIrokaProvider } from "./iroka/provider";
@@ -29,7 +29,7 @@ describe("MaaleNex NEXUS passenger preview", () => {
     expect(screen.getByRole("heading", { name: "ስለ MaaleNex" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "IROKA" }));
     expect(screen.getByRole("heading", { name: "IROKA የኢንተለጀንስ ንብርብር" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /መነሻ/ }));
+    fireEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: /መነሻ/ }));
     expect(screen.getByRole("heading", { name: "መንገድዎን በእርጋታ። ወደፊትዎን በእምነት።" })).toBeTruthy();
   });
 
