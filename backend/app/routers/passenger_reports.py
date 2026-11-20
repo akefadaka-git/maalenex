@@ -22,7 +22,7 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.domains.audit.service import record_event
 from app.domains.identity.passenger_service import PassengerContext, verify_passenger_csrf
-from app.domains.support.passenger_models import PassengerReport, PassengerReportAttachment
+from app.domains.support.report_models import PassengerReport, PassengerReportAttachment
 from app.routers.passenger_auth import current_passenger_context
 
 router = APIRouter(prefix="/passenger/reports", tags=["passenger-reports"])
