@@ -47,8 +47,11 @@ def _identifier(value: str) -> str:
 
 def _cookies(request: Request, response: Response, issued) -> None:
     secure = settings.should_use_secure_cookies(request.url.scheme)
-    response.set_cookie(SESSION_COOKIE, issued.session_token, max_age=43200, httponly=True, secure=secure, samesite="lax", path="/")
-    response.set_cookie(CSRF_COOKIE, issued.csrf_token, max_age=43200, httponly=False, secure=secure, samesite="lax", path="/")
+    origin = request.headers.get("origin")
+    request_origin = str(request.base_url).rstrip("/")
+    same_site = "none" if secure and origin and origin != request_origin else "lax"
+    response.set_cookie(SESSION_COOKIE, issued.session_token, max_age=43200, httponly=True, secure=secure, samesite=same_site, path="/")
+    response.set_cookie(CSRF_COOKIE, issued.csrf_token, max_age=43200, httponly=False, secure=secure, samesite=same_site, path="/")
 
 def current_passenger_context(request: Request, db: Session = Depends(get_db)) -> PassengerContext:
     try:
