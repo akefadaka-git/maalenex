@@ -15,6 +15,10 @@ import {
   createPassengerSupportCase,
   type PassengerSupportFaq,
   type PassengerSupportCase,
+  listPassengerReports,
+  createPassengerReport,
+  uploadPassengerReportAttachment,
+  type PassengerReport,
 } from "./passenger-api";
 import { BookingFlow } from "./BookingFlow";
 import { Icon } from "./components/nexus-icons";
@@ -41,6 +45,15 @@ export default function App() {
  const [page,setPage]=useState<Page>("dashboard");
  const [notice,setNotice]=useState("");
  const [report,setReport]=useState("");
+ const [reportType,setReportType]=useState<PassengerReport["report_type"]>("report");
+ const [reportCategory,setReportCategory]=useState<PassengerReport["category"]>("app_issue");
+ const [reportSeverity,setReportSeverity]=useState<PassengerReport["severity"]>("normal");
+ const [reportSubject,setReportSubject]=useState("");
+ const [reportAttachment,setReportAttachment]=useState<File|null>(null);
+ const [reportCases,setReportCases]=useState<PassengerReport[]>([]);
+ const [reportLoading,setReportLoading]=useState(false);
+ const [reportSubmitting,setReportSubmitting]=useState(false);
+ const [reportError,setReportError]=useState("");
  const [supportFaqs,setSupportFaqs]=useState<PassengerSupportFaq[]>([]);
  const [supportCases,setSupportCases]=useState<PassengerSupportCase[]>([]);
  const [supportCategory,setSupportCategory]=useState<PassengerSupportCase["category"]>("general");
@@ -101,6 +114,15 @@ export default function App() {
   return()=>{active=false;};
  },[page,language,passenger]);
  useEffect(()=>{
+  if(page!=="report"||!passenger)return;
+  let active=true;
+  setReportLoading(true);setReportError("");
+  listPassengerReports().then(result=>{if(active)setReportCases(result.items);})
+   .catch(error=>{if(active)setReportError(error instanceof Error?error.message:"Unable to load reports and complaints.");})
+   .finally(()=>{if(active)setReportLoading(false);});
+  return()=>{active=false;};
+ },[page,passenger]);
+ useEffect(()=>{
   let active=true;
   getCurrentPassenger().then(account=>{
    if(!active)return;
@@ -142,6 +164,35 @@ export default function App() {
   try{const results=await searchPassengerTrips({origin_id:originId,destination_id:destinationId,travel_date:travelDate,passenger_count:passengerCount});setTripResults(results);}
   catch(error){setTripError(error instanceof Error?error.message:"Journey search is temporarily unavailable.");}
   finally{setTripLoading(false);}
+ };
+ const submitReport=async(e:FormEvent<HTMLFormElement>)=>{
+  e.preventDefault();
+  if(!passenger){go("login");setNotice(language==="am"?"ሪፖርት ወይም ቅሬታ ለመላክ መለያዎን ይግቡ።":"Sign in to submit a report or complaint.");return;}
+  setReportSubmitting(true);setReportError("");setNotice("");
+  let created:PassengerReport|undefined;
+  try{
+   created=await createPassengerReport({
+    report_type:reportType,category:reportCategory,severity:reportSeverity,
+    subject:reportSubject.trim(),description:report.trim(),
+   });
+   setReportCases(current=>[created!,...current]);
+   if(reportAttachment){
+    try{
+     const attachment=await uploadPassengerReportAttachment(created.report_reference,reportAttachment);
+     created={...created,attachments:[...created.attachments,attachment]};
+     setReportCases(current=>current.map(item=>item.report_reference===created!.report_reference?created!:item));
+     setNotice(language==="am"?"ሪፖርትዎ ከማስረጃ ፋይሉ ጋር ተልኳል። ማጣቀሻ: "+created.report_reference:"Report submitted with evidence. Reference: "+created.report_reference);
+    }catch(error){
+     setReportError((error instanceof Error?error.message:"Evidence upload failed.")+" "+(language==="am"?"ሪፖርቱ ግን ተመዝግቧል። ማጣቀሻ: ":"The report itself was saved. Reference: ")+created.report_reference);
+    }
+   }else{
+    setNotice(language==="am"?"ሪፖርትዎ ተልኳል። ማጣቀሻ: "+created.report_reference:"Report submitted. Reference: "+created.report_reference);
+   }
+   setReport("");setReportSubject("");setReportAttachment(null);
+   const fileInput=document.getElementById("report-evidence") as HTMLInputElement|null;
+   if(fileInput)fileInput.value="";
+  }catch(error){setReportError(error instanceof Error?error.message:"Report or complaint could not be submitted.");}
+  finally{setReportSubmitting(false);}
  };
  const submitSupportCase=async(e:FormEvent<HTMLFormElement>)=>{
   e.preventDefault();
@@ -315,7 +366,56 @@ export default function App() {
       {!passenger?<p>{language==="am"?"የጥያቄዎችን ታሪክ ለማየት ይግቡ።":"Sign in to view your support history."}</p>:supportCases.length===0?<p>{language==="am"?"ገና የተላከ ጥያቄ የለም።":"You have no support requests yet."}</p>:supportCases.map(item=><article className="support-case" key={item.case_reference}><div><strong>{item.subject}</strong><small>{item.case_reference} · {item.category}</small></div><span className={"support-status status-"+item.status}>{language==="am"?({open:"ክፍት",in_progress:"በሂደት ላይ",resolved:"ተፈትቷል",closed:"ተዘግቷል"} as const)[item.status]:item.status.replace("_"," ")}</span>{item.resolution_note&&<p>{item.resolution_note}</p>}</article>)}
      </div>
     </section>}
-    {page==="report"&&<section className="content-section"><form className="form-card" onSubmit={e=>{e.preventDefault();setNotice(t.sent);setReport("");}}><h2>{t.reportTitle}</h2><label>{language==="am"?"የሪፖርት አይነት":"Report category"}<select><option>App issue</option><option>Journey information</option><option>Wallet</option><option>Safety</option></select></label><label>{t.message}<textarea required value={report} onChange={e=>setReport(e.target.value)} rows={5}/></label><button className="primary-action" type="submit">{t.send}<Icon name="arrow"/></button></form></section>}
+    {page==="report"&&<section className="content-section support-layout">
+     <div className="form-card support-form-card">
+      <h2>{language==="am"?"ሪፖርት እና ቅሬታ ያቅርቡ":"Reports and Complaints"}</h2>
+      <p>{language==="am"?"የአገልግሎት ችግርን ወይም ቅሬታን በተለየ ሁኔታ ያስገቡ። ማጣቀሻ ቁጥር ይቀበላሉ።":"Submit a service report or a formal complaint. Each submission receives a reference and can be tracked separately from Help requests."}</p>
+      {!passenger&&<div className="notice-panel">{language==="am"?"ሪፖርት ለማቅረብ ይግቡ።":"Sign in to submit and track a report."} <button type="button" className="text-link" onClick={()=>go("login")}>{t.login}</button></div>}
+      {reportError&&<p className="support-error" role="alert">{reportError}</p>}
+      <form onSubmit={submitReport}>
+       <label>{language==="am"?"የማቅረቢያ አይነት":"Submission type"}
+        <select aria-label="Submission type" value={reportType} onChange={e=>setReportType(e.target.value as PassengerReport["report_type"])}>
+         <option value="report">{language==="am"?"ሪፖርት":"Report"}</option>
+         <option value="complaint">{language==="am"?"መደበኛ ቅሬታ":"Formal complaint"}</option>
+        </select>
+       </label>
+       <label>{language==="am"?"ምድብ":"Category"}
+        <select aria-label="Report category" value={reportCategory} onChange={e=>setReportCategory(e.target.value as PassengerReport["category"])}>
+         <option value="app_issue">{language==="am"?"የመተግበሪያ ችግር":"App issue"}</option>
+         <option value="journey">{language==="am"?"የጉዞ መረጃ":"Journey information"}</option>
+         <option value="booking">{language==="am"?"ቦታ ማስያዣ":"Booking"}</option>
+         <option value="wallet">{language==="am"?"ቦርሳ":"Wallet"}</option>
+         <option value="payment">{language==="am"?"ክፍያ":"Payment"}</option>
+         <option value="safety">{language==="am"?"ደህንነት":"Safety"}</option>
+         <option value="driver_vehicle">{language==="am"?"ሹፌር ወይም ተሽከርካሪ":"Driver or vehicle"}</option>
+         <option value="accessibility">{language==="am"?"ተደራሽነት":"Accessibility"}</option>
+         <option value="fraud">{language==="am"?"ማጭበርበር":"Fraud or scam"}</option>
+         <option value="other">{language==="am"?"ሌላ":"Other"}</option>
+        </select>
+       </label>
+       <label>{language==="am"?"አስቸኳይነት":"Severity"}
+        <select aria-label="Severity" value={reportSeverity} onChange={e=>setReportSeverity(e.target.value as PassengerReport["severity"])}>
+         <option value="low">{language==="am"?"ዝቅተኛ":"Low"}</option>
+         <option value="normal">{language==="am"?"መደበኛ":"Normal"}</option>
+         <option value="high">{language==="am"?"ከፍተኛ":"High"}</option>
+         <option value="urgent">{language==="am"?"አስቸኳይ":"Urgent"}</option>
+        </select>
+       </label>
+       <label>{language==="am"?"ርዕስ":"Subject"}<input required minLength={3} maxLength={160} value={reportSubject} onChange={e=>setReportSubject(e.target.value)}/></label>
+       <label>{language==="am"?"የችግሩ ዝርዝር":"Description"}<textarea required minLength={10} maxLength={5000} value={report} onChange={e=>setReport(e.target.value)} rows={6}/></label>
+       <label>{language==="am"?"ማስረጃ ፋይል (አማራጭ)":"Evidence attachment (optional)"}
+        <input id="report-evidence" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={e=>{const file=e.target.files?.[0]??null;if(file&&(file.size>5*1024*1024||!["application/pdf","image/jpeg","image/png","image/webp"].includes(file.type))){setReportError(language==="am"?"PDF፣ JPG፣ PNG ወይም WebP እስከ 5 MB ብቻ ይምረጡ።":"Choose a PDF, JPG, PNG or WebP file up to 5 MB.");e.target.value="";setReportAttachment(null);}else{setReportError("");setReportAttachment(file);}}}/>
+       </label>
+       <p className="support-hint">{language==="am"?"እስከ 3 ፋይሎች፣ እያንዳንዱ እስከ 5 MB። በዚህ ስሪት አንድ ፋይል በአንድ ጊዜ ይላካል።":"Up to three files per case, 5 MB each. This screen currently submits one file with the report."}</p>
+       <button className="primary-action" type="submit" disabled={!passenger||reportSubmitting}>{reportSubmitting?(language==="am"?"በመላክ ላይ…":"Submitting…"):(language==="am"?"ሪፖርት አስገባ":"Submit report")}<Icon name="arrow"/></button>
+      </form>
+     </div>
+     <div className="panel-card support-panel">
+      <h2>{language==="am"?"የእኔ ሪፖርቶች እና ቅሬታዎች":"My reports and complaints"}</h2>
+      {reportLoading&&<p role="status">{language==="am"?"በመጫን ላይ…":"Loading reports…"}</p>}
+      {!passenger?<p>{language==="am"?"ታሪክዎን ለማየት ይግቡ።":"Sign in to view your submissions."}</p>:reportCases.length===0&&!reportLoading?<p>{language==="am"?"ገና ሪፖርት ወይም ቅሬታ የለም።":"No reports or complaints submitted yet."}</p>:reportCases.map(item=><article className="support-case" key={item.report_reference}><div><strong>{item.subject}</strong><small>{item.report_reference} · {item.report_type} · {item.category}</small></div><span className={"support-status status-"+item.status}>{language==="am"?({submitted:"ተልኳል",under_review:"በግምገማ ላይ",action_required:"ተጨማሪ እርምጃ ያስፈልጋል",resolved:"ተፈትቷል",dismissed:"ተዘግቷል"} as const)[item.status]:item.status.replace("_"," ")}</span><small>{item.severity} · {item.attachments.length} {language==="am"?"ማስረጃ":"evidence file(s)"}</small>{item.resolution_note&&<p>{item.resolution_note}</p>}</article>)}
+     </div>
+    </section>}
     {page==="about"&&<section className="content-section"><div className="panel-card"><h2>MaaleNex</h2><p>{language==="am"?"በኢትዮጵያ ውስጥ የተሳፋሪ ተሞክሮን ለማሻሻል የሚገነባ የመጓጓዣ ቴክኖሎጂ መድረክ።":"Mobility technology designed to improve the passenger experience in Ethiopia."}</p></div></section>}
     <footer className="platform-footer"><span>© MaaleNex</span><span>{language==="am"?"በአካባቢያዊ ግንዛቤ የተመራ":"Built with local understanding"}</span><span>{t.demo}</span></footer>
    </main>
