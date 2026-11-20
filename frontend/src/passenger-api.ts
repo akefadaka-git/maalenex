@@ -295,3 +295,9 @@ export async function uploadPassengerReportAttachment(reportReference: string, f
     }),
   });
 }
+
+
+export function passengerReportAttachmentUrl(reportReference: string, attachmentId: string): string {
+  const root = API_ROOT || "/api/v1";
+  return `${root}/passenger/reports/${encodeURIComponent(reportReference)}/attachments/${encodeURIComponent(attachmentId)}`;
+}
