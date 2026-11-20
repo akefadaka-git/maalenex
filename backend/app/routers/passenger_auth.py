@@ -1,15 +1,23 @@
 """Passenger registration, login, profile and logout endpoints."""
+# FastAPI dependency injection requires Depends instances in endpoint defaults.
+# ruff: noqa: B008
 import re
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, SecretStr
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+
 from app.core.config import settings
 from app.db.session import get_db
 from app.domains.audit.service import record_event
 from app.domains.identity.passenger_service import (
-    PassengerAuthenticationError, PassengerContext, PassengerRateLimited,
-    create_passenger_session, register_passenger, resolve_passenger_session,
+    PassengerAuthenticationError,
+    PassengerContext,
+    PassengerRateLimited,
+    create_passenger_session,
+    register_passenger,
+    resolve_passenger_session,
     verify_passenger_csrf,
 )
 
