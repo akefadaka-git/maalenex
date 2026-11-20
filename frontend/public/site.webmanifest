@@ -1,14 +1,14 @@
 {
-  "id": "/",
+  "id": "./",
   "name": "MaaleNex",
   "short_name": "MaaleNex",
   "description": "MaaleNex passenger mobility public development preview",
   "lang": "am",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#071B31",
-  "theme_color": "#071B31",
+  "background_color": "#071A1C",
+  "theme_color": "#071A1C",
   "icons": [
     {
       "src": "./pwa-192.svg",
