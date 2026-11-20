@@ -3,6 +3,7 @@ package com.maalenex.moto
 import android.app.Activity
 import android.graphics.Color
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
 import android.webkit.RenderProcessGoneDetail
@@ -16,9 +17,12 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
 import org.json.JSONObject
 import org.json.JSONTokener
+import kotlin.math.abs
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
+    private var touchStartScale = Float.NaN
+    private var savedZoomRestoreAttempted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,6 +82,7 @@ class MainActivity : Activity() {
                         android.util.Log.w(TAG, "WEBVIEW_JS_PROBE_SKIPPED unexpected_document")
                         return
                     }
+                    restoreSavedZoom(view)
                     view.evaluateJavascript(
                         "JSON.stringify({schemaVersion:1,readyState:document.readyState,title:document.title,rootPresent:!!document.getElementById('root'),rootTextLength:(document.getElementById('root')?.innerText||'').trim().length})"
                     ) { result ->
@@ -151,6 +156,46 @@ class MainActivity : Activity() {
         webView.loadUrl(APP_ENTRY_URL)
     }
 
+    private fun restoreSavedZoom(view: WebView) {
+        if (savedZoomRestoreAttempted) return
+        savedZoomRestoreAttempted = true
+        val savedScale = getSharedPreferences(ZOOM_PREFERENCES, MODE_PRIVATE)
+            .getFloat(KEY_SAVED_WEBVIEW_SCALE, Float.NaN)
+        val factor = WebViewZoomScalePolicy.zoomFactor(view.scale, savedScale) ?: return
+        if (abs(factor - 1.0f) < 0.01f) return
+        // Apply only after the packaged document has loaded. The page uses a
+        // viewport meta tag, so zoomBy preserves the user scale where setInitialScale would not.
+        view.post {
+            if (!isFinishing && !isDestroyed) view.zoomBy(factor)
+        }
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                if (::webView.isInitialized) touchStartScale = webView.scale
+            }
+            MotionEvent.ACTION_UP -> {
+                if (::webView.isInitialized && touchStartScale.isFinite()) {
+                    val startingScale = touchStartScale
+                    webView.post {
+                        val currentScale = webView.scale
+                        if (WebViewZoomScalePolicy.isValidScale(currentScale) &&
+                            abs(currentScale - startingScale) > 0.01f
+                        ) {
+                            getSharedPreferences(ZOOM_PREFERENCES, MODE_PRIVATE).edit()
+                                .putFloat(KEY_SAVED_WEBVIEW_SCALE, currentScale)
+                                .apply()
+                        }
+                    }
+                }
+                touchStartScale = Float.NaN
+            }
+            MotionEvent.ACTION_CANCEL -> touchStartScale = Float.NaN
+        }
+        return super.dispatchTouchEvent(event)
+    }
+
     private fun logDecodedProbe(callbackValue: String?) {
         try {
             require(!callbackValue.isNullOrBlank() && callbackValue != "null") {
@@ -219,5 +264,7 @@ class MainActivity : Activity() {
     private companion object {
         const val TAG = "MaaleNexWebView"
         const val APP_ENTRY_URL = "https://appassets.androidplatform.net/assets/www/index.html"
+        const val ZOOM_PREFERENCES = "webview_preferences"
+        const val KEY_SAVED_WEBVIEW_SCALE = "saved_scale"
     }
 }
