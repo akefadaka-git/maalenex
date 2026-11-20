@@ -28,7 +28,7 @@ const auditAccessibility = async (page, language, viewport) => {
 };
 
 try {
-  for (const viewport of [{ width: 1280, height: 800 }, { width: 360, height: 800 }]) {
+  for (const viewport of [{ width: 1280, height: 800 }, { width: 360, height: 800 }, { width: 320, height: 800 }]) {
     const page = await browser.newPage({ viewport });
     await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 
@@ -61,11 +61,20 @@ try {
     await page.keyboard.press("Shift+Tab");
     assert.equal(await page.locator(".language").evaluate((el) => el === document.activeElement), true,
       "Shift+Tab must return to the language control.");
+    await page.keyboard.press("Shift+Tab");
+    assert.equal(await page.locator(".brand").evaluate((el) => el === document.activeElement), true,
+      "A second Shift+Tab must return to the brand/home link.");
+    await page.keyboard.press("Shift+Tab");
+    assert.equal(await page.locator(".skip-link").evaluate((el) => el === document.activeElement), true,
+      "A third Shift+Tab must return to the skip link.");
 
     await page.locator(".skip-link").focus();
     await page.keyboard.press("Enter");
     assert.equal(await page.locator("#main-content").evaluate((el) => el === document.activeElement), true,
       "Activating the skip link must move focus to the main landmark.");
+    await page.keyboard.press("Tab");
+    assert.equal(await page.locator(".search-button").evaluate((el) => el === document.activeElement), true,
+      "Tab after skip navigation must reach the first interactive control in main.");
 
     await page.getByRole("button", { name: "Switch language to English" }).click();
     await page.waitForFunction(() => document.documentElement.lang === "en");
