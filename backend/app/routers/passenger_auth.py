@@ -112,7 +112,7 @@ def update_profile(payload: PassengerProfileUpdate, request: Request, context: P
     context.passenger.display_name = payload.display_name.strip()
     record_event(db, event_type="passenger.profile.updated", actor_type="passenger", actor_id=str(context.passenger.id), resource_type="passenger_account", resource_id=str(context.passenger.id), action="update_profile", outcome="success")
     db.commit()
-    return {"id": str(context.passenger.id), "display_name": context.passenger.display_name, "login_identifier": context.passenger.login_identifier, "contact_verified": context.passenger.contact_verified_at is not None}
+    return {"id": str(context.passenger.id), "display_name": context.passenger.display_name, "login_identifier": context.passenger.login_identifier, "contact_verified": context.passenger.contact_verified_at is not None, "expires_at": context.session.expires_at.isoformat()}
 
 @router.delete("/sessions/current", status_code=status.HTTP_204_NO_CONTENT)
 def logout(request: Request, response: Response, context: PassengerContext = Depends(current_passenger_context), db: Session = Depends(get_db)) -> Response:
