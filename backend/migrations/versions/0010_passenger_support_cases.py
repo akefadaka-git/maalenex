@@ -28,6 +28,7 @@ def upgrade() -> None:
         sa.Column("subject", sa.String(160), nullable=False),
         sa.Column("message", sa.Text(), nullable=False),
         sa.Column("status", sa.String(24), nullable=False, server_default="open"),
+        sa.Column("assigned_to", postgresql.UUID(as_uuid=True), sa.ForeignKey("staff_users.id", ondelete="SET NULL"), nullable=True),
         sa.Column("resolution_code", sa.String(80), nullable=True),
         sa.Column("resolution_note", sa.String(1000), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
