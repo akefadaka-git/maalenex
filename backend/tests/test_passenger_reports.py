@@ -183,7 +183,6 @@ def staff_report_client(monkeypatch):
     app.dependency_overrides[current_staff_context] = lambda: context
     monkeypatch.setattr(admin_module, "_authorize", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(admin_module, "require_csrf", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(admin_module, "_audit", lambda *_args, **_kwargs: None)
     with TestClient(app) as client:
         yield client, db, report
     db.close()
