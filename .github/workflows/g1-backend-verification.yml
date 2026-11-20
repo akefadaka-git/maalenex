@@ -2,7 +2,7 @@ name: G1 backend foundation verification
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/a3-passenger-only-integration]
     paths:
       - "backend/**"
       - ".github/workflows/g1-backend-verification.yml"
