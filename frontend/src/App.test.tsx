@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { BookingFlow } from "./BookingFlow";
 
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); document.cookie = "mnm_booking_csrf=; Max-Age=0; path=/"; document.documentElement.lang = "am"; });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); document.cookie = "mnm_booking_csrf=; Max-Age=0; path=/"; document.cookie = "mnm_passenger_csrf=; Max-Age=0; path=/"; document.documentElement.lang = "am"; });
 
 describe("MaaleNex full-platform interface foundation", () => {
   it("renders an Amharic-first dashboard and branded shell", () => {
