@@ -1,8 +1,8 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 
-afterEach(() => { cleanup(); document.documentElement.lang = "am"; });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); document.documentElement.lang = "am"; });
 
 describe("MaaleNex full-platform interface foundation", () => {
   it("renders an Amharic-first dashboard and branded shell", () => {
@@ -36,7 +36,7 @@ describe("MaaleNex full-platform interface foundation", () => {
     fireEvent.click(screen.getByRole("button", { name: /EN/ }));
     fireEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: /Profile/ }));
     fireEvent.click(screen.getByRole("button", { name: /Log in/ }));
-    expect(screen.getByLabelText("Phone number")).toBeTruthy();
+    expect(screen.getByLabelText("Email or international phone number")).toBeTruthy();
   });
   it("captures a report locally and explains that it is not transmitted", () => {
     render(<App />);
@@ -70,9 +70,38 @@ describe("MaaleNex full-platform interface foundation", () => {
     fireEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: /Profile/ }));
     fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
     fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Synthetic Passenger" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save preview" }));
-    expect(screen.getByText(/not saved to an account/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
+    expect(screen.getByText(/preview-only until you sign in/i)).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Synthetic Passenger" })).toBeTruthy();
+  });
+
+  it("submits passenger login to the real account API and restores the signed-in state", async () => {
+    const account = {
+      id: "passenger-test-id",
+      display_name: "Test Passenger",
+      login_identifier: "rider@example.test",
+      expires_at: "2026-11-21T00:00:00+00:00",
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/passenger/auth/sessions/current")) {
+        return { ok: false, status: 401, json: async () => ({ detail: "Authentication required" }) } as Response;
+      }
+      return { ok: true, status: 200, json: async () => account } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /EN/ }));
+    fireEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: /Profile/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Log in/ }));
+    fireEvent.change(screen.getByLabelText("Email or international phone number"), { target: { value: "rider@example.test" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "synthetic-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Welcome to MaaleNex" })).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/passenger/auth/sessions",
+      expect.objectContaining({ method: "POST", credentials: "include" }),
+    );
+    expect(screen.getByRole("status").textContent).toMatch(/signed in/i);
   });
 
   it("keeps internal provider labels out of public UI", () => {
