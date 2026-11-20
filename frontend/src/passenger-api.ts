@@ -10,7 +10,7 @@ type Credentials = { login_identifier: string; password: string };
 type Registration = Credentials & { display_name: string };
 
 const configuredBase = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
-const API_ROOT = `${configuredBase}/api/v1`;
+const API_ROOT = configuredBase ? `${configuredBase}/api/v1` : window.location.origin === "https://appassets.androidplatform.net" ? "" : "/api/v1";
 
 function csrfToken(): string | undefined {
   const entry = document.cookie.split("; ").find((part) => part.startsWith("mnm_passenger_csrf="));
@@ -18,6 +18,7 @@ function csrfToken(): string | undefined {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (!API_ROOT) throw new Error("Passenger account service is not configured for this app build.");
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (init.method && !["GET", "HEAD", "OPTIONS"].includes(init.method.toUpperCase())) {
