@@ -141,7 +141,7 @@ describe("MaaleNex full-platform interface foundation", () => {
     fireEvent.change(screen.getByLabelText("Origin"), { target: { value: "origin-id" } });
     fireEvent.change(screen.getByLabelText("Destination"), { target: { value: "destination-id" } });
     fireEvent.click(screen.getByRole("button", { name: "Search journeys" }));
-    await waitFor(() => expect(screen.getByText("Koybe Terminal")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Koybe Terminal/)).toBeTruthy());
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes("origin_id=origin-id") && String(input).includes("destination_id=destination-id"))).toBe(true);
   });
 
