@@ -65,3 +65,41 @@ export function updatePassengerProfile(display_name: string): Promise<PassengerS
 export function logoutPassenger(): Promise<void> {
   return request("/passenger/auth/sessions/current", { method: "DELETE" });
 }
+
+export type PassengerLocation = {
+  id: string;
+  name: string;
+  type: string;
+};
+
+export type PassengerTrip = {
+  id: string;
+  departure_at: string;
+  arrival_estimate_at: string | null;
+  boarding_model: string;
+  available_seats: number;
+  availability_as_of: string;
+  fare: { amount_minor_units: number; currency_code: "ETB" };
+  reservation_only: boolean;
+  ticketing_enabled: boolean;
+  payment_enabled: boolean;
+};
+
+export function listPassengerLocations(): Promise<PassengerLocation[]> {
+  return request("/catalog/locations");
+}
+
+export function searchPassengerTrips(input: {
+  origin_id: string;
+  destination_id: string;
+  travel_date: string;
+  passenger_count: number;
+}): Promise<PassengerTrip[]> {
+  const query = new URLSearchParams({
+    origin_id: input.origin_id,
+    destination_id: input.destination_id,
+    travel_date: input.travel_date,
+    passenger_count: String(input.passenger_count),
+  });
+  return request(`/trips/search?${query.toString()}`);
+}
