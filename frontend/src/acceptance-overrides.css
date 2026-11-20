@@ -1,0 +1,35 @@
+/* Acceptance remediation: sticky navigation, richer controls and responsive polish. */
+.app-shell{overflow:visible}
+.platform-header{position:sticky;top:0;z-index:40;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.platform-header .brand-lockup{transition:transform .2s ease,color .2s ease}
+.platform-header .brand-lockup:active{transform:scale(.98)}
+.side-nav{scrollbar-width:thin;scrollbar-color:rgba(131,217,176,.35) transparent}
+.side-link,.service-tile,.wallet-actions button,.settings-list button,.help-row{transition:background .18s ease,border-color .18s ease,transform .18s ease,color .18s ease}
+.service-tile:hover,.wallet-actions button:hover{border-color:rgba(131,217,176,.38);background:#123936;transform:translateY(-1px)}
+.service-tile:focus-visible,.side-link:focus-visible,.icon-button:focus-visible,.profile-chip:focus-visible{outline:3px solid #f2c27c;outline-offset:3px}
+.platform-main{padding-bottom:max(28px,env(safe-area-inset-bottom))}
+.page-heading{scroll-margin-top:100px}
+.form-card input:focus,.form-card textarea:focus,.form-card select:focus,.map-toolbar input:focus{outline:2px solid rgba(131,217,176,.72);outline-offset:1px;border-color:#83d9b0}
+.form-card label{line-height:1.65}
+.form-card .field-hint{color:#91aaa0;font-size:11px;line-height:1.7}
+.form-card .field-error{color:#ffb4a9;font-size:11px;line-height:1.6}
+.form-card .form-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.form-card .secondary-action{min-height:44px;padding:0 14px;border:1px solid rgba(180,219,197,.2);border-radius:10px;color:#dcebe2;background:#102d2c}
+.dashboard-hero{position:relative;overflow:hidden}
+.dashboard-hero:after{content:"";position:absolute;right:-90px;bottom:-170px;width:300px;height:300px;border:1px solid rgba(181,239,204,.12);border-radius:50%;box-shadow:0 0 0 28px rgba(181,239,204,.025),0 0 0 58px rgba(181,239,204,.02);pointer-events:none}
+.stat-card{min-height:132px}
+.stat-action{width:100%;font:inherit;text-align:left;cursor:pointer}
+.stat-action:hover{border-color:rgba(131,217,176,.4);transform:translateY(-2px)}
+.platform-footer{padding-bottom:max(18px,env(safe-area-inset-bottom))}
+@media(max-width:650px){
+ .platform-header{position:sticky;top:0}
+ .side-nav{top:68px}
+ .platform-main{padding-top:18px}
+ .dashboard-hero{gap:12px}
+ .dashboard-hero p{font-size:12px}
+ .stat-card{min-height:118px}
+ .form-card{padding:20px}
+}
+@media(prefers-reduced-motion:reduce){
+ .platform-header .brand-lockup,.side-link,.service-tile,.wallet-actions button,.settings-list button,.help-row{transition:none}
+}
