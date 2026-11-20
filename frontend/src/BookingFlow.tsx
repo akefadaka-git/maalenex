@@ -74,9 +74,9 @@ export function BookingFlow({ trip, passengerCount, language, onClose }: Props) 
         seat_ids: selectedSeats,
       }, idempotencyKey);
       setHold(created);
+      setStage("verify");
       const challengeResponse = await requestBookingChallenge(created.booking_reference, contactPhone.trim());
       setChallenge(challengeResponse);
-      setStage("verify");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to create a reservation hold.");
     } finally {
@@ -165,8 +165,17 @@ export function BookingFlow({ trip, passengerCount, language, onClose }: Props) 
         </form>
       )}
       {stage === "verify" && hold && (
-        <form onSubmit={verify}>
+        <div>
           <h3>{am ? "የቦታ ማስያዣ ማረጋገጫ" : "Verify booking contact"}</h3>
+          {!challenge && (
+            <button type="button" className="primary-action" disabled={busy} onClick={async()=>{
+              setBusy(true);setError("");
+              try{setChallenge(await requestBookingChallenge(hold.booking_reference,contactPhone.trim()));}
+              catch(reason){setError(reason instanceof Error?reason.message:"Unable to request a verification challenge.");}
+              finally{setBusy(false);}
+            }}>{am ? "እንደገና ኮድ ጠይቅ" : "Retry verification request"}</button>
+          )}
+          {challenge && <form onSubmit={verify}>
           <p>{am ? "የማስያዣ ማጣቀሻ" : "Booking reference"}: <strong>{hold.booking_reference}</strong></p>
           <p>{am ? "መቀመጫዎች ለ10 ደቂቃ ተይዘዋል።" : "Seats are held for up to 10 minutes."}</p>
           {challenge?.synthetic_test_code
@@ -175,10 +184,11 @@ export function BookingFlow({ trip, passengerCount, language, onClose }: Props) 
           <label>{am ? "የማረጋገጫ ኮድ" : "Verification code"}
             <input required minLength={6} maxLength={6} inputMode="numeric" value={verificationCode} onChange={e => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))} />
           </label>
-          <button className="primary-action" type="submit" disabled={busy || !challenge?.synthetic_test_code}>
+          <button className="primary-action" type="submit" disabled={busy || !challenge.synthetic_test_code}>
             {busy ? (am ? "በማረጋገጥ ላይ…" : "Verifying…") : (am ? "አረጋግጥ" : "Verify contact")}
           </button>
-        </form>
+          </form>}
+        </div>
       )}
       {(stage === "review" || stage === "done") && booking && (
         <div>
