@@ -31,7 +31,7 @@ from app.domains.trips.models import Trip, TripSeat
 from app.routers.auth import current_staff_context, require_csrf
 
 router = APIRouter(tags=["platform-administration"])
-router = APIRouter(tags=["platform-administration"])
+
 
 class OperatorCreate(BaseModel):
     display_name: str = Field(min_length=2, max_length=200)
