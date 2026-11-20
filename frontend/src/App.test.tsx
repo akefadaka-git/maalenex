@@ -458,7 +458,7 @@ describe("MaaleNex full-platform interface foundation", () => {
     fireEvent.change(screen.getByLabelText("Subject"), { target: { value: "Unsafe vehicle" } });
     fireEvent.change(screen.getByLabelText("Description"), { target: { value: "A passenger door was damaged during the trip." } });
     fireEvent.click(screen.getByRole("button", { name: /Submit report/ }));
-    expect(await screen.findByText(/MN-RPT-TEST-0001/)).toBeTruthy();
+    expect((await screen.findAllByText(/MN-RPT-TEST-0001/)).length).toBeGreaterThanOrEqual(2);
     const submission = fetchMock.mock.calls.find(([input, init]) =>
       String(input).endsWith("/passenger/reports") && init?.method === "POST",
     );
