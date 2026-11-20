@@ -41,6 +41,9 @@ class PassengerSupportCase(Base):
     subject: Mapped[str] = mapped_column(String(160), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="open", server_default="open")
+    assigned_to: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="SET NULL"), nullable=True
+    )
     resolution_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
     resolution_note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
