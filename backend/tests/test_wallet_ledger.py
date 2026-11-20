@@ -30,8 +30,7 @@ def test_balanced_deposit_and_withdrawal_update_wallet_balance(db):
     settlement = create_ledger_account(
         db, account_code="ETB-SETTLEMENT-001", account_kind="settlement_asset",
         owner_type="platform", owner_ref=None, currency_code="ETB",
-        normal_balance="debit", allow_negative=True,
-    )
+        normal_balance="debit", )
     wallet = create_ledger_account(
         db, account_code="ETB-CUSTOMER-001", account_kind="customer_wallet_liability",
         owner_type="passenger", owner_ref=uuid4(), currency_code="ETB",
@@ -60,8 +59,7 @@ def test_idempotent_replay_returns_original_transaction(db):
     settlement = create_ledger_account(
         db, account_code="ETB-SETTLEMENT-002", account_kind="settlement_asset",
         owner_type="platform", owner_ref=None, currency_code="ETB",
-        normal_balance="debit", allow_negative=True,
-    )
+        normal_balance="debit", )
     wallet = create_ledger_account(
         db, account_code="ETB-CUSTOMER-002", account_kind="customer_wallet_liability",
         owner_type="passenger", owner_ref=uuid4(), currency_code="ETB",
@@ -83,8 +81,7 @@ def test_idempotency_key_cannot_be_reused_for_different_amount(db):
     settlement = create_ledger_account(
         db, account_code="ETB-SETTLEMENT-003", account_kind="settlement_asset",
         owner_type="platform", owner_ref=None, currency_code="ETB",
-        normal_balance="debit", allow_negative=True,
-    )
+        normal_balance="debit", )
     wallet = create_ledger_account(
         db, account_code="ETB-CUSTOMER-003", account_kind="customer_wallet_liability",
         owner_type="passenger", owner_ref=uuid4(), currency_code="ETB",
@@ -105,8 +102,7 @@ def test_wallet_cannot_be_overdrawn(db):
     settlement = create_ledger_account(
         db, account_code="ETB-SETTLEMENT-004", account_kind="settlement_asset",
         owner_type="platform", owner_ref=None, currency_code="ETB",
-        normal_balance="debit", allow_negative=True,
-    )
+        normal_balance="debit", )
     wallet = create_ledger_account(
         db, account_code="ETB-CUSTOMER-004", account_kind="customer_wallet_liability",
         owner_type="passenger", owner_ref=uuid4(), currency_code="ETB",
