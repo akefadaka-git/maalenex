@@ -28,15 +28,23 @@ export default function App() {
  const [profilePhone,setProfilePhone]=useState("");
  const [profileEmail,setProfileEmail]=useState("");
  const [profileSaved,setProfileSaved]=useState(false);
+ const [isOnline,setIsOnline]=useState(true);
  const t=labels[language];
  useEffect(()=>{document.documentElement.lang=language;},[language]);
+ useEffect(()=>{
+  const syncOnline=()=>setIsOnline(navigator.onLine);
+  const handleOffline=()=>{setIsOnline(false);setNotice(language==="am"?"የኢንተርኔት ግንኙነት የለም። የተቀመጡ ማያዎችን ብቻ ይጠቀሙ።":"You are offline. Only locally available screens can be used.");};
+  const handleOnline=()=>{setIsOnline(true);setNotice(language==="am"?"ግንኙነት ተመልሷል። የቀድሞ ያልተላኩ ለውጦች በራስ-ሰር አልተላኩም።":"Connection restored. Previously unsent changes have not been synchronized.");};
+  window.addEventListener("online",handleOnline);window.addEventListener("offline",handleOffline);syncOnline();
+  return()=>{window.removeEventListener("online",handleOnline);window.removeEventListener("offline",handleOffline);};
+ },[language]);
  const go=(next:Page)=>{setPage(next);setNotice("");};
  const title=t[page as keyof typeof t] ?? t.dashboard;
  return <div className="app-shell platform-shell" lang={language}>
   <a className="skip-link" href="#main-content">{language==="am"?"ወደ ዋና ይዘት ዝለል":"Skip to main content"}</a>
   <header className="platform-header">
    <button className="brand-lockup" onClick={()=>go("dashboard")} aria-label="MaaleNex dashboard"><img src="./brand/maalenex-nexus-emblem.svg" alt="" width="42" height="42"/><span>MaaleNex</span></button>
-   <div className="header-context"><span className="online-dot"/><span>{language==="am"?"የተጠቃሚ ማዕከል":"Passenger hub"}</span></div>
+   <div className="header-context"><span className={isOnline?"online-dot":"online-dot offline-dot"}/><span>{!isOnline?(language==="am"?"ከመስመር ውጭ":"Offline"):(language==="am"?"የተጠቃሚ ማዕከል":"Passenger hub")}</span></div>
    <div className="header-actions"><button className="icon-button" aria-label={t.notifications} onClick={()=>setNotice(t.coming)}><Icon name="bell"/></button><button className="language-switch" onClick={()=>setLanguage(language==="am"?"en":"am")}><Icon name="globe"/>{language==="am"?"EN":"አማ"}</button><button className="profile-chip" onClick={()=>go("profile")}><Icon name="user"/><span>{language==="am"?"መገለጫ":"Profile"}</span></button></div>
   </header>
   <div className="platform-layout">
