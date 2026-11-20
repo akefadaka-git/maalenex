@@ -48,6 +48,7 @@ describe("MaaleNex full-platform interface foundation", () => {
   });
   it("makes dashboard summary widgets navigable", () => {
     render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /EN/ }));
     fireEvent.click(screen.getByRole("button", { name: /Wallet balance/ }));
     expect(screen.getByRole("heading", { name: "Wallet" })).toBeTruthy();
   });
