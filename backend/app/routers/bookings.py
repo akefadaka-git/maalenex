@@ -163,14 +163,17 @@ def verify_booking_access_challenge(
         db.commit()
         raise HTTPException(status_code=401, detail="Invalid or expired booking verification.")
     secure_cookie = settings.should_use_secure_cookies(request.url.scheme)
+    origin = request.headers.get("origin")
+    request_origin = str(request.base_url).rstrip("/")
+    cookie_samesite = "none" if secure_cookie and origin and origin != request_origin else "lax"
     cookie_path = f"{settings.api_prefix}/bookings/{booking.id}"
     response.set_cookie(
         ACCESS_COOKIE, access_token, max_age=2 * 60 * 60,
-        httponly=True, secure=secure_cookie, samesite="lax", path=cookie_path,
+        httponly=True, secure=secure_cookie, samesite=cookie_samesite, path=cookie_path,
     )
     response.set_cookie(
         CSRF_COOKIE, csrf_token, max_age=2 * 60 * 60,
-        httponly=False, secure=secure_cookie, samesite="lax", path="/",
+        httponly=False, secure=secure_cookie, samesite=cookie_samesite, path="/",
     )
     return {"booking_id": str(booking.id), "scope": grant.scope, "expires_at": grant.expires_at.isoformat()}
 
