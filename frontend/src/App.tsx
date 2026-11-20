@@ -10,6 +10,11 @@ import {
   searchPassengerTrips,
   type PassengerLocation,
   type PassengerTrip,
+  listPassengerSupportFaqs,
+  listPassengerSupportCases,
+  createPassengerSupportCase,
+  type PassengerSupportFaq,
+  type PassengerSupportCase,
 } from "./passenger-api";
 import { BookingFlow } from "./BookingFlow";
 import { Icon } from "./components/nexus-icons";
@@ -36,6 +41,14 @@ export default function App() {
  const [page,setPage]=useState<Page>("dashboard");
  const [notice,setNotice]=useState("");
  const [report,setReport]=useState("");
+ const [supportFaqs,setSupportFaqs]=useState<PassengerSupportFaq[]>([]);
+ const [supportCases,setSupportCases]=useState<PassengerSupportCase[]>([]);
+ const [supportCategory,setSupportCategory]=useState<PassengerSupportCase["category"]>("general");
+ const [supportSubject,setSupportSubject]=useState("");
+ const [supportMessage,setSupportMessage]=useState("");
+ const [supportLoading,setSupportLoading]=useState(false);
+ const [supportSubmitting,setSupportSubmitting]=useState(false);
+ const [supportError,setSupportError]=useState("");
  const [passwordVisible,setPasswordVisible]=useState(false);
  const [profileEditing,setProfileEditing]=useState(false);
  const [profileName,setProfileName]=useState("");
@@ -72,6 +85,21 @@ export default function App() {
   }).catch(error=>{if(active)setTripError(error instanceof Error?error.message:"Unable to load published locations.");});
   return()=>{active=false;};
  },[page]);
+ useEffect(()=>{
+  if(page!=="help")return;
+  let active=true;
+  setSupportLoading(true);setSupportError("");
+  Promise.all([
+   listPassengerSupportFaqs(language),
+   passenger?listPassengerSupportCases():Promise.resolve([] as PassengerSupportCase[]),
+  ]).then(([faqResponse,cases])=>{
+   if(!active)return;
+   setSupportFaqs(faqResponse.items);setSupportCases(cases);
+  }).catch(error=>{
+   if(active)setSupportError(error instanceof Error?error.message:"Unable to load Help and Support.");
+  }).finally(()=>{if(active)setSupportLoading(false);});
+  return()=>{active=false;};
+ },[page,language,passenger]);
  useEffect(()=>{
   let active=true;
   getCurrentPassenger().then(account=>{
@@ -114,6 +142,18 @@ export default function App() {
   try{const results=await searchPassengerTrips({origin_id:originId,destination_id:destinationId,travel_date:travelDate,passenger_count:passengerCount});setTripResults(results);}
   catch(error){setTripError(error instanceof Error?error.message:"Journey search is temporarily unavailable.");}
   finally{setTripLoading(false);}
+ };
+ const submitSupportCase=async(e:FormEvent<HTMLFormElement>)=>{
+  e.preventDefault();
+  if(!passenger){go("login");setNotice(language==="am"?"የድጋፍ ጥያቄ ለመላክ መለያዎን ይግቡ።":"Sign in to submit a support request.");return;}
+  setSupportSubmitting(true);setSupportError("");setNotice("");
+  try{
+   const created=await createPassengerSupportCase({category:supportCategory,subject:supportSubject.trim(),message:supportMessage.trim()});
+   setSupportCases(current=>[created,...current]);
+   setSupportSubject("");setSupportMessage("");
+   setNotice(language==="am"?"የድጋፍ ጥያቄዎ ተልኳል። ማጣቀሻ: "+created.case_reference:"Support request submitted. Reference: "+created.case_reference);
+  }catch(error){setSupportError(error instanceof Error?error.message:"Support request could not be submitted.");}
+  finally{setSupportSubmitting(false);}
  };
  const formatTripTime=(value:string)=>new Intl.DateTimeFormat(language==="am"?"am-ET":"en-ET",{dateStyle:"medium",timeStyle:"short",timeZone:"Africa/Addis_Ababa"}).format(new Date(value));
  const formatTripFare=(minor:number,currency:string)=>new Intl.NumberFormat(language==="am"?"am-ET":"en-ET",{style:"currency",currency}).format(minor/100);
@@ -239,7 +279,42 @@ export default function App() {
         <p className="muted-copy">{t.mapNote}</p>
       </section>
     )}{page==="wallet"&&<section className="content-section wallet-view"><article className="wallet-card"><span>{t.balance}</span><strong>— <small>ETB</small></strong><span className="wallet-badge">{t.demo}</span><p>{t.noFunds}</p></article><div className="wallet-actions"><button onClick={()=>setNotice(t.coming)}><Icon name="plus"/> {language==="am"?"ገንዘብ ጨምር":"Add funds"}</button><button onClick={()=>setNotice(t.coming)}><Icon name="arrow"/> {language==="am"?"ገንዘብ አውጣ":"Withdraw"}</button><button onClick={()=>setNotice(t.coming)}><Icon name="receipt"/> {language==="am"?"ደረሰኞች":"Receipts"}</button></div><div className="panel-card"><h2>{language==="am"?"የግብይት ታሪክ":"Transaction history"}</h2><p>{language==="am"?"ገና ምንም ግብይት የለም።":"No transactions yet."}</p></div><p className="compliance-note">{t.coming}</p></section>}
-    {page==="profile"&&<section className="content-section"><div className="panel-card profile-panel"><span className="large-avatar">{profileName.trim()?profileName.trim().charAt(0).toUpperCase():"M"}</span><h2>{profileName||(passenger?(language==="am"?"ተሳፋሪ":"Passenger"):(language==="am"?"የእንግዳ መገለጫ":"Guest profile"))}</h2><p>{passenger?.login_identifier||profilePhone||t.noLogin}</p><div className="form-actions"><button className="primary-action" onClick={()=>{setProfileEditing(!profileEditing);setProfileSaved(false);}}>{profileEditing?(language==="am"?"ዝጋ":"Close"):(language==="am"?"መገለጫ አርትዕ":"Edit profile")}<Icon name="arrow"/></button>{!passenger&&<button className="secondary-action" onClick={()=>go("login")}>{t.login}</button>}</div></div>{profileEditing&&<form className="form-card" onSubmit={saveProfile}><h2>{language==="am"?"የመገለጫ መረጃ":"Edit profile"}</h2><label>{t.name}<input value={profileName} onChange={e=>setProfileName(e.target.value)} required minLength={2} maxLength={120} autoComplete="name"/></label><label>{t.phone}<input value={profilePhone} onChange={e=>setProfilePhone(e.target.value)} inputMode="tel" autoComplete="tel" disabled={Boolean(passenger)}/></label><label>{t.email}<input type="email" value={profileEmail} onChange={e=>setProfileEmail(e.target.value)} autoComplete="email" disabled={Boolean(passenger)}/></label><p className="field-hint">{passenger?(language==="am"?"የሙሉ ስም ለውጥ ወደ መለያዎ ይቀመጣል።":"Your display name is saved to your passenger account. Contact changes require verification."):(language==="am"?"ይህ የእንግዳ ማሳያ ነው፤ ለማስቀመጥ ይግቡ።":"Guest profile edits are preview-only until you sign in.")}</p><button className="primary-action" type="submit">{language==="am"?"አስቀምጥ":"Save profile"}</button></form>}<div className="panel-card settings-list"><h2>{t.account}</h2><button onClick={()=>setLanguage(language==="am"?"en":"am")}>{t.language}<span>{language==="am"?"አማርኛ":"English"}</span></button><button onClick={()=>setNotice(t.coming)}>{t.notifications}<span>›</span></button><button onClick={()=>go("forgot")}>{language==="am"?"የይለፍ ቃል መቀየር":"Password and security"}<span>›</span></button><button onClick={()=>go("help")}>{t.help}<span>›</span></button>{passenger&&<button onClick={signOut}>{t.signout}<span>↗</span></button>}</div>{profileSaved&&<p className="notice-panel" role="status">{language==="am"?"መገለጫው ተዘምኗል":"Profile updated"}</p>}</section>}{(page==="login"||page==="register"||page==="forgot")&&<section className="content-section"><form className="form-card" onSubmit={submitAuth} aria-busy={authBusy}><h2>{page==="login"?t.login:page==="register"?t.register:(language==="am"?"የይለፍ ቃል መመለስ":"Recover password")}</h2>{page==="register"&&<label>{t.name}<input required minLength={2} maxLength={120} autoComplete="name" value={authName} onChange={e=>setAuthName(e.target.value)} placeholder={language==="am"?"ሙሉ ስም":"Enter your full name"}/></label>}{page!=="forgot"&&<label>{language==="am"?"ኢሜይል ወይም ዓለም አቀፍ ስልክ ቁጥር":"Email or international phone number"}<input required minLength={5} maxLength={254} autoComplete="username" value={authIdentifier} onChange={e=>setAuthIdentifier(e.target.value)} placeholder="+2519… or name@example.com"/></label>}{page!=="forgot"&&<label>{t.password}<div className="password-field"><input required minLength={page==="register"?12:1} maxLength={128} type={passwordVisible?"text":"password"} value={authPassword} onChange={e=>setAuthPassword(e.target.value)} autoComplete={page==="login"?"current-password":"new-password"}/><button type="button" className="secondary-action" aria-label={passwordVisible?(language==="am"?"ደብቅ":"Hide password"):(language==="am"?"አሳይ":"Show password")} onClick={()=>setPasswordVisible(!passwordVisible)}>{passwordVisible?(language==="am"?"ደብቅ":"Hide"):(language==="am"?"አሳይ":"Show")}</button></div></label>}{page==="register"&&<><label>{language==="am"?"የይለፍ ቃል ድገም":"Confirm password"}<input required minLength={12} maxLength={128} type={passwordVisible?"text":"password"} value={authConfirmPassword} onChange={e=>setAuthConfirmPassword(e.target.value)} autoComplete="new-password"/></label><label className="consent-row"><input type="checkbox" required/><span>{language==="am"?"የአጠቃቀም ውሎችን እና የግላዊነት መመሪያን ተቀብያለሁ":"I agree to the Terms of Use and Privacy Notice."}</span></label></>}{page==="forgot"&&<><label>{language==="am"?"ኢሜይል ወይም ስልክ ቁጥር":"Email or phone number"}<input required minLength={5} maxLength={254} value={authIdentifier} onChange={e=>setAuthIdentifier(e.target.value)}/></label><p className="field-hint">{language==="am"?"የመለያ መመለሻ ማድረሻ አገልግሎት ገና አልተገናኘም።":"Password recovery delivery is not configured yet. No reset email or SMS will be sent."}</p></>}{page!=="forgot"&&<p className="field-hint">{page==="register"?(language==="am"?"የምዝገባ እና የግባ አገልግሎት ከመለያ ሰርቨር ጋር ይገናኛል።":"Your account will be created by the passenger account service. Contact verification is not yet configured."):(language==="am"?"የተሳፋሪ መለያዎን ይጠቀሙ።":"Sign in with your passenger account credentials.")}</p>}<button className="primary-action" type="submit" disabled={authBusy}>{authBusy?(language==="am"?"በመጫን ላይ…":"Working…"):page==="forgot"?(language==="am"?"መመለሻ ጀምር":"Start recovery"):t.submit}<Icon name="arrow"/></button>{page==="login"&&<button type="button" className="text-link" onClick={()=>go("forgot")}>{language==="am"?"የይለፍ ቃል ረሳሁ":"Forgot password?"}</button>}<button type="button" className="text-link" onClick={()=>{setAuthPassword("");setAuthConfirmPassword("");go(page==="login"?"register":"login");}}>{page==="login"?t.register:t.login}</button></form></section>}{page==="help"&&<section className="content-section"><div className="panel-card"><h2>{t.support}</h2>{["Account and access","Wallet and payments","Journey information","Safety and privacy"].map(x=><button className="help-row" key={x} onClick={()=>setNotice(t.coming)}><Icon name="help"/><span>{x}</span><Icon name="arrow"/></button>)}</div></section>}
+    {page==="profile"&&<section className="content-section"><div className="panel-card profile-panel"><span className="large-avatar">{profileName.trim()?profileName.trim().charAt(0).toUpperCase():"M"}</span><h2>{profileName||(passenger?(language==="am"?"ተሳፋሪ":"Passenger"):(language==="am"?"የእንግዳ መገለጫ":"Guest profile"))}</h2><p>{passenger?.login_identifier||profilePhone||t.noLogin}</p><div className="form-actions"><button className="primary-action" onClick={()=>{setProfileEditing(!profileEditing);setProfileSaved(false);}}>{profileEditing?(language==="am"?"ዝጋ":"Close"):(language==="am"?"መገለጫ አርትዕ":"Edit profile")}<Icon name="arrow"/></button>{!passenger&&<button className="secondary-action" onClick={()=>go("login")}>{t.login}</button>}</div></div>{profileEditing&&<form className="form-card" onSubmit={saveProfile}><h2>{language==="am"?"የመገለጫ መረጃ":"Edit profile"}</h2><label>{t.name}<input value={profileName} onChange={e=>setProfileName(e.target.value)} required minLength={2} maxLength={120} autoComplete="name"/></label><label>{t.phone}<input value={profilePhone} onChange={e=>setProfilePhone(e.target.value)} inputMode="tel" autoComplete="tel" disabled={Boolean(passenger)}/></label><label>{t.email}<input type="email" value={profileEmail} onChange={e=>setProfileEmail(e.target.value)} autoComplete="email" disabled={Boolean(passenger)}/></label><p className="field-hint">{passenger?(language==="am"?"የሙሉ ስም ለውጥ ወደ መለያዎ ይቀመጣል።":"Your display name is saved to your passenger account. Contact changes require verification."):(language==="am"?"ይህ የእንግዳ ማሳያ ነው፤ ለማስቀመጥ ይግቡ።":"Guest profile edits are preview-only until you sign in.")}</p><button className="primary-action" type="submit">{language==="am"?"አስቀምጥ":"Save profile"}</button></form>}<div className="panel-card settings-list"><h2>{t.account}</h2><button onClick={()=>setLanguage(language==="am"?"en":"am")}>{t.language}<span>{language==="am"?"አማርኛ":"English"}</span></button><button onClick={()=>setNotice(t.coming)}>{t.notifications}<span>›</span></button><button onClick={()=>go("forgot")}>{language==="am"?"የይለፍ ቃል መቀየር":"Password and security"}<span>›</span></button><button onClick={()=>go("help")}>{t.help}<span>›</span></button>{passenger&&<button onClick={signOut}>{t.signout}<span>↗</span></button>}</div>{profileSaved&&<p className="notice-panel" role="status">{language==="am"?"መገለጫው ተዘምኗል":"Profile updated"}</p>}</section>}{(page==="login"||page==="register"||page==="forgot")&&<section className="content-section"><form className="form-card" onSubmit={submitAuth} aria-busy={authBusy}><h2>{page==="login"?t.login:page==="register"?t.register:(language==="am"?"የይለፍ ቃል መመለስ":"Recover password")}</h2>{page==="register"&&<label>{t.name}<input required minLength={2} maxLength={120} autoComplete="name" value={authName} onChange={e=>setAuthName(e.target.value)} placeholder={language==="am"?"ሙሉ ስም":"Enter your full name"}/></label>}{page!=="forgot"&&<label>{language==="am"?"ኢሜይል ወይም ዓለም አቀፍ ስልክ ቁጥር":"Email or international phone number"}<input required minLength={5} maxLength={254} autoComplete="username" value={authIdentifier} onChange={e=>setAuthIdentifier(e.target.value)} placeholder="+2519… or name@example.com"/></label>}{page!=="forgot"&&<label>{t.password}<div className="password-field"><input required minLength={page==="register"?12:1} maxLength={128} type={passwordVisible?"text":"password"} value={authPassword} onChange={e=>setAuthPassword(e.target.value)} autoComplete={page==="login"?"current-password":"new-password"}/><button type="button" className="secondary-action" aria-label={passwordVisible?(language==="am"?"ደብቅ":"Hide password"):(language==="am"?"አሳይ":"Show password")} onClick={()=>setPasswordVisible(!passwordVisible)}>{passwordVisible?(language==="am"?"ደብቅ":"Hide"):(language==="am"?"አሳይ":"Show")}</button></div></label>}{page==="register"&&<><label>{language==="am"?"የይለፍ ቃል ድገም":"Confirm password"}<input required minLength={12} maxLength={128} type={passwordVisible?"text":"password"} value={authConfirmPassword} onChange={e=>setAuthConfirmPassword(e.target.value)} autoComplete="new-password"/></label><label className="consent-row"><input type="checkbox" required/><span>{language==="am"?"የአጠቃቀም ውሎችን እና የግላዊነት መመሪያን ተቀብያለሁ":"I agree to the Terms of Use and Privacy Notice."}</span></label></>}{page==="forgot"&&<><label>{language==="am"?"ኢሜይል ወይም ስልክ ቁጥር":"Email or phone number"}<input required minLength={5} maxLength={254} value={authIdentifier} onChange={e=>setAuthIdentifier(e.target.value)}/></label><p className="field-hint">{language==="am"?"የመለያ መመለሻ ማድረሻ አገልግሎት ገና አልተገናኘም።":"Password recovery delivery is not configured yet. No reset email or SMS will be sent."}</p></>}{page!=="forgot"&&<p className="field-hint">{page==="register"?(language==="am"?"የምዝገባ እና የግባ አገልግሎት ከመለያ ሰርቨር ጋር ይገናኛል።":"Your account will be created by the passenger account service. Contact verification is not yet configured."):(language==="am"?"የተሳፋሪ መለያዎን ይጠቀሙ።":"Sign in with your passenger account credentials.")}</p>}<button className="primary-action" type="submit" disabled={authBusy}>{authBusy?(language==="am"?"በመጫን ላይ…":"Working…"):page==="forgot"?(language==="am"?"መመለሻ ጀምር":"Start recovery"):t.submit}<Icon name="arrow"/></button>{page==="login"&&<button type="button" className="text-link" onClick={()=>go("forgot")}>{language==="am"?"የይለፍ ቃል ረሳሁ":"Forgot password?"}</button>}<button type="button" className="text-link" onClick={()=>{setAuthPassword("");setAuthConfirmPassword("");go(page==="login"?"register":"login");}}>{page==="login"?t.register:t.login}</button></form></section>}{page==="help"&&<section className="content-section support-layout">
+     <div className="panel-card support-panel">
+      <h2>{t.support}</h2>
+      <p>{language==="am"?"የMaaleNex አገልግሎቶችን ለመጠቀም መረጃ ያግኙ ወይም የድጋፍ ጥያቄ ይላኩ።":"Find answers about MaaleNex services or send a support request. Your requests are saved to your account."}</p>
+      {!passenger&&<div className="notice-panel">{language==="am"?"የጥያቄዎችን ሁኔታ ለማየትና አዲስ ጥያቄ ለመላክ ይግቡ።":"Sign in to submit a request and track its status."} <button className="text-link" type="button" onClick={()=>go("login")}>{language==="am"?"ግባ":"Sign in"}</button></div>}
+      <h3>{language==="am"?"ተደጋጋሚ ጥያቄዎች":"Frequently asked questions"}</h3>
+      {supportLoading&&<p role="status">{language==="am"?"በመጫን ላይ…":"Loading Help and Support…"}</p>}
+      {supportFaqs.map(item=><details className="support-faq" key={item.id}><summary>{item.question}</summary><p>{item.answer}</p></details>)}
+      {supportError&&<p className="support-error" role="alert">{supportError}</p>}
+     </div>
+     <div className="form-card support-form-card">
+      <h2>{language==="am"?"ድጋፍን ያግኙ":"Contact support"}</h2>
+      <form onSubmit={submitSupportCase}>
+       <label>{language==="am"?"የጥያቄ ምድብ":"Request category"}
+        <select value={supportCategory} onChange={e=>setSupportCategory(e.target.value as PassengerSupportCase["category"])}>
+         <option value="general">{language==="am"?"አጠቃላይ":"General"}</option>
+         <option value="account">{language==="am"?"መለያ":"Account"}</option>
+         <option value="booking">{language==="am"?"ቦታ ማስያዣ":"Booking"}</option>
+         <option value="journey">{language==="am"?"ጉዞ":"Journey"}</option>
+         <option value="wallet">{language==="am"?"ቦርሳ":"Wallet"}</option>
+         <option value="safety">{language==="am"?"ደህንነት":"Safety"}</option>
+         <option value="accessibility">{language==="am"?"ተደራሽነት":"Accessibility"}</option>
+         <option value="technical">{language==="am"?"ቴክኒካዊ ችግር":"Technical issue"}</option>
+        </select>
+       </label>
+       <label>{language==="am"?"ርዕስ":"Subject"}<input required minLength={3} maxLength={160} value={supportSubject} onChange={e=>setSupportSubject(e.target.value)}/></label>
+       <label>{language==="am"?"ዝርዝር መልዕክት":"Message"}<textarea required minLength={10} maxLength={4000} rows={5} value={supportMessage} onChange={e=>setSupportMessage(e.target.value)}/></label>
+       <p className="support-hint">{language==="am"?"ከፍተኛ 4,000 ቁምፊ። ፋይል ማያያዝ ገና አልተነቃም።":"Maximum 4,000 characters. File attachments are not enabled yet."}</p>
+       <button className="primary-action" type="submit" disabled={supportSubmitting||!passenger}>{supportSubmitting?(language==="am"?"በመላክ ላይ…":"Submitting…"):(language==="am"?"ጥያቄ ላክ":"Submit request")}<Icon name="arrow"/></button>
+      </form>
+     </div>
+     <div className="panel-card support-panel">
+      <h2>{language==="am"?"የድጋፍ ጥያቄዎቼ":"My support requests"}</h2>
+      {!passenger?<p>{language==="am"?"የጥያቄዎችን ታሪክ ለማየት ይግቡ።":"Sign in to view your support history."}</p>:supportCases.length===0?<p>{language==="am"?"ገና የተላከ ጥያቄ የለም።":"You have no support requests yet."}</p>:supportCases.map(item=><article className="support-case" key={item.case_reference}><div><strong>{item.subject}</strong><small>{item.case_reference} · {item.category}</small></div><span className={"support-status status-"+item.status}>{language==="am"?({open:"ክፍት",in_progress:"በሂደት ላይ",resolved:"ተፈትቷል",closed:"ተዘግቷል"} as const)[item.status]:item.status.replace("_"," ")}</span>{item.resolution_note&&<p>{item.resolution_note}</p>}</article>)}
+     </div>
+    </section>}
     {page==="report"&&<section className="content-section"><form className="form-card" onSubmit={e=>{e.preventDefault();setNotice(t.sent);setReport("");}}><h2>{t.reportTitle}</h2><label>{language==="am"?"የሪፖርት አይነት":"Report category"}<select><option>App issue</option><option>Journey information</option><option>Wallet</option><option>Safety</option></select></label><label>{t.message}<textarea required value={report} onChange={e=>setReport(e.target.value)} rows={5}/></label><button className="primary-action" type="submit">{t.send}<Icon name="arrow"/></button></form></section>}
     {page==="about"&&<section className="content-section"><div className="panel-card"><h2>MaaleNex</h2><p>{language==="am"?"በኢትዮጵያ ውስጥ የተሳፋሪ ተሞክሮን ለማሻሻል የሚገነባ የመጓጓዣ ቴክኖሎጂ መድረክ።":"Mobility technology designed to improve the passenger experience in Ethiopia."}</p></div></section>}
     <footer className="platform-footer"><span>© MaaleNex</span><span>{language==="am"?"በአካባቢያዊ ግንዛቤ የተመራ":"Built with local understanding"}</span><span>{t.demo}</span></footer>
