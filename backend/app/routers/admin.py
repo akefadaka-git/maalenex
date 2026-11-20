@@ -24,6 +24,7 @@ from app.domains.organizations.service import create_candidate_operator
 from app.domains.trips.models import Trip, TripSeat
 from app.domains.support.models import SupportCase
 from app.domains.support.passenger_models import PassengerSupportCase
+from app.domains.support.report_models import PassengerReport
 from app.routers.auth import current_staff_context, require_csrf
 from app.domains.identity.service import StaffContext
 from app.domains.identity.security import issue_opaque_token, token_digest
@@ -47,6 +48,11 @@ class OperatorRoleAssignment(BaseModel):
 
 class SupportResolution(BaseModel):
     resolution_code: str = Field(min_length=3, max_length=80)
+    resolution_note: str = Field(min_length=3, max_length=1000)
+
+
+class ReportReview(BaseModel):
+    status: Literal["under_review", "action_required", "resolved", "dismissed"]
     resolution_note: str = Field(min_length=3, max_length=1000)
 
 
@@ -961,6 +967,100 @@ def resolve_passenger_support_case(
         "status": case.status,
         "resolution_code": case.resolution_code,
         "resolved_at": case.resolved_at.isoformat(),
+    }
+
+
+@router.get("/reports/passenger")
+def list_passenger_reports(
+    report_type: Literal["report", "complaint"] | None = None,
+    report_status: Literal["submitted", "under_review", "action_required", "resolved", "dismissed"] | None = None,
+    limit: int = 100,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.support.manage")
+    statement = select(PassengerReport).order_by(PassengerReport.created_at.asc())
+    if report_type:
+        statement = statement.where(PassengerReport.report_type == report_type)
+    if report_status:
+        statement = statement.where(PassengerReport.status == report_status)
+    records = db.scalars(statement.limit(max(1, min(limit, 200)))).all()
+    return [{
+        "id": str(item.id),
+        "report_reference": item.report_reference,
+        "passenger_id": str(item.passenger_id),
+        "report_type": item.report_type,
+        "category": item.category,
+        "severity": item.severity,
+        "subject": item.subject,
+        "description": item.description,
+        "status": item.status,
+        "assigned_to": str(item.assigned_to) if item.assigned_to else None,
+        "resolution_note": item.resolution_note,
+        "created_at": item.created_at.isoformat(),
+        "resolved_at": item.resolved_at.isoformat() if item.resolved_at else None,
+    } for item in records]
+
+
+@router.post("/reports/passenger/{report_id}/claim")
+def claim_passenger_report(
+    report_id: UUID,
+    request: Request,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.support.manage")
+    report = db.scalar(select(PassengerReport).where(
+        PassengerReport.id == report_id
+    ).with_for_update())
+    if report is None or report.status in {"resolved", "dismissed"}:
+        raise HTTPException(status_code=409, detail="Passenger report is not available for review.")
+    if report.assigned_to not in {None, context.user.id}:
+        raise HTTPException(status_code=409, detail="Passenger report is assigned to another staff member.")
+    report.assigned_to = context.user.id
+    report.status = "under_review"
+    _audit(
+        db, context=context, event="passenger.report.claimed",
+        resource_type="passenger_report", resource_id=report.id,
+        action="claim", metadata={"report_type": report.report_type, "category": report.category},
+    )
+    db.commit()
+    return {"report_reference": report.report_reference, "status": report.status}
+
+
+@router.post("/reports/passenger/{report_id}/review")
+def review_passenger_report(
+    report_id: UUID,
+    payload: ReportReview,
+    request: Request,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.support.manage")
+    report = db.scalar(select(PassengerReport).where(
+        PassengerReport.id == report_id
+    ).with_for_update())
+    if report is None or report.status in {"resolved", "dismissed"}:
+        raise HTTPException(status_code=409, detail="Passenger report is already closed or unavailable.")
+    if report.assigned_to not in {None, context.user.id}:
+        raise HTTPException(status_code=403, detail="Passenger report is assigned to another staff member.")
+    report.assigned_to = context.user.id
+    report.status = payload.status
+    report.resolution_note = payload.resolution_note.strip()
+    report.resolved_at = datetime.now(UTC) if payload.status in {"resolved", "dismissed"} else None
+    _audit(
+        db, context=context, event="passenger.report.status_changed",
+        resource_type="passenger_report", resource_id=report.id,
+        action="review", metadata={"status": report.status},
+    )
+    db.commit()
+    return {
+        "report_reference": report.report_reference,
+        "status": report.status,
+        "resolution_note": report.resolution_note,
+        "resolved_at": report.resolved_at.isoformat() if report.resolved_at else None,
     }
 
 
