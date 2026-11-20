@@ -2,7 +2,7 @@ name: MaaleNex NEXUS UI verification (exact head)
 
 on:
   pull_request:
-    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean]
+    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/passenger-booking-flow, feat/passenger-support-service]
     paths:
       - ".github/workflows/nexus-ui-verification-v2.yml"
       - "frontend/**"

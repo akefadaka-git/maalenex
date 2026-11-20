@@ -10,5 +10,6 @@ from app.domains.identity import passenger_models as passenger_identity_models  
 from app.domains.organizations import models as organization_models  # noqa: F401
 from app.domains.reservations import models as reservation_models  # noqa: F401
 from app.domains.support import models as support_models  # noqa: F401
+from app.domains.support import passenger_models as passenger_support_models  # noqa: F401
 from app.domains.trips import models as trip_models  # noqa: F401
 from app.domains.wallet import models as wallet_models  # noqa: F401

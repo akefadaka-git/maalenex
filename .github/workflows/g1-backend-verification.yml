@@ -2,12 +2,12 @@ name: G1 backend foundation verification
 
 on:
   push:
-    branches: [feat/passenger-identity-service, feat/passenger-booking-flow]
+    branches: [feat/passenger-identity-service, feat/passenger-booking-flow, feat/passenger-support-service]
     paths:
       - "backend/**"
       - ".github/workflows/g1-backend-verification.yml"
   pull_request:
-    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/acceptance-remediation, feat/passenger-identity-service, feat/passenger-journey-search]
+    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/acceptance-remediation, feat/passenger-identity-service, feat/passenger-journey-search, feat/passenger-booking-flow, feat/passenger-support-service]
     paths:
       - "backend/**"
       - ".github/workflows/g1-backend-verification.yml"
@@ -60,7 +60,7 @@ jobs:
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
       - name: Ruff wallet ledger implementation
         run: >-
-          python -m ruff check
+          python -m ruff check --output-format=github
           app/db/model_registry.py
           app/domains/wallet/models.py
           app/domains/wallet/service.py
@@ -72,6 +72,10 @@ jobs:
           app/routers/bookings.py
           tests/test_passenger_identity.py
           migrations/versions/0009_passenger_identity.py
+          app/domains/support/passenger_models.py
+          app/routers/passenger_support.py
+          tests/test_passenger_support.py
+          migrations/versions/0010_passenger_support_cases.py
       - name: Backend tests
         run: python -m pytest -q
       - name: Apply baseline migration to empty database

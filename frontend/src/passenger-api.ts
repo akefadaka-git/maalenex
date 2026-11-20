@@ -204,3 +204,43 @@ export function acceptGuestReservation(bookingId: string): Promise<{
 }> {
   return request(`/bookings/${encodeURIComponent(bookingId)}/reservation`, { method: "POST" }, "mnm_booking_csrf");
 }
+
+
+export type PassengerSupportFaq = {
+  id: string;
+  category: string;
+  question: string;
+  answer: string;
+};
+
+export type PassengerSupportCase = {
+  case_reference: string;
+  category: string;
+  subject: string;
+  message: string;
+  status: "open" | "in_progress" | "resolved" | "closed";
+  resolution_note: string | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+};
+
+export function listPassengerSupportFaqs(language: "am" | "en"): Promise<{ language: string; items: PassengerSupportFaq[] }> {
+  return request(`/passenger/support/faqs?language=${language}`);
+}
+
+export async function listPassengerSupportCases(): Promise<PassengerSupportCase[]> {
+  const result = await request<{ items: PassengerSupportCase[] }>("/passenger/support/cases");
+  return result.items;
+}
+
+export function createPassengerSupportCase(input: {
+  category: PassengerSupportCase["category"];
+  subject: string;
+  message: string;
+}): Promise<PassengerSupportCase> {
+  return request("/passenger/support/cases", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}

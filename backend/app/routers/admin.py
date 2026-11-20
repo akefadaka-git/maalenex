@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
@@ -23,6 +23,7 @@ from app.domains.organizations.models import Organization, OrganizationInvitatio
 from app.domains.organizations.service import create_candidate_operator
 from app.domains.trips.models import Trip, TripSeat
 from app.domains.support.models import SupportCase
+from app.domains.support.passenger_models import PassengerSupportCase
 from app.routers.auth import current_staff_context, require_csrf
 from app.domains.identity.service import StaffContext
 from app.domains.identity.security import issue_opaque_token, token_digest
@@ -868,6 +869,97 @@ def resolve_support_case(
     return {
         "case_reference": case.case_reference,
         "status": case.status,
+        "resolved_at": case.resolved_at.isoformat(),
+    }
+
+
+@router.get("/support/passenger-cases")
+def list_passenger_support_cases(
+    case_status: Literal["open", "in_progress", "resolved", "closed"] | None = None,
+    limit: int = 100,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.support.manage")
+    statement = select(PassengerSupportCase).order_by(PassengerSupportCase.created_at.asc())
+    if case_status:
+        statement = statement.where(PassengerSupportCase.status == case_status)
+    cases = db.scalars(statement.limit(max(1, min(limit, 200)))).all()
+    return [{
+        "id": str(case.id),
+        "case_reference": case.case_reference,
+        "passenger_id": str(case.passenger_id),
+        "category": case.category,
+        "subject": case.subject,
+        "message": case.message,
+        "status": case.status,
+        "assigned_to": str(case.assigned_to) if case.assigned_to else None,
+        "resolution_code": case.resolution_code,
+        "resolution_note": case.resolution_note,
+        "created_at": case.created_at.isoformat(),
+        "resolved_at": case.resolved_at.isoformat() if case.resolved_at else None,
+    } for case in cases]
+
+
+@router.post("/support/passenger-cases/{case_id}/claim")
+def claim_passenger_support_case(
+    case_id: UUID,
+    request: Request,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.support.manage")
+    case = db.scalar(select(PassengerSupportCase).where(
+        PassengerSupportCase.id == case_id
+    ).with_for_update())
+    if case is None or case.status not in {"open", "in_progress"}:
+        raise HTTPException(status_code=409, detail="Passenger support case is not available.")
+    if case.assigned_to not in {None, context.user.id}:
+        raise HTTPException(status_code=409, detail="Passenger support case is assigned to another staff member.")
+    case.assigned_to = context.user.id
+    case.status = "in_progress"
+    _audit(
+        db, context=context, event="passenger.support.case.claimed",
+        resource_type="passenger_support_case", resource_id=case.id,
+        action="claim", metadata={"category": case.category},
+    )
+    db.commit()
+    return {"case_reference": case.case_reference, "status": case.status}
+
+
+@router.post("/support/passenger-cases/{case_id}/resolve")
+def resolve_passenger_support_case(
+    case_id: UUID,
+    payload: SupportResolution,
+    request: Request,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.support.manage")
+    case = db.scalar(select(PassengerSupportCase).where(
+        PassengerSupportCase.id == case_id
+    ).with_for_update())
+    if case is None or case.status not in {"open", "in_progress"}:
+        raise HTTPException(status_code=409, detail="Passenger support case is not open.")
+    if case.assigned_to not in {None, context.user.id}:
+        raise HTTPException(status_code=403, detail="Passenger support case is assigned to another staff member.")
+    case.assigned_to = context.user.id
+    case.status = "resolved"
+    case.resolution_code = payload.resolution_code.strip()
+    case.resolution_note = payload.resolution_note.strip()
+    case.resolved_at = datetime.now(UTC)
+    _audit(
+        db, context=context, event="passenger.support.case.resolved",
+        resource_type="passenger_support_case", resource_id=case.id,
+        action="resolve", metadata={"resolution_code": case.resolution_code},
+    )
+    db.commit()
+    return {
+        "case_reference": case.case_reference,
+        "status": case.status,
+        "resolution_code": case.resolution_code,
         "resolved_at": case.resolved_at.isoformat(),
     }
 
