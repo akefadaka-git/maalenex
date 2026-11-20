@@ -11,6 +11,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.core.content.edit
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -183,9 +184,9 @@ class MainActivity : Activity() {
                         if (WebViewZoomScalePolicy.isValidScale(currentScale) &&
                             abs(currentScale - startingScale) > 0.01f
                         ) {
-                            getSharedPreferences(ZOOM_PREFERENCES, MODE_PRIVATE).edit()
-                                .putFloat(KEY_SAVED_WEBVIEW_SCALE, currentScale)
-                                .apply()
+                            getSharedPreferences(ZOOM_PREFERENCES, MODE_PRIVATE).edit {
+                                putFloat(KEY_SAVED_WEBVIEW_SCALE, currentScale)
+                            }
                         }
                     }
                 }
