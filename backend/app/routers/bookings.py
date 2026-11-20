@@ -1,31 +1,45 @@
+# FastAPI Depends() is the standard endpoint-default injection pattern.
+# ruff: noqa: B008
 from io import BytesIO
-from typing import Literal
 from secrets import token_urlsafe
+from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 import qrcode
-from qrcode.image.svg import SvgPathImage
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
+from qrcode.image.svg import SvgPathImage
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
+from app.domains.audit.service import record_event
 from app.domains.bookings.access import (
-    BookingAccessError, BookingAccessRateLimited, create_access_challenge,
-    enforce_guest_access_rate_limit, resolve_booking_grant,
-    verify_access_challenge, verify_booking_csrf, revoke_booking_grants,
+    BookingAccessError,
+    BookingAccessRateLimited,
+    create_access_challenge,
+    enforce_guest_access_rate_limit,
+    resolve_booking_grant,
+    revoke_booking_grants,
+    verify_access_challenge,
+    verify_booking_csrf,
 )
 from app.domains.bookings.models import (
-    Booking, BookingContact, BookingFareSnapshot,
-    BookingPassenger, Passenger, SeatHold,
+    Booking,
+    BookingContact,
+    BookingFareSnapshot,
+    BookingPassenger,
+    Passenger,
 )
-from app.domains.bookings.service import BookingConflict, accept_reservation, create_seat_hold
-from app.domains.trips.models import TripSeat
+from app.domains.bookings.service import (
+    BookingConflict,
+    accept_reservation,
+    create_seat_hold,
+)
 from app.domains.reservations.models import BookingAccessGrant, ReservationReference
 from app.domains.support.models import SupportCase
-from app.domains.audit.service import record_event
+from app.domains.trips.models import TripSeat
 
 router = APIRouter(tags=["passenger-bookings"])
 ACCESS_COOKIE = "mnm_booking_access"
