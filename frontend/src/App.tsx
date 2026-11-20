@@ -77,7 +77,7 @@ export default function App() {
     <a className="skip-link" href="#main-content">{language === "am" ? "ወደ ዋና ይዘት ዝለል" : "Skip to main content"}</a>
     <header className="site-header">
       <button className="brand-lockup" type="button" onClick={() => navigate("home")} aria-label="MaaleNex home">
-        <img src="./brand/maalenex-symbol.svg" alt="" width="42" height="42" /><span>MaaleNex</span>
+        <img src="./brand/maalenex-nexus-emblem.svg" alt="" width="42" height="42" /><span>MaaleNex</span>
       </button>
       <nav className="main-nav" aria-label={language === "am" ? "ዋና ማሰሻ" : "Main navigation"}>
         <button type="button" className={page === "home" ? "nav-link active" : "nav-link"} onClick={() => navigate("home")} aria-current={page === "home" ? "page" : undefined}><Icon name="home" />{t.navHome}</button>
@@ -100,7 +100,7 @@ export default function App() {
             {guestNotice && <p className="inline-status" role="status">{t.guestHint}</p>}
           </div>
           <div className="hero-art" aria-hidden="true">
-            <div className="art-ring ring-a" /><div className="art-ring ring-b" /><div className="art-core"><img src="./brand/maalenex-symbol.svg" alt="" /></div>
+            <div className="art-ring ring-a" /><div className="art-ring ring-b" /><div className="art-core"><img src="./brand/maalenex-nexus-emblem.svg" alt="" /></div>
             <span className="art-node node-a" /><span className="art-node node-b" /><span className="art-node node-c" />
             <div className="art-label label-a">LOCAL ROOTS</div><div className="art-label label-b">CONNECTED FUTURE</div>
           </div>
@@ -133,6 +133,6 @@ export default function App() {
         <button className="text-action" type="button" onClick={() => navigate("home")}>{t.back}<Icon name="arrow" /></button>
       </section>}
     </main>
-    <footer className="site-footer"><div className="footer-brand"><img src="./brand/maalenex-symbol.svg" alt="" width="26" height="26" /><strong>MaaleNex</strong></div><span>{t.footer}</span><span>© MaaleNex Technologies</span></footer>
+    <footer className="site-footer"><div className="footer-brand"><img src="./brand/maalenex-nexus-emblem.svg" alt="" width="26" height="26" /><strong>MaaleNex</strong></div><span>{t.footer}</span><span>© MaaleNex Technologies</span></footer>
   </div>;
 }
