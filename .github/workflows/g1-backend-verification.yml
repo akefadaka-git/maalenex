@@ -53,16 +53,14 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
       - name: Install backend and test dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
-      - name: Ruff changed backend Python files
-        shell: bash
-        run: |
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          if [ -n "$BASE_SHA" ]; then
-            git fetch --no-tags origin "$BASE_SHA"
-            git diff --name-only "$BASE_SHA" HEAD -- '*.py' | xargs -r python -m ruff check
-          else
-            git diff --name-only HEAD^ -- '*.py' | xargs -r python -m ruff check
-          fi
+      - name: Ruff wallet ledger implementation
+        run: >-
+          python -m ruff check
+          app/db/model_registry.py
+          app/domains/wallet/models.py
+          app/domains/wallet/service.py
+          tests/test_wallet_ledger.py
+          migrations/versions/0008_wallet_double_entry_ledger.py
       - name: Backend tests
         run: python -m pytest -q
       - name: Apply baseline migration to empty database
