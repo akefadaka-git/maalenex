@@ -86,3 +86,17 @@ def test_support_case_validation_rejects_blank_content(client):
         headers={"X-CSRF-Token": "support-csrf-token"},
     )
     assert response.status_code == 422
+
+
+def test_support_case_submission_is_rate_limited_to_five_per_hour(client):
+    payload = {
+        "category": "general",
+        "subject": "Request for assistance",
+        "message": "Please help me understand this service feature.",
+    }
+    headers = {"X-CSRF-Token": "support-csrf-token"}
+    for _ in range(5):
+        response = client.post("/api/v1/passenger/support/cases", json=payload, headers=headers)
+        assert response.status_code == 201
+    limited = client.post("/api/v1/passenger/support/cases", json=payload, headers=headers)
+    assert limited.status_code == 429
