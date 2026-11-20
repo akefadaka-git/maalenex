@@ -297,7 +297,7 @@ describe("MaaleNex full-platform interface foundation", () => {
     fireEvent.change(screen.getByLabelText("Subject"), { target: { value: "Connection issue" } });
     fireEvent.change(screen.getByLabelText("Message"), { target: { value: "The app does not reconnect after internet returns." } });
     fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
-    expect(await screen.findByText(/MN-SUP-TEST-0001/)).toBeTruthy();
+    expect((await screen.findAllByText(/MN-SUP-TEST-0001/)).length).toBeGreaterThanOrEqual(2);
     const submission = fetchMock.mock.calls.find(([input, init]) =>
       String(input).endsWith("/passenger/support/cases") && init?.method === "POST",
     );
