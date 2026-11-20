@@ -35,6 +35,10 @@ jobs:
         run: npm test && npm run typecheck && npm run build
       - name: Install isolated browser and accessibility test dependencies
         run: npm install --no-save --package-lock=false --no-audit --no-fund playwright axe-core@4.11.0
+      - name: Stage axe-core under the production same-origin asset path
+        run: |
+          mkdir -p dist/a4
+          cp node_modules/axe-core/axe.min.js dist/a4/axe.min.js
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Start production preview
