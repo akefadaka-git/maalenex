@@ -2,7 +2,7 @@ name: G1 backend foundation verification
 
 on:
   push:
-    branches: [feat/passenger-identity-service, feat/passenger-booking-flow]
+    branches: [feat/passenger-identity-service, feat/passenger-booking-flow, feat/passenger-support-service]
     paths:
       - "backend/**"
       - ".github/workflows/g1-backend-verification.yml"
@@ -72,6 +72,10 @@ jobs:
           app/routers/bookings.py
           tests/test_passenger_identity.py
           migrations/versions/0009_passenger_identity.py
+          app/domains/support/passenger_models.py
+          app/routers/passenger_support.py
+          tests/test_passenger_support.py
+          migrations/versions/0010_passenger_support_cases.py
       - name: Backend tests
         run: python -m pytest -q
       - name: Apply baseline migration to empty database
