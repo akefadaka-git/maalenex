@@ -1,0 +1,90 @@
+name: MaaleNex NEXUS UI verification (exact head)
+
+on:
+  push:
+    branches:
+      - feat/maalenex-nexus-welcome-iroka-ui
+    paths:
+      - ".github/workflows/nexus-ui-verification-v2.yml"
+      - "frontend/**"
+      - "android/**"
+      - "docs/ui/**"
+      - "docs/architecture/MAALENEX-IROKA-BACKBONE-INTEGRATION-v1.0.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-and-android-resources:
+    name: Frontend tests, build and Android resource validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Production build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Validate Android XML, PWA manifest and required assets
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          root = Path(".")
+          xml_paths = [
+              "android/app/src/main/res/drawable/ic_launcher_foreground.xml",
+              "android/app/src/main/res/drawable/ic_launcher_monochrome.xml",
+              "android/app/src/main/res/drawable/maalenex_splash_icon.xml",
+              "android/app/src/main/res/values/styles.xml",
+              "android/app/src/main/res/values-v31/styles.xml",
+              "android/app/src/main/res/values/ic_launcher_background.xml",
+              "android/app/src/main/AndroidManifest.xml",
+          ]
+          for path in xml_paths:
+              ET.parse(root / path)
+              print(f"XML PASS: {path}")
+
+          manifest = json.loads((root / "frontend/public/site.webmanifest").read_text())
+          for icon in manifest.get("icons", []):
+              icon_path = root / "frontend/public" / icon["src"].removeprefix("./")
+              if not icon_path.is_file():
+                  raise SystemExit(f"Missing PWA icon: {icon_path}")
+          for path in [
+              "frontend/public/favicon.svg",
+              "frontend/public/brand/maalenex-nexus-emblem.svg",
+              "frontend/public/pwa-192.svg",
+              "frontend/public/pwa-512.svg",
+          ]:
+              if not (root / path).is_file():
+                  raise SystemExit(f"Missing brand asset: {path}")
+          splash = (root / "android/app/src/main/res/values-v31/styles.xml").read_text()
+          if "windowSplashScreenAnimatedIcon" not in splash or "maalenex_splash_icon" not in splash:
+              raise SystemExit("Android 12+ splash icon reference missing")
+          print("PWA manifest, brand assets and Android splash references PASS")
+          PY
