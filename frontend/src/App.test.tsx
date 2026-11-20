@@ -46,6 +46,35 @@ describe("MaaleNex full-platform interface foundation", () => {
     fireEvent.click(screen.getByRole("button", { name: /Submit report/ }));
     expect(screen.getByRole("status")).toBeTruthy();
   });
+  it("makes dashboard summary widgets navigable", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /EN/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Wallet balance/ }));
+    expect(screen.getByRole("heading", { name: "Wallet" })).toBeTruthy();
+  });
+  it("provides password visibility and a recovery entry point", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /EN/ }));
+    fireEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: /Profile/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Log in/ }));
+    const password = screen.getByLabelText("Password") as HTMLInputElement;
+    expect(password.type).toBe("password");
+    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+    expect(password.type).toBe("text");
+    fireEvent.click(screen.getByRole("button", { name: "Forgot password?" }));
+    expect(screen.getByRole("heading", { name: "Recover password" })).toBeTruthy();
+  });
+  it("allows profile details to be edited in the preview without claiming server persistence", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /EN/ }));
+    fireEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: /Profile/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
+    fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Synthetic Passenger" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save preview" }));
+    expect(screen.getByText(/not saved to an account/i)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Synthetic Passenger" })).toBeTruthy();
+  });
+
   it("keeps internal provider labels out of public UI", () => {
     render(<App />);
     expect(screen.queryByText(/internal provider/i)).toBeNull();

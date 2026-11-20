@@ -3,6 +3,7 @@ package com.maalenex.moto
 import android.app.Activity
 import android.graphics.Color
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -32,6 +33,8 @@ class MainActivity : Activity() {
     private lateinit var rootContainer: FrameLayout
     private var splashOverlay: View? = null
     private var splashCheckAttempts = 0
+    private var splashShownAtMs = 0L
+    private var splashContentReady = false
     private var touchStartScale = Float.NaN
     private var savedZoomRestoreAttempted = false
 
@@ -172,13 +175,18 @@ class MainActivity : Activity() {
         )
         showSplashOverlay()
         setContentView(rootContainer)
-        rootContainer.postDelayed({ hideSplashOverlay() }, SPLASH_MAX_WAIT_MS)
+        rootContainer.postDelayed({
+            splashContentReady = true
+            dismissSplashAfterMinimumDuration()
+        }, SPLASH_MAX_WAIT_MS)
         ViewCompat.requestApplyInsets(webView)
         webView.loadUrl(APP_ENTRY_URL)
     }
 
 
     private fun showSplashOverlay() {
+        splashShownAtMs = SystemClock.elapsedRealtime()
+        splashContentReady = false
         val overlay = FrameLayout(this).apply {
             setBackgroundColor(Color.rgb(7, 26, 28))
             isClickable = true
@@ -204,6 +212,33 @@ class MainActivity : Activity() {
             setPadding(0, dp(20), 0, 0)
         }
         content.addView(brand, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        val motto = TextView(this).apply {
+            text = "EVERY JOURNEY, CONNECTED."
+            setTextColor(Color.rgb(151, 207, 174))
+            textSize = 10f
+            letterSpacing = 0.16f
+            gravity = Gravity.CENTER
+            setPadding(dp(18), dp(12), dp(18), dp(18))
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        }
+        content.addView(motto, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        val amharicWelcome = TextView(this).apply {
+            text = "እንኳን ወደ MaaleNex በደህና መጡ"
+            setTextColor(Color.rgb(237, 248, 241))
+            textSize = 15f
+            gravity = Gravity.CENTER
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            setPadding(dp(12), dp(5), dp(12), dp(5))
+        }
+        content.addView(amharicWelcome, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        val englishWelcome = TextView(this).apply {
+            text = "Welcome to MaaleNex"
+            setTextColor(Color.rgb(164, 190, 176))
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setPadding(dp(12), dp(2), dp(12), 0)
+        }
+        content.addView(englishWelcome, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         overlay.addView(
             content,
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
@@ -222,15 +257,33 @@ class MainActivity : Activity() {
             "Boolean(document.getElementById('root') && document.getElementById('root').innerText.trim().length > 0)"
         ) { result ->
             if (result == "true" || splashCheckAttempts >= SPLASH_MAX_CHECKS) {
-                hideSplashOverlay()
+                splashContentReady = true
+                dismissSplashAfterMinimumDuration()
             } else {
                 webView.postDelayed({ checkWebContentReady() }, SPLASH_CHECK_INTERVAL_MS)
             }
         }
     }
 
+    private fun dismissSplashAfterMinimumDuration() {
+        if (!splashContentReady || splashOverlay == null) return
+        val elapsed = SystemClock.elapsedRealtime() - splashShownAtMs
+        val remaining = (SPLASH_MIN_DURATION_MS - elapsed).coerceAtLeast(0L)
+        if (remaining == 0L) {
+            hideSplashOverlay()
+        } else {
+            rootContainer.postDelayed({ dismissSplashAfterMinimumDuration() }, remaining)
+        }
+    }
+
     private fun hideSplashOverlay() {
         val overlay = splashOverlay ?: return
+        val elapsed = SystemClock.elapsedRealtime() - splashShownAtMs
+        if (elapsed < SPLASH_MIN_DURATION_MS) {
+            splashContentReady = true
+            rootContainer.postDelayed({ dismissSplashAfterMinimumDuration() }, SPLASH_MIN_DURATION_MS - elapsed)
+            return
+        }
         rootContainer.removeView(overlay)
         splashOverlay = null
     }
@@ -344,7 +397,8 @@ class MainActivity : Activity() {
 
     private companion object {
         const val TAG = "MaaleNexWebView"
-        const val SPLASH_MAX_WAIT_MS = 6000L
+        const val SPLASH_MIN_DURATION_MS = 5000L
+        const val SPLASH_MAX_WAIT_MS = 12000L
         const val SPLASH_CHECK_INTERVAL_MS = 100L
         const val SPLASH_MAX_CHECKS = 40
         const val APP_ENTRY_URL = "https://appassets.androidplatform.net/assets/www/index.html"

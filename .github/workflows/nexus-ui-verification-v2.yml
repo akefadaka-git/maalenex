@@ -1,13 +1,22 @@
 name: MaaleNex NEXUS UI verification (exact head)
 
 on:
-  push:
-    branches:
+  pull_request:
+    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean]
     paths:
       - ".github/workflows/nexus-ui-verification-v2.yml"
       - "frontend/**"
       - "android/**"
       - "docs/ui/**"
+      - "docs/acceptance/**"
+  push:
+    branches: ["**"]
+    paths:
+      - ".github/workflows/nexus-ui-verification-v2.yml"
+      - "frontend/**"
+      - "android/**"
+      - "docs/ui/**"
+      - "docs/acceptance/**"
   workflow_dispatch:
 
 permissions:
