@@ -38,3 +38,7 @@ This branch currently supplies the first frontend screen foundation. Authenticat
 
 ## Accessibility and Android
 Maintain visible keyboard focus, semantic controls, reduced-motion behavior, scalable text, and responsive layouts. Android acceptance requires resource compilation, APK assembly, emulator checks, and physical-device verification of launcher and splash behavior. This design system is not an accessibility certification.
+
+
+## Bundled Amharic font
+The frontend bundles Noto Sans Ethiopic from the pinned `@fontsource/noto-sans-ethiopic` 5.3.0 package under the SIL Open Font License 1.1. Font files are served locally from the packaged web assets; no external font CDN is required.
