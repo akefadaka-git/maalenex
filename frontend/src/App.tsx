@@ -19,6 +19,7 @@ import {
   createPassengerReport,
   uploadPassengerReportAttachment,
   type PassengerReport,
+  passengerReportAttachmentUrl,
 } from "./passenger-api";
 import { BookingFlow } from "./BookingFlow";
 import { Icon } from "./components/nexus-icons";
@@ -368,7 +369,7 @@ export default function App() {
      </div>
      <div className="panel-card support-panel">
       <h2>{language==="am"?"የድጋፍ ጥያቄዎቼ":"My support requests"}</h2>
-      {!passenger?<p>{language==="am"?"የጥያቄዎችን ታሪክ ለማየት ይግቡ።":"Sign in to view your support history."}</p>:supportCases.length===0?<p>{language==="am"?"ገና የተላከ ጥያቄ የለም።":"You have no support requests yet."}</p>:supportCases.map(item=><article className="support-case" key={item.case_reference}><div><strong>{item.subject}</strong><small>{item.case_reference} · {item.category}</small></div><span className={"support-status status-"+item.status}>{language==="am"?({open:"ክፍት",in_progress:"በሂደት ላይ",resolved:"ተፈትቷል",closed:"ተዘግቷል"} as const)[item.status]:item.status.replace("_"," ")}</span>{item.resolution_note&&<p>{item.resolution_note}</p>}</article>)}
+      {!passenger?<p>{language==="am"?"የጥያቄዎችን ታሪክ ለማየት ይግቡ።":"Sign in to view your support history."}</p>:supportCases.length===0?<p>{language==="am"?"ገና የተላከ ጥያቄ የለም።":"You have no support requests yet."}</p>:supportCases.map(item=><article className="support-case" key={item.case_reference}><div><strong>{item.subject}</strong><small>{item.case_reference} · {item.category}</small></div><span className={"support-status status-"+item.status}>{language==="am"?({open:"ክፍት",in_progress:"በሂደት ላይ",resolved:"ተፈትቷል",closed:"ተዘግቷል"} as const)[item.status]:item.status.replace("_"," ")}</span>{item.resolution_note&&<p>{item.resolution_note}</p>}{item.attachments.map(file=><a className="text-link" key={file.id} href={passengerReportAttachmentUrl(item.report_reference,file.id)} download>{file.file_name}</a>)}</article>)}
      </div>
     </section>}
     {page==="report"&&<section className="content-section support-layout">
