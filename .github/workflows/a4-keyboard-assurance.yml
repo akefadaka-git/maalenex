@@ -39,7 +39,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Start production preview
         run: |
-          npm run preview -- --host 127.0.0.1 > /tmp/maalenex-vite-preview.log 2>&1 &
+          npx vite preview --host 127.0.0.1 > /tmp/maalenex-vite-preview.log 2>&1 &
           echo $! > /tmp/maalenex-vite-preview.pid
           for attempt in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then exit 0; fi
