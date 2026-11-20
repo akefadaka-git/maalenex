@@ -65,7 +65,7 @@ class LedgerPosting(Base):
         Uuid(as_uuid=True), ForeignKey("ledger_transactions.id", ondelete="RESTRICT"), index=True
     )
     account_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("ledger_accounts.id", ondelete="RESTRICT"), index=True
+        Uuid(as_uuid=True), ForeignKey("ledger_accounts.id", ondelete="RESTRICT")
     )
     side: Mapped[str] = mapped_column(String(6))
     amount_minor_units: Mapped[int] = mapped_column(BigInteger)
