@@ -60,7 +60,7 @@ jobs:
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
       - name: Ruff wallet ledger implementation
         run: >-
-          python -m ruff check
+          python -m ruff check --output-format=github
           app/db/model_registry.py
           app/domains/wallet/models.py
           app/domains/wallet/service.py
