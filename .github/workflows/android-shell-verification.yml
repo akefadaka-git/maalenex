@@ -2,7 +2,7 @@ name: MaaleNex Android shell verification
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/a3-passenger-only-integration]
     paths:
       - "android/**"
       - "frontend/**"
@@ -281,7 +281,7 @@ jobs:
   commit-gradle-verification-metadata:
     name: Commit generated Gradle verification metadata to A3 branch
     needs: [android-build-and-emulator, osv-dependency-scan]
-    if: always() && needs.android-build-and-emulator.result == 'success' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    if: always() && needs.android-build-and-emulator.result == 'success' && github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: write
