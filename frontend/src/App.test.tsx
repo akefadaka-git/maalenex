@@ -104,6 +104,47 @@ describe("MaaleNex full-platform interface foundation", () => {
     expect(screen.getByRole("status").textContent).toMatch(/signed in/i);
   });
 
+  it("searches only published journeys through the passenger catalog API", async () => {
+    const trip = {
+      id: "trip-test-id",
+      departure_at: "2026-11-21T06:00:00+00:00",
+      arrival_estimate_at: "2026-11-21T10:00:00+00:00",
+      boarding_model: "Koybe Terminal",
+      available_seats: 8,
+      availability_as_of: "2026-11-20T16:00:00+00:00",
+      fare: { amount_minor_units: 125000, currency_code: "ETB" },
+      reservation_only: true,
+      ticketing_enabled: false,
+      payment_enabled: false,
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/passenger/auth/sessions/current")) {
+        return { ok: false, status: 401, json: async () => ({ detail: "Authentication required" }) } as Response;
+      }
+      if (url.endsWith("/catalog/locations")) {
+        return { ok: true, status: 200, json: async () => [
+          { id: "origin-id", name: "Koybe", type: "town" },
+          { id: "destination-id", name: "Jinka", type: "town" },
+        ] } as Response;
+      }
+      if (url.includes("/trips/search?")) {
+        return { ok: true, status: 200, json: async () => [trip] } as Response;
+      }
+      throw new Error("Unexpected API request: " + url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /EN/ }));
+    fireEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: /Map/ }));
+    await waitFor(() => expect(screen.getByRole("option", { name: "Koybe" })).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Origin"), { target: { value: "origin-id" } });
+    fireEvent.change(screen.getByLabelText("Destination"), { target: { value: "destination-id" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search journeys" }));
+    await waitFor(() => expect(screen.getByText("Koybe Terminal")).toBeTruthy());
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("origin_id=origin-id") && String(input).includes("destination_id=destination-id"))).toBe(true);
+  });
+
   it("keeps internal provider labels out of public UI", () => {
     render(<App />);
     expect(screen.queryByText(/internal provider/i)).toBeNull();
