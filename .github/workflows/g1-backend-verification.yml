@@ -2,7 +2,7 @@ name: G1 backend foundation verification
 
 on:
   pull_request:
-    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean]
+    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/acceptance-remediation]
     paths:
       - "backend/**"
       - ".github/workflows/g1-backend-verification.yml"
@@ -61,6 +61,11 @@ jobs:
           app/domains/wallet/service.py
           tests/test_wallet_ledger.py
           migrations/versions/0008_wallet_double_entry_ledger.py
+          app/domains/identity/passenger_models.py
+          app/domains/identity/passenger_service.py
+          app/routers/passenger_auth.py
+          tests/test_passenger_identity.py
+          migrations/versions/0009_passenger_identity.py
       - name: Backend tests
         run: python -m pytest -q
       - name: Apply baseline migration to empty database
