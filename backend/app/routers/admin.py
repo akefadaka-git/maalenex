@@ -1,6 +1,6 @@
 """Platform administration and staff workflow endpoints."""
 # FastAPI dependency injection requires Depends instances in endpoint defaults.
-# ruff: noqa: B008
+# ruff: noqa: B008, I001
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import UUID
