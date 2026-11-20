@@ -21,7 +21,7 @@ describe("MaaleNex full-platform interface foundation", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /EN/ }));
     fireEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: /Map/ }));
-    expect(screen.getByText(/No verified operating routes/)).toBeTruthy();
+    expect(screen.getAllByText(/No verified operating routes/).length).toBeGreaterThan(0);
   });
   it("shows wallet preview without enabling real-money movement", () => {
     render(<App />);
