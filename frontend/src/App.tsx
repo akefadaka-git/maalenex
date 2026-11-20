@@ -15,6 +15,7 @@ const copy = {
     guest: "እንደ እንግዳ ይቀጥሉ", guestHint: "የህዝብ መረጃን ያለ መለያ ይመልከቱ።",
     current: "የአሁኑ ወሰን", currentText: "የተሳፋሪ ምርት ዝግጅት ብቻ። የተረጋገጡ የጉዞ መርሐ ግብሮች፣ ታሪፎች ወይም የሚሰሩ አገልግሎቶች አልተገለጹም።",
     future: "የወደፊት እይታ", futureText: "በተጠናከረ መረጃ፣ በግልጽ አሰራር እና በተጠያቂነት የተመራ የመጓጓዣ ልምድ።",
+    journeyTitle: "የጉዞ መረጃ", journeyText: "የተረጋገጡ መነሻዎች፣ መድረሻዎች እና መርሐ ግብሮች ከተፈቀዱ በኋላ እዚህ ይታያሉ።", journeyStatus: "ገና የታተመ የጉዞ መረጃ የለም",
     safety: "ይህ የልማት ማሳያ ነው። መለያ፣ የግል መረጃ ማስገቢያ፣ ቦታ ማስያዣ፣ ክፍያ ወይም ትኬት አይኖርም።",
     aboutTitle: "ስለ MaaleNex", aboutLead: "ከአካባቢው የሚነሳ የመጓጓዣ ቴክኖሎጂ።",
     aboutText: "MaaleNex በኢትዮጵያ ውስጥ ለተሳፋሪዎች የተሻለ የመረጃ እና የጉዞ ዝግጅት ተሞክሮ ለመፍጠር የሚዘጋጅ መድረክ ነው። የመጀመሪያው የልማት ትኩረት በጂንካ እና በደቡብ ኦሞ አካባቢ ላይ ነው።",
@@ -36,6 +37,7 @@ const copy = {
     guest: "Explore as a guest", guestHint: "Discover public information without creating an account.",
     current: "Current scope", currentText: "Passenger product preparation only. No verified schedules, fares, or operating services are being represented.",
     future: "A better mobility experience", futureText: "A mobility experience shaped by useful information, clear operations, and responsible technology.",
+    journeyTitle: "Journey information", journeyText: "Verified origins, destinations, and schedules will appear here only after they are approved for publication.", journeyStatus: "No published journey information yet",
     safety: "Development preview only. There is no account, personal-data form, booking, payment, or ticketing in this experience.",
     aboutTitle: "About MaaleNex", aboutLead: "Mobility technology with local roots.",
     aboutText: "MaaleNex is being developed to create a better information and journey-planning experience for passengers in Ethiopia. The initial development focus is the Jinka and South Omo area.",
@@ -98,6 +100,10 @@ export default function App() {
           <article className="info-card feature-card"><span className="card-icon"><Icon name="compass" /></span><p className="card-kicker">01 / {t.current}</p><h2>{t.current}</h2><p>{t.currentText}</p></article>
           <article className="info-card feature-card"><span className="card-icon"><Icon name="spark" /></span><p className="card-kicker">02 / {t.future}</p><h2>{t.future}</h2><p>{t.futureText}</p></article>
           <article className="info-card safety-card"><span className="card-icon"><Icon name="shield" /></span><p className="card-kicker">03 / RESPONSIBLE BY DESIGN</p><h2>{language === "am" ? "ደህንነት ከመጀመሪያ" : "Responsibility first"}</h2><p>{t.safety}</p></article>
+        </section>
+        <section className="journey-preview">
+          <div className="journey-copy"><p className="card-kicker">04 / VERIFIED JOURNEY INFORMATION</p><h2>{t.journeyTitle}</h2><p>{t.journeyText}</p></div>
+          <div className="journey-empty"><Icon name="route" /><strong>{t.journeyStatus}</strong><span>{language === "am" ? "የተረጋገጠ መረጃ እስኪገኝ ድረስ ምንም መስመር አይታይም።" : "No route is shown until verified information is available."}</span></div>
         </section>
       </div>}
       {page === "about" && <section className="content-page">
