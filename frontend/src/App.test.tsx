@@ -39,13 +39,66 @@ describe("MaaleNex full-platform interface foundation", () => {
     fireEvent.click(screen.getByRole("button", { name: /Log in/ }));
     expect(screen.getByLabelText("Email or international phone number")).toBeTruthy();
   });
-  it("captures a report locally and explains that it is not transmitted", () => {
+  it("submits a formal complaint to the passenger reports API and displays its tracking reference", async () => {
+    document.cookie = "mnm_passenger_csrf=reports-csrf-test; path=/";
+    const account = {
+      id: "passenger-report-test",
+      display_name: "Report Test Rider",
+      login_identifier: "report-rider@example.test",
+      contact_verified: true,
+      expires_at: "2026-11-21T00:00:00+00:00",
+    };
+    const created = {
+      report_reference: "MN-RPT-TEST-0001",
+      report_type: "complaint",
+      category: "safety",
+      severity: "high",
+      subject: "Unsafe vehicle condition",
+      description: "The vehicle had a damaged passenger door during the trip.",
+      status: "submitted",
+      resolution_note: null,
+      created_at: "2026-11-20T17:00:00+00:00",
+      updated_at: "2026-11-20T17:00:00+00:00",
+      resolved_at: null,
+      attachments: [],
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/passenger/auth/sessions/current")) {
+        return { ok: true, status: 200, json: async () => account } as Response;
+      }
+      if (url.endsWith("/passenger/reports") && init?.method === "POST") {
+        return { ok: true, status: 201, json: async () => created } as Response;
+      }
+      if (url.endsWith("/passenger/reports")) {
+        return { ok: true, status: 200, json: async () => ({ items: [] }) } as Response;
+      }
+      throw new Error("Unexpected API request: " + url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
     render(<App />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/passenger/auth/sessions/current",
+      expect.objectContaining({ credentials: "include" }),
+    ));
     fireEvent.click(screen.getByRole("button", { name: /EN/ }));
     fireEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: /Report/ }));
-    fireEvent.change(screen.getByLabelText("Your message"), { target: { value: "Test issue" } });
-    fireEvent.click(screen.getByRole("button", { name: /Submit report/ }));
-    expect(screen.getByRole("status")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Submission type"), { target: { value: "complaint" } });
+    fireEvent.change(screen.getByLabelText("Report category"), { target: { value: "safety" } });
+    fireEvent.change(screen.getByLabelText("Severity"), { target: { value: "high" } });
+    fireEvent.change(screen.getByLabelText("Subject"), { target: { value: "Unsafe vehicle condition" } });
+    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "The vehicle had a damaged passenger door during the trip." } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit report" }));
+    expect(await screen.findByText(/MN-RPT-TEST-0001/)).toBeTruthy();
+    const submission = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).endsWith("/passenger/reports") && init?.method === "POST",
+    );
+    expect(submission).toBeTruthy();
+    expect(JSON.parse(String(submission?.[1]?.body))).toMatchObject({
+      report_type: "complaint", category: "safety", severity: "high",
+      subject: "Unsafe vehicle condition",
+    });
+    expect(new Headers(submission?.[1]?.headers).get("X-CSRF-Token")).toBe("reports-csrf-test");
   });
   it("makes dashboard summary widgets navigable", () => {
     render(<App />);
