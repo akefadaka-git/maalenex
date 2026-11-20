@@ -244,3 +244,60 @@ export function createPassengerSupportCase(input: {
     body: JSON.stringify(input),
   });
 }
+
+
+export type PassengerReport = {
+  report_reference: string;
+  report_type: "report" | "complaint";
+  category: "app_issue" | "journey" | "booking" | "wallet" | "payment" | "safety" | "driver_vehicle" | "accessibility" | "fraud" | "other";
+  severity: "low" | "normal" | "high" | "urgent";
+  subject: string;
+  description: string;
+  status: "submitted" | "under_review" | "action_required" | "resolved" | "dismissed";
+  resolution_note: string | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+  attachments: Array<{ id: string; file_name: string; content_type: string; size_bytes: number; sha256: string }>;
+};
+
+export function listPassengerReports(): Promise<{ items: PassengerReport[] }> {
+  return request("/passenger/reports");
+}
+
+export function createPassengerReport(input: {
+  report_type: PassengerReport["report_type"];
+  category: PassengerReport["category"];
+  severity: PassengerReport["severity"];
+  subject: string;
+  description: string;
+}): Promise<PassengerReport> {
+  return request("/passenger/reports", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function uploadPassengerReportAttachment(reportReference: string, file: File): Promise<{
+  id: string; file_name: string; content_type: string; size_bytes: number; sha256: string;
+}> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return request(`/passenger/reports/${encodeURIComponent(reportReference)}/attachments`, {
+    method: "POST",
+    body: JSON.stringify({
+      file_name: file.name,
+      content_type: file.type,
+      content_base64: btoa(binary),
+    }),
+  });
+}
+
+
+export function passengerReportAttachmentUrl(reportReference: string, attachmentId: string): string {
+  const root = API_ROOT || "/api/v1";
+  return `${root}/passenger/reports/${encodeURIComponent(reportReference)}/attachments/${encodeURIComponent(attachmentId)}`;
+}

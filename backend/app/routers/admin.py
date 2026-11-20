@@ -1,8 +1,14 @@
+"""Platform administration and staff workflow endpoints."""
+# FastAPI dependency injection requires Depends instances in endpoint defaults.
+# ruff: noqa: B008, I001
+import os
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -10,23 +16,24 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.domains.bookings.models import Booking, BookingPassenger, Passenger, SeatAllocation
 from app.domains.audit.models import AuditEvent
 from app.domains.audit.service import record_event
+from app.domains.bookings.models import Booking, BookingPassenger, Passenger, SeatAllocation
 from app.domains.catalog.models import Location, Route, RouteStop, Terminal
 from app.domains.fares.models import Fare, FareVersion
 from app.domains.fares.service import FareConflict, decide_fare, propose_fare, publish_fare, submit_fare
 from app.domains.fleet.models import SeatLayoutVersion, Vehicle, VehicleSeat
 from app.domains.identity.authorization import has_permission
 from app.domains.identity.models import Role, RoleAssignment, User
+from app.domains.identity.security import issue_opaque_token, token_digest
+from app.domains.identity.service import StaffContext
 from app.domains.organizations.models import Organization, OrganizationInvitation, OrganizationMembership
 from app.domains.organizations.service import create_candidate_operator
-from app.domains.trips.models import Trip, TripSeat
 from app.domains.support.models import SupportCase
 from app.domains.support.passenger_models import PassengerSupportCase
+from app.domains.support.report_models import PassengerReport, PassengerReportAttachment
+from app.domains.trips.models import Trip, TripSeat
 from app.routers.auth import current_staff_context, require_csrf
-from app.domains.identity.service import StaffContext
-from app.domains.identity.security import issue_opaque_token, token_digest
 
 router = APIRouter(tags=["platform-administration"])
 
@@ -47,6 +54,11 @@ class OperatorRoleAssignment(BaseModel):
 
 class SupportResolution(BaseModel):
     resolution_code: str = Field(min_length=3, max_length=80)
+    resolution_note: str = Field(min_length=3, max_length=1000)
+
+
+class ReportReview(BaseModel):
+    status: Literal["under_review", "action_required", "resolved", "dismissed"]
     resolution_note: str = Field(min_length=3, max_length=1000)
 
 
@@ -961,6 +973,143 @@ def resolve_passenger_support_case(
         "status": case.status,
         "resolution_code": case.resolution_code,
         "resolved_at": case.resolved_at.isoformat(),
+    }
+
+
+@router.get("/reports/passenger")
+def list_passenger_reports(
+    report_type: Literal["report", "complaint"] | None = None,
+    report_status: Literal["submitted", "under_review", "action_required", "resolved", "dismissed"] | None = None,
+    limit: int = 100,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.support.manage")
+    statement = select(PassengerReport).order_by(PassengerReport.created_at.asc())
+    if report_type:
+        statement = statement.where(PassengerReport.report_type == report_type)
+    if report_status:
+        statement = statement.where(PassengerReport.status == report_status)
+    records = db.scalars(statement.limit(max(1, min(limit, 200)))).all()
+    return [{
+        "id": str(item.id),
+        "report_reference": item.report_reference,
+        "passenger_id": str(item.passenger_id),
+        "report_type": item.report_type,
+        "category": item.category,
+        "severity": item.severity,
+        "subject": item.subject,
+        "description": item.description,
+        "status": item.status,
+        "assigned_to": str(item.assigned_to) if item.assigned_to else None,
+        "resolution_note": item.resolution_note,
+        "created_at": item.created_at.isoformat(),
+        "resolved_at": item.resolved_at.isoformat() if item.resolved_at else None,
+        "attachments": [{
+            "id": str(file.id), "file_name": file.original_filename,
+            "content_type": file.content_type, "size_bytes": file.size_bytes,
+            "sha256": file.sha256,
+        } for file in db.scalars(select(PassengerReportAttachment).where(
+            PassengerReportAttachment.report_id == item.id
+        )).all()],
+    } for item in records]
+
+
+@router.get("/reports/passenger/{report_id}/attachments/{attachment_id}")
+def download_passenger_report_evidence(
+    report_id: UUID,
+    attachment_id: UUID,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    _authorize(db, context, "platform.support.manage")
+    report = db.get(PassengerReport, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Passenger report not found.")
+    attachment = db.scalar(select(PassengerReportAttachment).where(
+        PassengerReportAttachment.id == attachment_id,
+        PassengerReportAttachment.report_id == report.id,
+    ))
+    if attachment is None:
+        raise HTTPException(status_code=404, detail="Evidence attachment not found.")
+    root = Path(os.environ.get(
+        "MAALENEX_PRIVATE_UPLOAD_DIR", "/var/lib/maalenex/private-uploads"
+    )).expanduser().resolve()
+    target = (root / attachment.storage_key).resolve()
+    if target.parent != root or not target.is_file():
+        raise HTTPException(status_code=404, detail="Evidence attachment is unavailable.")
+    _audit(
+        db, context=context, event="passenger.report.attachment.downloaded",
+        resource_type="passenger_report", resource_id=report.id,
+        action="download_evidence",
+        metadata={"attachment_id": str(attachment.id), "content_type": attachment.content_type},
+    )
+    db.commit()
+    return FileResponse(
+        target, media_type=attachment.content_type, filename=attachment.original_filename,
+        headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store"},
+    )
+
+
+@router.post("/reports/passenger/{report_id}/claim")
+def claim_passenger_report(
+    report_id: UUID,
+    request: Request,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.support.manage")
+    report = db.scalar(select(PassengerReport).where(
+        PassengerReport.id == report_id
+    ).with_for_update())
+    if report is None or report.status in {"resolved", "dismissed"}:
+        raise HTTPException(status_code=409, detail="Passenger report is not available for review.")
+    if report.assigned_to not in {None, context.user.id}:
+        raise HTTPException(status_code=409, detail="Passenger report is assigned to another staff member.")
+    report.assigned_to = context.user.id
+    report.status = "under_review"
+    _audit(
+        db, context=context, event="passenger.report.claimed",
+        resource_type="passenger_report", resource_id=report.id,
+        action="claim", metadata={"report_type": report.report_type, "category": report.category},
+    )
+    db.commit()
+    return {"report_reference": report.report_reference, "status": report.status}
+
+
+@router.post("/reports/passenger/{report_id}/review")
+def review_passenger_report(
+    report_id: UUID,
+    payload: ReportReview,
+    request: Request,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.support.manage")
+    report = db.scalar(select(PassengerReport).where(
+        PassengerReport.id == report_id
+    ).with_for_update())
+    if report is None or report.status in {"resolved", "dismissed"}:
+        raise HTTPException(status_code=409, detail="Passenger report is already closed or unavailable.")
+    if report.assigned_to not in {None, context.user.id}:
+        raise HTTPException(status_code=403, detail="Passenger report is assigned to another staff member.")
+    report.assigned_to = context.user.id
+    report.status = payload.status
+    report.resolution_note = payload.resolution_note.strip()
+    report.resolved_at = datetime.now(UTC) if payload.status in {"resolved", "dismissed"} else None
+    _audit(
+        db, context=context, event="passenger.report.status_changed",
+        resource_type="passenger_report", resource_id=report.id,
+        action="review", metadata={"status": report.status},
+    )
+    db.commit()
+    return {
+        "report_reference": report.report_reference,
+        "status": report.status,
+        "resolution_note": report.resolution_note,
+        "resolved_at": report.resolved_at.isoformat() if report.resolved_at else None,
     }
 
 
