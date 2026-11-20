@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -13,7 +12,7 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.domains.audit.models import AuditEvent
 from app.domains.identity.passenger_models import PassengerAccount
-from app.domains.identity.passenger_security import token_digest
+from app.domains.identity.security import token_digest
 from app.domains.support.passenger_models import PassengerSupportCase
 from app.routers.passenger_auth import current_passenger_context
 from app.routers.passenger_support import router
