@@ -36,6 +36,7 @@ The same geometric emblem is used for the web identity, favicon, PWA icons, Andr
 ## Page architecture
 
 - Welcome / home: bilingual warm greeting, product introduction, guest preview entry, current-scope notice, responsible-use notice, and abstract mobility visual.
+- Journey information: verified-data empty state; no routes, schedules, operators, or fares are invented.
 - About: mission, principles, and accurately labelled Koybe/Jinka/South Omo development focus.
 - IROKA: planned integration flow and explicit disconnected state.
 - Shared shell: persistent brand, primary navigation, language switch, skip link, and footer.
