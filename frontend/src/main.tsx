@@ -4,5 +4,6 @@ import App from "./App";
 import "@fontsource/noto-sans-ethiopic/400.css";
 import "@fontsource/noto-sans-ethiopic/700.css";
 import "./styles.css";
+import "./acceptance-overrides.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(<React.StrictMode><App /></React.StrictMode>);
