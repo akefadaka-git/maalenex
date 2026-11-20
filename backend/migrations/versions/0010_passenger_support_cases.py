@@ -33,7 +33,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
         sa.CheckConstraint(
-            "status IN ('open', 'in_progress', 'resolved', 'closed)",
+            "status IN ('open', 'in_progress', 'resolved', 'closed')",
             name="ck_passenger_support_cases_status",
         ),
         sa.UniqueConstraint("case_reference", name="uq_passenger_support_cases_reference"),
