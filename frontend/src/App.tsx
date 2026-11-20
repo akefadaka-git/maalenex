@@ -70,7 +70,6 @@ export default function App() {
   const navigate = (next: Page) => {
     setPage(next);
     setGuestNotice(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return <div className="app-shell" lang={language}>
