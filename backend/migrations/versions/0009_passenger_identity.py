@@ -3,8 +3,8 @@
 Revision ID: 0009_passenger_identity
 Revises: 0008_wallet_double_entry_ledger
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "0009_passenger_identity"
