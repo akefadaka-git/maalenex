@@ -5,6 +5,12 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.ViewGroup
+import android.view.Gravity
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.graphics.Typeface
 import android.webkit.ConsoleMessage
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
@@ -22,11 +28,15 @@ import kotlin.math.abs
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
+    private lateinit var rootContainer: FrameLayout
+    private var splashOverlay: View? = null
+    private var splashCheckAttempts = 0
     private var touchStartScale = Float.NaN
     private var savedZoomRestoreAttempted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        rootContainer = FrameLayout(this).apply { setBackgroundColor(Color.rgb(7, 26, 28)) }
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -40,7 +50,7 @@ class MainActivity : Activity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(Color.rgb(7, 27, 49))
+            setBackgroundColor(Color.rgb(7, 26, 28))
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = false
             settings.allowFileAccess = false
@@ -89,6 +99,7 @@ class MainActivity : Activity() {
                     ) { result ->
                         logDecodedProbe(result)
                     }
+                    checkWebContentReady()
                 }
 
                 override fun onReceivedError(
@@ -99,6 +110,7 @@ class MainActivity : Activity() {
                     super.onReceivedError(view, request, error)
                     if (request.isForMainFrame) {
                         android.util.Log.e(TAG, "WEBVIEW_MAIN_FRAME_ERROR code=${error.errorCode} description=${error.description}")
+                        hideSplashOverlay()
                     }
                 }
 
@@ -152,10 +164,76 @@ class MainActivity : Activity() {
             view.setPadding(safeInsets.left, safeInsets.top, safeInsets.right, safeInsets.bottom)
             windowInsets
         }
-        setContentView(webView)
+        rootContainer.addView(
+            webView,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        )
+        showSplashOverlay()
+        setContentView(rootContainer)
+        rootContainer.postDelayed({ hideSplashOverlay() }, SPLASH_MAX_WAIT_MS)
         ViewCompat.requestApplyInsets(webView)
         webView.loadUrl(APP_ENTRY_URL)
     }
+
+
+    private fun showSplashOverlay() {
+        val overlay = FrameLayout(this).apply {
+            setBackgroundColor(Color.rgb(7, 26, 28))
+            isClickable = true
+            isFocusable = true
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+        }
+        val icon = ImageView(this).apply {
+            setImageResource(R.drawable.maalenex_splash_icon)
+            contentDescription = "MaaleNex"
+            scaleType = ImageView.ScaleType.FIT_CENTER
+        }
+        content.addView(icon, LinearLayout.LayoutParams(dp(132), dp(132)))
+        val brand = TextView(this).apply {
+            text = "MaaleNex"
+            setTextColor(Color.rgb(237, 248, 241))
+            textSize = 21f
+            letterSpacing = 0.12f
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            gravity = Gravity.CENTER
+            setPadding(0, dp(20), 0, 0)
+        }
+        content.addView(brand, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        overlay.addView(
+            content,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+        )
+        rootContainer.addView(
+            overlay,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        )
+        splashOverlay = overlay
+    }
+
+    private fun checkWebContentReady() {
+        if (splashOverlay == null || !::webView.isInitialized) return
+        splashCheckAttempts += 1
+        webView.evaluateJavascript(
+            "Boolean(document.getElementById('root') && document.getElementById('root').innerText.trim().length > 0)"
+        ) { result ->
+            if (result == "true" || splashCheckAttempts >= SPLASH_MAX_CHECKS) {
+                hideSplashOverlay()
+            } else {
+                webView.postDelayed({ checkWebContentReady() }, SPLASH_CHECK_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun hideSplashOverlay() {
+        val overlay = splashOverlay ?: return
+        rootContainer.removeView(overlay)
+        splashOverlay = null
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun restoreSavedZoom(view: WebView) {
         if (savedZoomRestoreAttempted) return
@@ -264,6 +342,9 @@ class MainActivity : Activity() {
 
     private companion object {
         const val TAG = "MaaleNexWebView"
+        const val SPLASH_MAX_WAIT_MS = 6000L
+        const val SPLASH_CHECK_INTERVAL_MS = 100L
+        const val SPLASH_MAX_CHECKS = 40
         const val APP_ENTRY_URL = "https://appassets.androidplatform.net/assets/www/index.html"
         const val ZOOM_PREFERENCES = "webview_preferences"
         const val KEY_SAVED_WEBVIEW_SCALE = "saved_scale"
