@@ -893,7 +893,7 @@ def list_passenger_support_cases(
         "subject": case.subject,
         "message": case.message,
         "status": case.status,
-        "assigned_to": str(case.assigned_to) if hasattr(case, "assigned_to") and case.assigned_to else None,
+        "assigned_to": str(case.assigned_to) if case.assigned_to else None,
         "resolution_code": case.resolution_code,
         "resolution_note": case.resolution_note,
         "created_at": case.created_at.isoformat(),
