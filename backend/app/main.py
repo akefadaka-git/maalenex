@@ -7,10 +7,10 @@ from app.routers.admin import router as admin_router
 from app.routers.auth import router as auth_router
 from app.routers.bookings import router as bookings_router
 from app.routers.health import router as health_router
-from app.routers.passenger_catalog import router as passenger_catalog_router
 from app.routers.passenger_auth import router as passenger_auth_router
-from app.routers.passenger_support import router as passenger_support_router
+from app.routers.passenger_catalog import router as passenger_catalog_router
 from app.routers.passenger_reports import router as passenger_reports_router
+from app.routers.passenger_support import router as passenger_support_router
 
 app = FastAPI(
     title=settings.app_name,
