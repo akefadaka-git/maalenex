@@ -1,14 +1,26 @@
 """Passenger account lifecycle. This service never reads or writes staff identities."""
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
 from app.domains.audit.service import record_event
-from app.domains.identity.passenger_models import PassengerAccount, PassengerCredential, PassengerLoginAttempt, PassengerSession
-from app.domains.identity.security import hash_secret, issue_opaque_token, token_digest, verify_secret
+from app.domains.identity.passenger_models import (
+    PassengerAccount,
+    PassengerCredential,
+    PassengerLoginAttempt,
+    PassengerSession,
+)
+from app.domains.identity.security import (
+    hash_secret,
+    issue_opaque_token,
+    token_digest,
+    verify_secret,
+)
 
 class PassengerAuthenticationError(Exception):
     pass
@@ -32,7 +44,7 @@ def _now(db: Session) -> datetime:
     value = db.scalar(select(func.now()))
     if isinstance(value, str):
         value = datetime.fromisoformat(value)
-    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 def _utc(value: datetime) -> datetime:
     return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
