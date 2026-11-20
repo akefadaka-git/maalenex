@@ -6,7 +6,7 @@ on:
       - a4/passenger-keyboard-assurance
   pull_request:
     branches:
-      - a4/passenger-keyboard-assurance
+      - feat/a3-passenger-only-integration
   workflow_dispatch:
 
 permissions:
