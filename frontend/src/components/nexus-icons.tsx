@@ -17,7 +17,7 @@ const paths: Record<NexusIconName, ReactNode> = {
   flag: <><path d="M5 21V4m0 1c5-4 9 4 14 0v10c-5 4-9-4-14 0"/></>,
   bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></>,
   plus: <><path d="M12 5v14M5 12h14"/></>,
-  receipt: <><path d="M5 3h14v18l-3-2-4 2-4-2-3 2z"/><path d="M8 8h8M8 12h8M8 16h4"/></></>
+  receipt: <><path d="M5 3h14v18l-3-2-4 2-4-2-3 2z"/><path d="M8 8h8M8 12h8M8 16h4"/></>
 };
 
 export function Icon({ name }: { name: NexusIconName }) {
