@@ -183,22 +183,22 @@ jobs:
 
           reports = sorted(Path("android/app/build/test-results/testDebugUnitTest").glob("TEST-*.xml"))
           if not reports:
-              raise SystemExit("FAIL: trusted navigation unit-test XML reports are missing")
+              raise SystemExit("FAIL: Android unit-test XML reports are missing")
           totals = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
           for report in reports:
               root = ET.parse(report).getroot()
               for key in totals:
                   totals[key] += int(root.attrib.get(key, "0"))
           if totals["tests"] < 1 or totals["failures"] or totals["errors"]:
-              raise SystemExit(f"FAIL: trusted navigation unit tests: {totals}")
+              raise SystemExit(f"FAIL: Android unit tests: {totals}")
           line = (
-              f"PASS: trusted navigation unit tests — {totals['tests']} tests, "
+              f"PASS: Android unit tests — {totals['tests']} tests, "
               f"{totals['failures']} failures, {totals['errors']} errors, "
               f"{totals['skipped']} skipped"
           )
           print(line)
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
-              summary.write(f"## Trusted navigation unit tests\n\n- {line}\n")
+              summary.write(f"## Android unit tests\n\n- {line}\n")
           PY
 
       - name: Upload trusted navigation unit-test reports
