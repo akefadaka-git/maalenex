@@ -49,7 +49,7 @@ export default function App() {
  const [reportCategory,setReportCategory]=useState<PassengerReport["category"]>("app_issue");
  const [reportSeverity,setReportSeverity]=useState<PassengerReport["severity"]>("normal");
  const [reportSubject,setReportSubject]=useState("");
- const [reportAttachment,setReportAttachment]=useState<File|null>(null);
+ const [reportAttachments,setReportAttachments]=useState<File[]>([]);
  const [reportCases,setReportCases]=useState<PassengerReport[]>([]);
  const [reportLoading,setReportLoading]=useState(false);
  const [reportSubmitting,setReportSubmitting]=useState(false);
@@ -176,19 +176,24 @@ export default function App() {
     subject:reportSubject.trim(),description:report.trim(),
    });
    setReportCases(current=>[created!,...current]);
-   if(reportAttachment){
-    try{
-     const attachment=await uploadPassengerReportAttachment(created.report_reference,reportAttachment);
-     created={...created,attachments:[...created.attachments,attachment]};
-     setReportCases(current=>current.map(item=>item.report_reference===created!.report_reference?created!:item));
-     setNotice(language==="am"?"ሪፖርትዎ ከማስረጃ ፋይሉ ጋር ተልኳል። ማጣቀሻ: "+created.report_reference:"Report submitted with evidence. Reference: "+created.report_reference);
-    }catch(error){
-     setReportError((error instanceof Error?error.message:"Evidence upload failed.")+" "+(language==="am"?"ሪፖርቱ ግን ተመዝግቧል። ማጣቀሻ: ":"The report itself was saved. Reference: ")+created.report_reference);
+   if(reportAttachments.length){
+    const uploaded=[];
+    const failures=[];
+    for(const file of reportAttachments){
+     try{uploaded.push(await uploadPassengerReportAttachment(created.report_reference,file));}
+     catch(error){failures.push(error instanceof Error?error.message:"Evidence upload failed.");}
+    }
+    created={...created,attachments:[...created.attachments,...uploaded]};
+    setReportCases(current=>current.map(item=>item.report_reference===created!.report_reference?created!:item));
+    if(failures.length){
+     setReportError((language==="am"?"ሪፖርቱ ተመዝግቧል፤ አንዳንድ ማስረጃዎች አልተጫኑም። ":"The report was saved, but one or more evidence uploads failed. ")+created.report_reference+" · "+failures.join("; "));
+    }else{
+     setNotice(language==="am"?"ሪፖርትዎ ከማስረጃ ፋይሎች ጋር ተልኳል። ማጣቀሻ: "+created.report_reference:"Report submitted with evidence. Reference: "+created.report_reference);
     }
    }else{
     setNotice(language==="am"?"ሪፖርትዎ ተልኳል። ማጣቀሻ: "+created.report_reference:"Report submitted. Reference: "+created.report_reference);
    }
-   setReport("");setReportSubject("");setReportAttachment(null);
+   setReport("");setReportSubject("");setReportAttachments([]);
    const fileInput=document.getElementById("report-evidence") as HTMLInputElement|null;
    if(fileInput)fileInput.value="";
   }catch(error){setReportError(error instanceof Error?error.message:"Report or complaint could not be submitted.");}
@@ -404,9 +409,9 @@ export default function App() {
        <label>{language==="am"?"ርዕስ":"Subject"}<input required minLength={3} maxLength={160} value={reportSubject} onChange={e=>setReportSubject(e.target.value)}/></label>
        <label>{language==="am"?"የችግሩ ዝርዝር":"Description"}<textarea required minLength={10} maxLength={5000} value={report} onChange={e=>setReport(e.target.value)} rows={6}/></label>
        <label>{language==="am"?"ማስረጃ ፋይል (አማራጭ)":"Evidence attachment (optional)"}
-        <input id="report-evidence" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={e=>{const file=e.target.files?.[0]??null;if(file&&(file.size>5*1024*1024||!["application/pdf","image/jpeg","image/png","image/webp"].includes(file.type))){setReportError(language==="am"?"PDF፣ JPG፣ PNG ወይም WebP እስከ 5 MB ብቻ ይምረጡ።":"Choose a PDF, JPG, PNG or WebP file up to 5 MB.");e.target.value="";setReportAttachment(null);}else{setReportError("");setReportAttachment(file);}}}/>
+        <input id="report-evidence" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={e=>{const files=Array.from(e.target.files??[]);if(files.length>3||files.some(file=>file.size>5*1024*1024||!["application/pdf","image/jpeg","image/png","image/webp"].includes(file.type))){setReportError(language==="am"?"እስከ 3 PDF፣ JPG፣ PNG ወይም WebP ፋይሎችን፣ እያንዳንዱን እስከ 5 MB ይምረጡ።":"Choose up to three PDF, JPG, PNG or WebP files, each no larger than 5 MB.");e.target.value="";setReportAttachments([]);}else{setReportError("");setReportAttachments(files);}}}/>
        </label>
-       <p className="support-hint">{language==="am"?"እስከ 3 ፋይሎች፣ እያንዳንዱ እስከ 5 MB። በዚህ ስሪት አንድ ፋይል በአንድ ጊዜ ይላካል።":"Up to three files per case, 5 MB each. This screen currently submits one file with the report."}</p>
+       <p className="support-hint">{language==="am"?"እስከ 3 ፋይሎች፣ እያንዳንዱ እስከ 5 MB።":"Up to three files per case, 5 MB each."}</p>
        <button className="primary-action" type="submit" disabled={!passenger||reportSubmitting}>{reportSubmitting?(language==="am"?"በመላክ ላይ…":"Submitting…"):(language==="am"?"ሪፖርት አስገባ":"Submit report")}<Icon name="arrow"/></button>
       </form>
      </div>
