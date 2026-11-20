@@ -11,27 +11,27 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.domains.bookings.models import Booking, BookingPassenger, Passenger, SeatAllocation
 from app.domains.audit.models import AuditEvent
 from app.domains.audit.service import record_event
+from app.domains.bookings.models import Booking, BookingPassenger, Passenger, SeatAllocation
 from app.domains.catalog.models import Location, Route, RouteStop, Terminal
 from app.domains.fares.models import Fare, FareVersion
 from app.domains.fares.service import FareConflict, decide_fare, propose_fare, publish_fare, submit_fare
 from app.domains.fleet.models import SeatLayoutVersion, Vehicle, VehicleSeat
 from app.domains.identity.authorization import has_permission
 from app.domains.identity.models import Role, RoleAssignment, User
+from app.domains.identity.security import issue_opaque_token, token_digest
+from app.domains.identity.service import StaffContext
 from app.domains.organizations.models import Organization, OrganizationInvitation, OrganizationMembership
 from app.domains.organizations.service import create_candidate_operator
-from app.domains.trips.models import Trip, TripSeat
 from app.domains.support.models import SupportCase
 from app.domains.support.passenger_models import PassengerSupportCase
 from app.domains.support.report_models import PassengerReport
+from app.domains.trips.models import Trip, TripSeat
 from app.routers.auth import current_staff_context, require_csrf
-from app.domains.identity.service import StaffContext
-from app.domains.identity.security import issue_opaque_token, token_digest
 
 router = APIRouter(tags=["platform-administration"])
-
+router = APIRouter(tags=["platform-administration"])
 
 class OperatorCreate(BaseModel):
     display_name: str = Field(min_length=2, max_length=200)
