@@ -59,7 +59,7 @@ jobs:
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
           if [ -n "$BASE_SHA" ]; then
             git fetch --no-tags origin "$BASE_SHA"
-            git diff --name-only "$BASE_SHA...HEAD" -- '*.py' | xargs -r python -m ruff check
+            git diff --name-only "$BASE_SHA" HEAD -- '*.py' | xargs -r python -m ruff check
           else
             git diff --name-only HEAD^ -- '*.py' | xargs -r python -m ruff check
           fi
