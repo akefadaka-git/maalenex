@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   getCurrentPassenger,
   loginPassenger,
@@ -64,7 +64,7 @@ export default function App() {
   return()=>{window.removeEventListener("online",handleOnline);window.removeEventListener("offline",handleOffline);};
  },[language]);
  const go=(next:Page)=>{setPage(next);setNotice("");};
- const submitAuth=async(e:React.FormEvent<HTMLFormElement>)=>{
+ const submitAuth=async(e:FormEvent<HTMLFormElement>)=>{
   e.preventDefault();
   if(page==="forgot"){setNotice(t.coming);return;}
   if(page==="register"&&authPassword!==authConfirmPassword){setNotice(language==="am"?"የይለፍ ቃሎቹ አይዛመዱም።":"The passwords do not match.");return;}
