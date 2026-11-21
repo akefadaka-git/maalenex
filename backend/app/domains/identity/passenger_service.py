@@ -15,13 +15,13 @@ from app.domains.identity.passenger_models import (
     PassengerLoginAttempt,
     PassengerSession,
 )
-from app.domains.notifications.service import create_notification
 from app.domains.identity.security import (
     hash_secret,
     issue_opaque_token,
     token_digest,
     verify_secret,
 )
+from app.domains.notifications.service import create_notification
 
 
 class PassengerAuthenticationError(Exception):
