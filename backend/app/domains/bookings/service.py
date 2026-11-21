@@ -9,12 +9,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.domains.audit.service import record_event
-from app.domains.notifications.service import create_notification
 from app.domains.bookings.models import (
     Booking, BookingContact, BookingFareSnapshot, BookingPassenger,
     IdempotencyRecord, Passenger, SeatAllocation, SeatHold,
 )
 from app.domains.fares.models import Fare, FareVersion
+from app.domains.notifications.service import create_notification
 from app.domains.reservations.models import ReservationReference
 from app.domains.trips.models import Trip, TripSeat
 
