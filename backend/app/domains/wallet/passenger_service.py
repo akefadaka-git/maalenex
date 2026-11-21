@@ -1,5 +1,5 @@
 """Read-side passenger wallet provisioning and ledger reconciliation."""
-from uuid import UUID, uuid4
+import uuid
 
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
@@ -22,7 +22,7 @@ class WalletLedgerIntegrityError(Exception):
     """A wallet transaction failed double-entry reconciliation."""
 
 
-def get_or_create_passenger_wallet(db: Session, passenger_id: UUID) -> LedgerAccount:
+def get_or_create_passenger_wallet(db: Session, passenger_id: uuid.UUID) -> LedgerAccount:
     # Lock the owner row so concurrent first reads cannot create duplicate wallets.
     passenger = db.scalar(
         select(PassengerAccount)
@@ -42,7 +42,7 @@ def get_or_create_passenger_wallet(db: Session, passenger_id: UUID) -> LedgerAcc
     )
     if wallet is None:
         wallet = LedgerAccount(
-            account_code=f"PW-{uuid4().hex.upper()}",
+            account_code=f"PW-{uuid.uuid4().hex.upper()}",
             account_kind=WALLET_KIND,
             owner_type="passenger",
             owner_ref=passenger_id,
