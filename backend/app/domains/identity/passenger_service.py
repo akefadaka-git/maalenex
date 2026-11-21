@@ -138,6 +138,7 @@ def create_passenger_session(db: Session, *, login_identifier: str, password: st
         csrf_token_hash=token_digest(raw_csrf), expires_at=now + timedelta(hours=12),
     )
     db.add(session)
+    db.flush()
     record_event(
         db, event_type="passenger.authentication.succeeded", actor_type="passenger",
         actor_id=str(passenger.id), resource_type="passenger_session", resource_id=str(session.id),
