@@ -12,8 +12,11 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.domains.audit.models import AuditEvent
 from app.domains.identity.passenger_models import PassengerAccount
-from app.domains.notifications.models import PassengerNotification, PassengerNotificationPreference
 from app.domains.identity.security import token_digest
+from app.domains.notifications.models import (
+    PassengerNotification,
+    PassengerNotificationPreference,
+)
 from app.domains.support.passenger_models import PassengerSupportCase
 from app.routers import admin as admin_module
 from app.routers.auth import current_staff_context
