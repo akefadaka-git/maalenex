@@ -1,6 +1,7 @@
 name: G1 backend foundation verification
 # Wallet slice verification: run lint, tests and PostgreSQL migrations on the exact PR head.
 # Passenger wallet: run exact-head lint, tests and PostgreSQL migration verification.
+# Verification coverage includes My Bookings, ownership-safe cancellation, and scheduled hold expiry.
 
 on:
   push:
