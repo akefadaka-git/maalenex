@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
   acceptGuestReservation,
+  cancelGuestBooking,
+  claimPassengerBooking,
   createBookingHold,
   getGuestBooking,
   listTripSeats,
@@ -19,7 +21,7 @@ type Props = {
   onClose: () => void;
 };
 
-type Stage = "seats" | "verify" | "review" | "done";
+type Stage = "seats" | "verify" | "review" | "done" | "cancelled";
 
 export function BookingFlow({ trip, passengerCount, language, onClose }: Props) {
   const am = language === "am";
@@ -35,6 +37,13 @@ export function BookingFlow({ trip, passengerCount, language, onClose }: Props) 
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [claimReference, setClaimReference] = useState("");
+  const [claimPhone, setClaimPhone] = useState("+251");
+  const [claimChallenge, setClaimChallenge] = useState<BookingChallenge | null>(null);
+  const [claimCode, setClaimCode] = useState("");
+  const [claimBusy, setClaimBusy] = useState(false);
+  const [claimError, setClaimError] = useState("");
+  const [claimMessage, setClaimMessage] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -116,6 +125,45 @@ export function BookingFlow({ trip, passengerCount, language, onClose }: Props) 
     }
   };
 
+  const startClaim = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setClaimBusy(true); setClaimError(""); setClaimMessage("");
+    try {
+      const result = await requestBookingChallenge(claimReference.trim(), claimPhone.trim());
+      setClaimChallenge(result);
+      if (!result.synthetic_test_code) {
+        setClaimMessage(am ? "የSMS ማረጋገጫ አቅራቢ አልተዋቀረም። ኮዱ ሲደርስ ያስገቡ።" : "Verification delivery is not configured here. Enter the code when it is delivered by an approved provider.");
+      }
+    } catch (reason) {
+      setClaimError(reason instanceof Error ? reason.message : "Unable to start booking verification.");
+    } finally { setClaimBusy(false); }
+  };
+
+  const completeClaim = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!claimChallenge) return;
+    setClaimBusy(true); setClaimError(""); setClaimMessage("");
+    try {
+      await claimPassengerBooking(claimChallenge.challenge_id, claimCode.trim());
+      setClaimMessage(am ? "ማስያዣው ከመለያዎ ጋር ተገናኝቷል።" : "Booking successfully linked to your passenger account.");
+      setClaimReference(""); setClaimPhone("+251"); setClaimCode(""); setClaimChallenge(null);
+    } catch (reason) {
+      setClaimError(reason instanceof Error ? reason.message : "Unable to link this booking.");
+    } finally { setClaimBusy(false); }
+  };
+
+  const cancelHold = async () => {
+    if (!booking || booking.status !== "held") return;
+    setBusy(true); setError("");
+    try {
+      await cancelGuestBooking(booking.booking_id);
+      setBooking({ ...booking, status: "cancelled" });
+      setStage("cancelled");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Unable to cancel this seat hold.");
+    } finally { setBusy(false); }
+  };
+
   const money = (minor: number) => new Intl.NumberFormat(am ? "am-ET" : "en-ET", {
     style: "currency", currency: "ETB",
   }).format(minor / 100);
@@ -126,6 +174,29 @@ export function BookingFlow({ trip, passengerCount, language, onClose }: Props) 
         <h2>{am ? "የቦታ ማስያዣ" : "Reserve seats"}</h2>
         <button type="button" className="text-link" onClick={onClose}>{am ? "ዝጋ" : "Close"}</button>
       </div>
+      <details className="booking-claim-panel">
+        <summary>{am ? "ነባር ማስያዣን ከመለያ ጋር ያገናኙ" : "Link an existing booking to your account"}</summary>
+        <p className="field-hint">{am ? "የማስያዣ ማጣቀሻና በማስያዣው ላይ የተመዘገበውን ስልክ ቁጥር በመጠቀም ባለቤትነትዎን ያረጋግጡ።" : "Prove control of the booking contact using its reference and registered phone number. The booking is linked only after successful verification."}</p>
+        {!claimChallenge ? <form onSubmit={startClaim}>
+          <label>{am ? "የማስያዣ ማጣቀሻ" : "Booking reference"}
+            <input required minLength={8} maxLength={64} value={claimReference} onChange={e=>setClaimReference(e.target.value)} />
+          </label>
+          <label>{am ? "የተመዘገበ ስልክ" : "Booking contact phone"}
+            <input required minLength={8} maxLength={32} inputMode="tel" value={claimPhone} onChange={e=>setClaimPhone(e.target.value)} />
+          </label>
+          <button className="secondary-action" type="submit" disabled={claimBusy}>{claimBusy ? (am ? "በመጠየቅ ላይ…" : "Requesting…") : (am ? "ማረጋገጫ ጠይቅ" : "Request verification")}</button>
+        </form> : <form onSubmit={completeClaim}>
+          <p>{am ? "የማረጋገጫ ኮድ ያስገቡ።" : "Enter the six-digit verification code."}</p>
+          {claimChallenge.synthetic_test_code && <p className="notice-panel">{am ? "የሙከራ ኮድ" : "Test-only code"}: <strong>{claimChallenge.synthetic_test_code}</strong></p>}
+          <label>{am ? "የማረጋገጫ ኮድ" : "Verification code"}
+            <input required minLength={6} maxLength={6} inputMode="numeric" pattern="[0-9]{6}" value={claimCode} onChange={e=>setClaimCode(e.target.value.replace(/\D/g,"").slice(0,6))} />
+          </label>
+          <button className="secondary-action" type="submit" disabled={claimBusy || claimCode.length !== 6}>{claimBusy ? (am ? "በማረጋገጥ ላይ…" : "Verifying…") : (am ? "አረጋግጥና አገናኝ" : "Verify and link booking")}</button>
+          <button type="button" className="text-link" onClick={()=>{setClaimChallenge(null);setClaimCode("");}}>{am ? "ተመለስ" : "Start over"}</button>
+        </form>}
+        {claimError && <p className="support-error" role="alert">{claimError}</p>}
+        {claimMessage && <p className="notice-panel" role="status">{claimMessage}</p>}
+      </details>
       <p>{new Intl.DateTimeFormat(am ? "am-ET" : "en-ET", {
         dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Addis_Ababa",
       }).format(new Date(trip.departure_at))}</p>
@@ -190,13 +261,15 @@ export function BookingFlow({ trip, passengerCount, language, onClose }: Props) 
           </form>}
         </div>
       )}
-      {(stage === "review" || stage === "done") && booking && (
+      {(stage === "review" || stage === "done" || stage === "cancelled") && booking && (
         <div>
-          <h3>{stage === "done" ? (am ? "ማስያዣው ተረጋግጧል" : "Reservation confirmed") : (am ? "የማስያዣ ማጠቃለያ" : "Review reservation")}</h3>
+          <h3>{stage === "done" ? (am ? "ማስያዣው ተረጋግጧል" : "Reservation confirmed") : stage === "cancelled" ? (am ? "ማስያዣው ተሰርዟል" : "Booking cancelled") : (am ? "የማስያዣ ማጠቃለያ" : "Review reservation")}</h3>
           <p>{am ? "ማጣቀሻ" : "Reference"}: <strong>{booking.booking_reference}</strong></p>
           {booking.passengers.map((person, index) => <p key={index}>{person.name} — {person.seat}</p>)}
           {booking.fare && <p>{am ? "ጠቅላላ ዋጋ" : "Total fare"}: {money(booking.fare.amount_minor_units)}</p>}
+          {stage === "review" && booking.status === "held" && <button type="button" className="secondary-action" onClick={cancelHold} disabled={busy}>{busy ? (am ? "በመሰረዝ ላይ…" : "Cancelling…") : (am ? "የመቀመጫ ይዞታን ሰርዝ" : "Cancel seat hold")}</button>}
           {stage === "review" && <button className="primary-action" onClick={confirmReservation} disabled={busy}>{busy ? (am ? "በማረጋገጥ ላይ…" : "Confirming…") : (am ? "ማስያዣን አረጋግጥ" : "Confirm reservation")}</button>}
+          {stage === "cancelled" && <p className="notice-panel">{am ? "የመቀመጫ ይዞታው ተሰርዟል። ክፍያ ስላልተፈጸመ ተመላሽ አያስፈልግም።" : "The seat hold was cancelled. No payment was collected, so no refund is due."}</p>}
           {stage === "done" && booking.reservation && <p className="notice-panel">{am ? "የተረጋገጠ ማስያዣ ቁጥር" : "Reservation reference"}: <strong>{booking.reservation.reservation_reference}</strong></p>}
           <p className="field-hint">{am ? "ክፍያ አልተፈጸመም፤ የጉዞ ትኬት አልተሰጠም።" : "No payment was collected and no travel ticket was issued."}</p>
         </div>

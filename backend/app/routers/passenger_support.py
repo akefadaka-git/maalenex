@@ -17,6 +17,7 @@ from app.domains.identity.passenger_service import (
     PassengerContext,
     verify_passenger_csrf,
 )
+from app.domains.notifications.service import create_notification
 from app.domains.support.passenger_models import PassengerSupportCase
 from app.routers.passenger_auth import current_passenger_context
 
@@ -124,6 +125,12 @@ def create_support_case(
         action="create",
         outcome="success",
         metadata={"category": case.category, "case_reference": case.case_reference},
+    )
+    create_notification(
+        db, passenger_id=context.passenger.id, notification_type="support_case_created",
+        title="Support request received", body=f"Your support request {case.case_reference} was received.",
+        dedupe_key=f"support-created:{case.id}", resource_type="support_case",
+        resource_reference=case.case_reference,
     )
     db.commit()
     db.refresh(case)

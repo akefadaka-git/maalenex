@@ -1,7 +1,21 @@
+# ruff: noqa: I001
 from datetime import datetime
 from uuid import UUID, uuid4
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, JSON, String, Uuid, UniqueConstraint, func, text
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    JSON,
+    String,
+    UniqueConstraint,
+    Uuid,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db.base import Base
 
 class BookingContact(Base):
@@ -21,6 +35,10 @@ class Booking(Base):
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     booking_reference: Mapped[str] = mapped_column(String(32), unique=True)
     booking_contact_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("booking_contacts.id", ondelete="RESTRICT"))
+    passenger_account_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("passenger_accounts.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
     trip_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("trips.id", ondelete="RESTRICT"), index=True)
     status: Mapped[str] = mapped_column(String(32), default="draft", index=True)
     currency_code: Mapped[str] = mapped_column(String(3), default="ETB")

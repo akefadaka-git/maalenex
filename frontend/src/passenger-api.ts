@@ -328,3 +328,50 @@ export type PassengerWallet = {
 export function getPassengerWallet(): Promise<PassengerWallet> {
   return request("/passenger/wallet");
 }
+
+
+export type PassengerNotification = {
+  id: string;
+  notification_type: string;
+  title: string;
+  body: string;
+  resource_type: string | null;
+  resource_reference: string | null;
+  read: boolean;
+  created_at: string;
+};
+
+export type PassengerNotificationInbox = {
+  items: PassengerNotification[];
+  unread_count: number;
+};
+
+export function getPassengerNotifications(): Promise<PassengerNotificationInbox> {
+  return request("/passenger/notifications");
+}
+
+export function markPassengerNotificationRead(id: string): Promise<PassengerNotification> {
+  return request(`/passenger/notifications/${encodeURIComponent(id)}/read`, { method: "POST" });
+}
+
+
+export function claimPassengerBooking(
+  challengeId: string,
+  code: string,
+): Promise<{ booking_id: string; linked: boolean; status: string }> {
+  return request("/passenger/bookings/claim", {
+    method: "POST",
+    body: JSON.stringify({ challenge_id: challengeId, code }),
+  });
+}
+
+
+export function cancelGuestBooking(bookingId: string): Promise<{
+  booking_id: string;
+  booking_reference: string;
+  status: "cancelled";
+  payment_collected: false;
+  refund_required: false;
+}> {
+  return request(`/bookings/${encodeURIComponent(bookingId)}/cancel`, { method: "POST" }, "mnm_booking_csrf");
+}

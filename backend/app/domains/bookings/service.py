@@ -1,6 +1,7 @@
-from datetime import timedelta
+# ruff: noqa: I001
 import hashlib
 import json
+from datetime import timedelta
 from secrets import token_urlsafe
 from uuid import UUID, uuid4
 
@@ -14,6 +15,7 @@ from app.domains.bookings.models import (
     IdempotencyRecord, Passenger, SeatAllocation, SeatHold,
 )
 from app.domains.fares.models import Fare, FareVersion
+from app.domains.notifications.service import create_notification
 from app.domains.reservations.models import ReservationReference
 from app.domains.trips.models import Trip, TripSeat
 
@@ -132,6 +134,7 @@ def create_seat_hold(
             if expired_booking is not None and expired_booking.status == "held":
                 expired_booking.status = "expired"
                 expired_booking.version += 1
+                _notify_booking_status(db, expired_booking, "expired")
 
     allocated = set(db.scalars(
         select(SeatAllocation.trip_seat_id).where(
@@ -235,6 +238,7 @@ def accept_reservation(db: Session, *, booking_id: UUID) -> ReservationReference
     booking.status = "reserved"
     booking.confirmed_at = now
     booking.version += 1
+    _notify_booking_status(db, booking, "reserved")
     reference = ReservationReference(
         booking_id=booking.id, public_reference=token_urlsafe(24),
         qr_payload_version=1, qr_payload_reference=token_urlsafe(18), status="active",
@@ -248,3 +252,80 @@ def accept_reservation(db: Session, *, booking_id: UUID) -> ReservationReference
     )
     db.flush()
     return reference
+
+
+
+
+def cancel_unconfirmed_booking(db: Session, *, booking_id: UUID, actor_type: str, actor_id: str | None) -> Booking:
+    """Cancel a held booking before reservation; no payment/refund is involved."""
+    now = db.scalar(select(func.now()))
+    booking = db.scalar(select(Booking).where(Booking.id == booking_id).with_for_update())
+    if booking is None:
+        raise BookingConflict("Booking not found.")
+    if booking.status != "held":
+        raise BookingConflict("Only an unconfirmed seat hold can be cancelled. Reserved bookings require an approved cancellation policy.")
+    holds = list(db.scalars(
+        select(SeatHold).where(SeatHold.booking_id == booking.id).with_for_update()
+    ))
+    if not holds or any(hold.status != "active" for hold in holds):
+        raise BookingConflict("The booking no longer has an active hold to cancel.")
+    for hold in holds:
+        hold.status = "cancelled"
+        hold.released_at = now
+        hold.release_reason = "passenger_cancelled"
+    allocations = list(db.scalars(
+        select(SeatAllocation).where(
+            SeatAllocation.booking_id == booking.id,
+            SeatAllocation.status == "active",
+        ).with_for_update()
+    ))
+    for allocation in allocations:
+        allocation.status = "cancelled"
+        allocation.released_at = now
+    booking.status = "cancelled"
+    booking.version += 1
+    record_event(
+        db, event_type="booking.hold.cancelled", actor_type=actor_type,
+        actor_id=actor_id, resource_type="booking", resource_id=str(booking.id),
+        action="cancel_hold", outcome="success",
+        metadata={"payment_collected": False, "refund_required": False},
+    )
+    _notify_booking_status(db, booking, "cancelled")
+    db.flush()
+    return booking
+
+
+def _notify_booking_status(db: Session, booking: Booking, status: str) -> None:
+    if booking.passenger_account_id is None:
+        return
+    create_notification(
+        db, passenger_id=booking.passenger_account_id,
+        notification_type="booking_status",
+        title={
+            "held": "Booking hold created",
+            "reserved": "Booking confirmed",
+            "expired": "Booking hold expired",
+            "cancelled": "Booking cancelled",
+        }.get(status, "Booking updated"),
+        body=f"Your booking {booking.booking_reference} status is now {status}.",
+        dedupe_key=f"booking:{booking.id}:status:{status}:v{booking.version}",
+        resource_type="booking", resource_reference=str(booking.id),
+    )
+
+
+def claim_booking_for_passenger(db: Session, *, booking_id: UUID, passenger_id: UUID) -> Booking:
+    booking = db.scalar(select(Booking).where(Booking.id == booking_id).with_for_update())
+    if booking is None:
+        raise BookingConflict("Booking not found.")
+    if booking.passenger_account_id is not None and booking.passenger_account_id != passenger_id:
+        raise BookingConflict("Booking is already linked to another passenger account.")
+    if booking.passenger_account_id is None:
+        booking.passenger_account_id = passenger_id
+        record_event(
+            db, event_type="booking.passenger_account.linked", actor_type="passenger",
+            actor_id=str(passenger_id), resource_type="booking",
+            resource_id=str(booking.id), action="claim_booking", outcome="success",
+        )
+        _notify_booking_status(db, booking, booking.status)
+    db.flush()
+    return booking

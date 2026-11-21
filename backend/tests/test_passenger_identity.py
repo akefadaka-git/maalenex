@@ -22,6 +22,7 @@ from app.domains.identity.passenger_service import (
     resolve_passenger_session,
     verify_passenger_csrf,
 )
+from app.domains.notifications.models import PassengerNotification, PassengerNotificationPreference
 
 
 @pytest.fixture
@@ -31,6 +32,7 @@ def db():
         User.__table__, Credential.__table__, PassengerAccount.__table__,
         PassengerCredential.__table__, PassengerLoginAttempt.__table__,
         PassengerSession.__table__, AuditEvent.__table__,
+        PassengerNotification.__table__, PassengerNotificationPreference.__table__,
     ])
     with Session(engine) as session:
         yield session
@@ -46,6 +48,10 @@ def test_registration_and_login_use_isolated_passenger_identity(db):
     assert context.passenger.id == passenger.id
     assert verify_passenger_csrf(context, cookie_token=issued.csrf_token, header_token=issued.csrf_token)
     assert not verify_passenger_csrf(context, cookie_token=issued.csrf_token, header_token="wrong")
+    alerts = db.query(PassengerNotification).filter_by(passenger_id=passenger.id).all()
+    assert len(alerts) == 1
+    assert alerts[0].notification_type == "account_security"
+    assert alerts[0].resource_reference == str(issued.session.id)
 
 def test_duplicate_registration_is_rejected(db):
     register_passenger(db, login_identifier="rider@example.test", display_name="First Rider", password="correct-horse-battery")
@@ -63,6 +69,9 @@ def test_failed_login_throttles_after_five_attempts(db):
     with pytest.raises(PassengerRateLimited):
         create_passenger_session(db, login_identifier="rider@example.test", password="correct-horse-battery", client_ip="127.0.0.1")
     assert db.scalar(select(PassengerLoginAttempt)).failed_count == 5
+    alerts = db.query(PassengerNotification).filter_by(notification_type="account_security").all()
+    assert len(alerts) == 1
+    assert "unsuccessful sign-in attempts" in alerts[0].body
 
 def test_revoked_session_is_rejected(db):
     register_passenger(db, login_identifier="rider@example.test", display_name="Synthetic Rider", password="correct-horse-battery")

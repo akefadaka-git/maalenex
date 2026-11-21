@@ -35,11 +35,15 @@ from app.domains.bookings.models import (
 from app.domains.bookings.service import (
     BookingConflict,
     accept_reservation,
+    cancel_unconfirmed_booking,
+    claim_booking_for_passenger,
     create_seat_hold,
 )
+from app.domains.identity.passenger_service import PassengerContext, verify_passenger_csrf
 from app.domains.reservations.models import BookingAccessGrant, ReservationReference
 from app.domains.support.models import SupportCase
 from app.domains.trips.models import TripSeat
+from app.routers.passenger_auth import current_passenger_context
 
 router = APIRouter(tags=["passenger-bookings"])
 ACCESS_COOKIE = "mnm_booking_access"
@@ -390,12 +394,31 @@ def revoke_guest_booking_access(
 
 @router.post("/bookings/{booking_id}/cancel")
 def cancel_guest_booking(
-    booking_id: UUID, grant: BookingAccessGrant = Depends(current_booking_grant),
-) -> None:
-    raise HTTPException(status_code=409, detail={
-        "code": "CAPABILITY_DISABLED",
-        "message": "Live cancellation is disabled until the Owner-approved cancellation and refund policy is finalized.",
-    })
+    booking_id: UUID, request: Request,
+    grant: BookingAccessGrant = Depends(current_booking_grant),
+    db: Session = Depends(get_db),
+) -> dict:
+    _require_origin(request)
+    if grant.scope != "manage" or not verify_booking_csrf(
+        grant, cookie_token=request.cookies.get(CSRF_COOKIE),
+        header_token=request.headers.get("X-CSRF-Token"),
+    ):
+        raise HTTPException(status_code=403, detail="Booking cancellation authorization failed.")
+    try:
+        booking = cancel_unconfirmed_booking(
+            db, booking_id=booking_id, actor_type="guest", actor_id=None,
+        )
+        db.commit()
+    except BookingConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {
+        "booking_id": str(booking.id),
+        "booking_reference": booking.booking_reference,
+        "status": booking.status,
+        "payment_collected": False,
+        "refund_required": False,
+    }
 
 
 @router.post("/tickets")
@@ -406,3 +429,88 @@ def disabled_ticket_issuance() -> None:
 @router.post("/boarding/validate")
 def disabled_boarding_validation() -> None:
     raise HTTPException(status_code=409, detail={"code": "CAPABILITY_DISABLED", "message": "Boarding validation is disabled; a reservation reference is not a travel ticket."})
+
+
+
+class ClaimBookingRequest(BaseModel):
+    challenge_id: UUID
+    code: str = Field(min_length=6, max_length=6, pattern="^[0-9]{6}$")
+
+
+@router.post("/passenger/bookings/{booking_id}/claim")
+def claim_passenger_booking(
+    booking_id: UUID, payload: ClaimBookingRequest, request: Request,
+    response: Response, context: PassengerContext = Depends(current_passenger_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _require_origin(request)
+    if not verify_passenger_csrf(
+        context, cookie_token=request.cookies.get("mnm_passenger_csrf"),
+        header_token=request.headers.get("X-CSRF-Token"),
+    ):
+        raise HTTPException(status_code=403, detail="CSRF validation failed.")
+    try:
+        booking, _grant, access_token, csrf_token = verify_access_challenge(
+            db, challenge_id=payload.challenge_id, code=payload.code,
+            client_ip=_client_ip(request),
+        )
+        if booking.id != booking_id:
+            raise BookingAccessError()
+        booking = claim_booking_for_passenger(
+            db, booking_id=booking.id, passenger_id=context.passenger.id,
+        )
+        db.commit()
+    except BookingAccessRateLimited:
+        db.commit()
+        raise HTTPException(status_code=429, detail="Too many verification attempts. Try again later.")
+    except BookingAccessError:
+        db.rollback()
+        raise HTTPException(status_code=401, detail="Invalid or expired booking verification.")
+    except BookingConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc))
+    secure_cookie = settings.should_use_secure_cookies(request.url.scheme)
+    response.set_cookie(
+        ACCESS_COOKIE, access_token, max_age=2 * 60 * 60, httponly=True,
+        secure=secure_cookie, samesite="lax",
+        path=f"{settings.api_prefix}/bookings/{booking.id}",
+    )
+    response.set_cookie(
+        CSRF_COOKIE, csrf_token, max_age=2 * 60 * 60, httponly=False,
+        secure=secure_cookie, samesite="lax", path="/",
+    )
+    return {"booking_id": str(booking.id), "linked": True, "status": booking.status}
+
+
+@router.post("/passenger/bookings/claim")
+def claim_passenger_booking_by_verified_challenge(
+    payload: ClaimBookingRequest, request: Request,
+    context: PassengerContext = Depends(current_passenger_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Atomically consume the contact challenge and link its exact booking."""
+    _require_origin(request)
+    if not verify_passenger_csrf(
+        context, cookie_token=request.cookies.get("mnm_passenger_csrf"),
+        header_token=request.headers.get("X-CSRF-Token"),
+    ):
+        raise HTTPException(status_code=403, detail="CSRF validation failed.")
+    try:
+        booking, _grant, _access_token, _csrf_token = verify_access_challenge(
+            db, challenge_id=payload.challenge_id, code=payload.code,
+            client_ip=_client_ip(request),
+        )
+        booking = claim_booking_for_passenger(
+            db, booking_id=booking.id, passenger_id=context.passenger.id,
+        )
+        db.commit()
+    except BookingAccessRateLimited:
+        db.commit()
+        raise HTTPException(status_code=429, detail="Too many verification attempts. Try again later.")
+    except BookingAccessError:
+        db.rollback()
+        raise HTTPException(status_code=401, detail="Invalid or expired booking verification.")
+    except BookingConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {"booking_id": str(booking.id), "linked": True, "status": booking.status}

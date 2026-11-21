@@ -21,6 +21,7 @@ from app.domains.identity.security import (
     token_digest,
     verify_secret,
 )
+from app.domains.notifications.service import create_notification
 
 
 class PassengerAuthenticationError(Exception):
@@ -120,6 +121,15 @@ def create_passenger_session(db: Session, *, login_identifier: str, password: st
             action="login", outcome="denied", reason_code="invalid_credentials",
             metadata={"attempt_key_hash": key_hash},
         )
+        if passenger is not None and attempt.failed_count >= 5:
+            window_key = int(_utc(attempt.window_started_at).timestamp())
+            create_notification(
+                db, passenger_id=passenger.id, notification_type="account_security",
+                title="Login attempts temporarily blocked",
+                body="Several unsuccessful sign-in attempts were detected. Sign-in is temporarily limited. If this was not you, review your account security.",
+                dedupe_key=f"sec:blocked:{passenger.id}:{key_hash[:20]}:{window_key}",
+                resource_type="account_security",
+            )
         raise PassengerAuthenticationError("invalid_credentials")
     attempt.failed_count, attempt.locked_until = 0, None
     raw_session, raw_csrf = issue_opaque_token(), issue_opaque_token()
@@ -128,10 +138,18 @@ def create_passenger_session(db: Session, *, login_identifier: str, password: st
         csrf_token_hash=token_digest(raw_csrf), expires_at=now + timedelta(hours=12),
     )
     db.add(session)
+    db.flush()
     record_event(
         db, event_type="passenger.authentication.succeeded", actor_type="passenger",
-        actor_id=str(passenger.id), resource_type="passenger_session", resource_id=None,
+        actor_id=str(passenger.id), resource_type="passenger_session", resource_id=str(session.id),
         action="login", outcome="success",
+    )
+    create_notification(
+        db, passenger_id=passenger.id, notification_type="account_security",
+        title="New sign-in to your account",
+        body="Your passenger account was signed in successfully. If you do not recognize this activity, sign out of other sessions and contact support.",
+        dedupe_key=f"sec:login:{session.id}",
+        resource_type="passenger_session", resource_reference=str(session.id),
     )
     db.flush()
     return IssuedPassengerSession(passenger, session, raw_session, raw_csrf)

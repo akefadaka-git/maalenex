@@ -20,6 +20,7 @@ from app.domains.identity.passenger_service import (
     resolve_passenger_session,
     verify_passenger_csrf,
 )
+from app.domains.notifications.service import create_notification
 
 router = APIRouter(prefix="/passenger/auth", tags=["passenger-auth"])
 SESSION_COOKIE = "mnm_passenger_session"
@@ -122,6 +123,13 @@ def logout(request: Request, response: Response, context: PassengerContext = Dep
     _csrf(request, context)
     context.session.revoked_at = db.scalar(select(func.now()))
     record_event(db, event_type="passenger.session.revoked", actor_type="passenger", actor_id=str(context.passenger.id), resource_type="passenger_session", resource_id=str(context.session.id), action="logout", outcome="success")
+    create_notification(
+        db, passenger_id=context.passenger.id, notification_type="account_security",
+        title="A session was signed out",
+        body="A passenger account session was signed out. If you did not do this, review your account security.",
+        dedupe_key=f"sec:logout:{context.session.id}",
+        resource_type="passenger_session", resource_reference=str(context.session.id),
+    )
     db.commit()
     response.delete_cookie(SESSION_COOKIE, path="/", samesite="lax")
     response.delete_cookie(CSRF_COOKIE, path="/", samesite="lax")
