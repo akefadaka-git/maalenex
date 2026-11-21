@@ -15,7 +15,7 @@ def main() -> None:
     if settings.app_env not in {"development", "test"} or not settings.synthetic_data_only:
         raise SystemExit("Scheduler worker is restricted to synthetic development/test mode.")
     if not settings.scheduler_enabled:
-        raise SystemExit("Scheduler is disabled. Set MAALENEX_SCHEDULER_ENABLED=true to opt in.")
+        raise SystemExit("Scheduler is disabled. Set SCHEDULER_ENABLED=true to opt in.")
     worker_id = str(uuid4())
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     logger.info("Scheduler worker starting; worker_id=%s", worker_id)
