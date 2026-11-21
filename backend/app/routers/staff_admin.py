@@ -52,7 +52,7 @@ def _access(db: Session, user_id: UUID) -> dict:
             "role_code": role.code,
             "role_description": role.description,
             "organization_id": str(assignment.organization_id) if assignment.organization_id else None,
-            "assigned_at": assignment.assigned_at.isoformat(),
+            "assigned_at": assignment.assigned_at.isoformat() if assignment.assigned_at else None,
         })
         if permission is not None:
             permissions.add(permission.code)
