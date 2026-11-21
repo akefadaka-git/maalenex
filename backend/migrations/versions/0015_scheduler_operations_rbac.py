@@ -105,6 +105,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     )
     op.create_index("ix_scheduler_leases_lease_expires_at", "scheduler_leases", ["lease_expires_at"])
+    op.create_index("ix_bookings_status_expires_at", "bookings", ["status", "expires_at"])
     op.create_table(
         "scheduler_runs",
         sa.Column("id", uuid, primary_key=True),
@@ -176,6 +177,7 @@ def downgrade() -> None:
     ))
     connection.execute(sa.delete(roles).where(roles.c.id.in_(role_ids)))
     connection.execute(sa.delete(permissions).where(permissions.c.id.in_(permission_ids)))
+    op.drop_index("ix_bookings_status_expires_at", table_name="bookings")
     op.drop_table("scheduler_runs")
     op.drop_index("ix_scheduler_leases_lease_expires_at", table_name="scheduler_leases")
     op.drop_table("scheduler_leases")
