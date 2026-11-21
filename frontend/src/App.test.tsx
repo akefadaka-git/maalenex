@@ -32,6 +32,55 @@ describe("MaaleNex full-platform interface foundation", () => {
     fireEvent.click(screen.getByRole("button", { name: /Add funds/ }));
     expect(screen.getByRole("status")).toBeTruthy();
   });
+
+  it("loads passenger notifications and marks an inbox item as read", async () => {
+    document.cookie = "mnm_passenger_csrf=notification-csrf-test; path=/";
+    const account = {
+      id: "notification-passenger-test",
+      display_name: "Notification Rider",
+      login_identifier: "notice-rider@example.test",
+      expires_at: "2026-11-21T00:00:00+00:00",
+    };
+    const item = {
+      id: "notice-0001",
+      notification_type: "report_created",
+      title: "Report received",
+      body: "Your report MN-RPT-0001 was received.",
+      resource_type: "report",
+      resource_reference: "MN-RPT-0001",
+      read: false,
+      created_at: "2026-11-21T08:00:00+00:00",
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/passenger/auth/sessions/current")) {
+        return { ok: true, status: 200, json: async () => account } as Response;
+      }
+      if (url.endsWith("/passenger/notifications") && init?.method !== "POST") {
+        return { ok: true, status: 200, json: async () => ({ items: [item], unread_count: 1 }) } as Response;
+      }
+      if (url.endsWith("/passenger/notifications/notice-0001/read")) {
+        return { ok: true, status: 200, json: async () => ({ ...item, read: true }) } as Response;
+      }
+      throw new Error("Unexpected API request: " + url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/passenger/auth/sessions/current",
+      expect.objectContaining({ credentials: "include" }),
+    ));
+    fireEvent.click(screen.getByRole("button", { name: /EN/ }));
+    fireEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: /Notifications/ }));
+    expect(await screen.findByText("Your report MN-RPT-0001 was received.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Mark read" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Mark read" })).toBeNull());
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/passenger/notifications/notice-0001/read",
+      expect.objectContaining({ method: "POST", credentials: "include" }),
+    );
+  });
+
   it("provides login and registration screens", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /EN/ }));
