@@ -1,6 +1,6 @@
 """Authenticated passenger inbox and notification preferences."""
 # FastAPI dependency injection requires Depends instances in endpoint defaults.
-# ruff: noqa: B008
+# ruff: noqa: B008, I001
 from uuid import UUID
 from datetime import UTC, datetime
 from sqlalchemy import update
@@ -12,11 +12,11 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import get_db
 from app.domains.identity.passenger_service import PassengerContext, verify_passenger_csrf
+from app.domains.notifications.models import PassengerNotification
 from app.domains.notifications.service import (
     get_preferences,
     list_notifications,
     mark_notification_read,
-    PassengerNotification,
     notification_payload,
 )
 from app.routers.passenger_auth import current_passenger_context
