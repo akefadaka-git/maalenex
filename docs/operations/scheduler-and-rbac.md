@@ -6,7 +6,7 @@ This design is production-compatible in its process and database coordination mo
 
 ## Scheduler topology
 
-Run the API and maintenance worker as separate processes. The API never starts a scheduler task in its lifespan. Start the worker explicitly from `backend/`:
+Run the API and maintenance worker as separate processes. The API never starts a scheduler task in its lifespan. Apply the database migrations first, then start the worker explicitly from `backend/`:
 
 ```bash
 SCHEDULER_ENABLED=true python -m app.jobs.scheduler_worker
