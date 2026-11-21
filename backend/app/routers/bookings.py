@@ -1,5 +1,5 @@
 # FastAPI Depends() is the standard endpoint-default injection pattern.
-# ruff: noqa: B008
+# ruff: noqa: B008, I001
 from io import BytesIO
 from secrets import token_urlsafe
 from typing import Literal
