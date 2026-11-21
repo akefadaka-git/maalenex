@@ -351,5 +351,5 @@ export function getPassengerNotifications(): Promise<PassengerNotificationInbox>
 }
 
 export function markPassengerNotificationRead(id: string): Promise<PassengerNotification> {
-  return request(\`/passenger/notifications/\${encodeURIComponent(id)}/read\`, { method: "POST" });
+  return request(`/passenger/notifications/${encodeURIComponent(id)}/read`, { method: "POST" });
 }
