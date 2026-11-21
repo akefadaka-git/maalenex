@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 from datetime import datetime
 from uuid import UUID, uuid4
 from sqlalchemy import (
