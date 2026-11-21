@@ -1,4 +1,5 @@
 """Concurrent-safe expiry worker for unconfirmed passenger seat holds."""
+# ruff: noqa: I001
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from app.domains.audit.service import record_event
