@@ -6,6 +6,7 @@ from time import perf_counter
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+from app.domains.bookings.models import Booking
 from app.domains.operations.models import SchedulerLease, SchedulerRun
 from app.jobs.booking_hold_expiry import expire_due_booking_holds
 
@@ -119,6 +120,13 @@ def run_scheduler_cycle(session_factory, *, worker_id: str, batch_size: int = 10
 def scheduler_snapshot(db, *, stale_after_seconds: int = 90, limit: int = 20) -> dict:
     now = _utc(db.scalar(select(func.now()))) or datetime.now(UTC)
     lease = db.get(SchedulerLease, LEASE_NAME)
+    pending_due_count = db.scalar(select(func.count()).select_from(Booking).where(
+        Booking.status == "held", Booking.expires_at.is_not(None), Booking.expires_at <= now,
+    )) or 0
+    oldest_due_at = _utc(db.scalar(select(func.min(Booking.expires_at)).where(
+        Booking.status == "held", Booking.expires_at.is_not(None), Booking.expires_at <= now,
+    )))
+    backlog_age_seconds = max(0, int((now - oldest_due_at).total_seconds())) if oldest_due_at else 0
     runs = list(db.scalars(
         select(SchedulerRun).where(SchedulerRun.job_name == LEASE_NAME)
         .order_by(SchedulerRun.started_at.desc()).limit(max(1, min(limit, 50)))
@@ -136,7 +144,7 @@ def scheduler_snapshot(db, *, stale_after_seconds: int = 90, limit: int = 20) ->
         lease_active = bool(lease_expiry and lease_expiry > now)
         if heartbeat_age is None or heartbeat_age > stale_after_seconds or not lease_active:
             health = "stale"
-        elif lease.consecutive_failures:
+        elif lease.consecutive_failures or backlog_age_seconds > stale_after_seconds * 2:
             health = "degraded"
         else:
             health = "healthy"
@@ -147,6 +155,7 @@ def scheduler_snapshot(db, *, stale_after_seconds: int = 90, limit: int = 20) ->
         "worker_mode": "separate_process",
         "lease_active": lease_active,
         "lease_remaining_seconds": lease_remaining,
+        "backlog": {"due_holds": pending_due_count, "oldest_due_at": oldest_due_at.isoformat() if oldest_due_at else None, "oldest_due_age_seconds": backlog_age_seconds},
         "lease": None if lease is None else {
             "owner_id": lease.owner_id,
             "lease_expires_at": _utc(lease.lease_expires_at).isoformat(),
