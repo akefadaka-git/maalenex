@@ -1,5 +1,5 @@
 """Authenticated passenger-owned booking management."""
-# ruff: noqa: B008
+# ruff: noqa: B008, I001
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select
