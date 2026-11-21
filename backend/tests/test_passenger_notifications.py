@@ -45,7 +45,7 @@ def _client():
 
 
 def test_notification_inbox_is_owner_scoped_and_counts_unread():
-    client, db, passenger, other, engine, csrf = _client()
+    client, db, passenger, other, engine, _csrf = _client()
     try:
         create_notification(
             db, passenger_id=passenger.id, notification_type="report_created",
@@ -70,7 +70,7 @@ def test_notification_inbox_is_owner_scoped_and_counts_unread():
 
 
 def test_mark_read_is_csrf_protected_and_audited():
-    client, db, passenger, other, engine, csrf = _client()
+    client, db, passenger, _other, engine, csrf = _client()
     try:
         item = create_notification(
             db, passenger_id=passenger.id, notification_type="support_case_created",
@@ -93,7 +93,7 @@ def test_mark_read_is_csrf_protected_and_audited():
 
 
 def test_notification_dedupe_and_disabled_in_app_preference():
-    client, db, passenger, other, engine, csrf = _client()
+    _, db, passenger, _, engine, _ = _client()
     try:
         first = create_notification(
             db, passenger_id=passenger.id, notification_type="report_created",
@@ -118,7 +118,7 @@ def test_notification_dedupe_and_disabled_in_app_preference():
 
 
 def test_notification_preferences_never_enable_unconfigured_email_or_sms():
-    client, db, passenger, other, engine, csrf = _client()
+    client, db, _passenger, _other, engine, csrf = _client()
     try:
         response = client.patch(
             "/api/v1/passenger/notifications/preferences",
