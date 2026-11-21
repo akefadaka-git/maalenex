@@ -22,3 +22,17 @@
 .support-status{align-self:flex-start;padding:4px 8px;border-radius:999px;background:rgba(131,217,176,.1);color:#a9e8c3;font-size:10px;text-transform:capitalize}
 .support-status.status-resolved,.support-status.status-closed{background:rgba(131,217,176,.16)}
 @media(max-width:760px){.support-layout{grid-template-columns:1fr}}
+
+
+.notification-panel{max-width:920px}
+.notification-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.notification-heading h2{margin:0;color:#e2f0e6;font-size:18px}
+.notification-heading p{margin:5px 0 0;color:#91ae9e;font-size:11px}
+.notification-heading>svg{width:24px;height:24px;color:#9de0b9}
+.notification-item{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:16px 0;border-bottom:1px solid rgba(180,219,197,.12)}
+.notification-item>div{display:grid;gap:6px;min-width:0}
+.notification-item strong{color:#e2f0e6;font-size:13px}
+.notification-item p{margin:0;color:#b5cdbd;font-size:12px;line-height:1.6}
+.notification-item small{color:#829f8f;font-size:10px}
+.notification-item.unread{border-left:3px solid #8dd7aa;padding-left:12px;background:rgba(131,217,176,.035)}
+@media(max-width:520px){.notification-item{flex-direction:column}.notification-item button{align-self:flex-start}}
