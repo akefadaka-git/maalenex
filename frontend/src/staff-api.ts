@@ -49,6 +49,7 @@ export type StaffDashboard = {
 export type SchedulerStatus = {
   job_name: string; health: "not_configured" | "healthy" | "degraded" | "stale";
   worker_enabled_by_default: boolean; worker_mode: string;
+  backlog: { due_holds: number; oldest_due_at: string | null; oldest_due_age_seconds: number };
   lease: null | {
     owner_id: string; lease_expires_at: string; heartbeat_at: string;
     heartbeat_age_seconds: number; last_success_at: string | null;
