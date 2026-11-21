@@ -168,7 +168,7 @@ def verify_booking_access_challenge(
 ) -> dict:
     _require_origin(request)
     try:
-        booking, _grant, access_token, csrf_token = verify_access_challenge(
+        booking, grant, access_token, csrf_token = verify_access_challenge(
             db, challenge_id=challenge_id, code=payload.code,
             client_ip=_client_ip(request),
         )
