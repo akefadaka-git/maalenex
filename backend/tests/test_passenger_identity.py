@@ -14,7 +14,6 @@ from app.domains.identity.passenger_models import (
     PassengerLoginAttempt,
     PassengerSession,
 )
-from app.domains.notifications.models import PassengerNotification, PassengerNotificationPreference
 from app.domains.identity.passenger_service import (
     PassengerAuthenticationError,
     PassengerRateLimited,
@@ -23,6 +22,7 @@ from app.domains.identity.passenger_service import (
     resolve_passenger_session,
     verify_passenger_csrf,
 )
+from app.domains.notifications.models import PassengerNotification, PassengerNotificationPreference
 
 
 @pytest.fixture
