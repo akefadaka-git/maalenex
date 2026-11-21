@@ -122,37 +122,56 @@ def upgrade() -> None:
         sa.column("id", uuid), sa.column("code", sa.String), sa.column("description", sa.String))
     role_permissions = sa.table("access_role_permissions",
         sa.column("id", uuid), sa.column("role_id", uuid), sa.column("permission_id", uuid))
-
-    op.bulk_insert(permissions, [
-        {"id": _id("permission", code), "code": code, "description": description}
-        for code, description in PERMISSIONS.items()
-    ])
-    op.bulk_insert(roles, [
-        {"id": _id("role", code), "code": code, "description": description}
-        for code, description in ROLE_DESCRIPTIONS.items()
-    ])
-    op.bulk_insert(role_permissions, [
-        {"id": _id("role-permission", f"{role}:{permission}"),
-         "role_id": _id("role", role), "permission_id": _id("permission", permission)}
-        for role, grants in ROLE_GRANTS.items() for permission in grants
-    ])
+    connection = op.get_bind()
+    role_ids = {}
+    permission_ids = {}
+    for code, description in PERMISSIONS.items():
+        existing = connection.execute(sa.select(permissions.c.id).where(permissions.c.code == code)).scalar_one_or_none()
+        permission_id = existing or _id("permission", code)
+        if existing is None:
+            connection.execute(permissions.insert().values(id=permission_id, code=code, description=description))
+        permission_ids[code] = permission_id
+    for code, description in ROLE_DESCRIPTIONS.items():
+        existing = connection.execute(sa.select(roles.c.id).where(roles.c.code == code)).scalar_one_or_none()
+        role_id = existing or _id("role", code)
+        if existing is None:
+            connection.execute(roles.insert().values(id=role_id, code=code, description=description))
+        role_ids[code] = role_id
+    for role_code, grants in ROLE_GRANTS.items():
+        for permission_code in grants:
+            role_id = role_ids[role_code]
+            permission_id = permission_ids[permission_code]
+            exists = connection.execute(sa.select(role_permissions.c.id).where(
+                role_permissions.c.role_id == role_id,
+                role_permissions.c.permission_id == permission_id,
+            )).scalar_one_or_none()
+            if exists is None:
+                connection.execute(role_permissions.insert().values(
+                    id=_id("role-permission", f"{role_code}:{permission_code}"),
+                    role_id=role_id, permission_id=permission_id,
+                ))
 
 
 def downgrade() -> None:
+    uuid = postgresql.UUID(as_uuid=True)
     role_codes = list(ROLE_DESCRIPTIONS)
     permission_codes = list(PERMISSIONS)
     role_ids = [_id("role", code) for code in role_codes]
     permission_ids = [_id("permission", code) for code in permission_codes]
-    op.execute(sa.text("DELETE FROM access_role_permissions WHERE role_id = ANY(:role_ids) OR permission_id = ANY(:permission_ids)").bindparams(
-        sa.bindparam("role_ids", value=role_ids, type_=postgresql.ARRAY(uuid_type := postgresql.UUID(as_uuid=True))),
-        sa.bindparam("permission_ids", value=permission_ids, type_=postgresql.ARRAY(postgresql.UUID(as_uuid=True))),
+    role_permissions = sa.table(
+        "access_role_permissions", sa.column("id", uuid),
+    )
+    roles = sa.table("access_roles", sa.column("id", uuid))
+    permissions = sa.table("access_permissions", sa.column("id", uuid))
+    connection = op.get_bind()
+    connection.execute(sa.delete(role_permissions).where(
+        role_permissions.c.id.in_([
+            _id("role-permission", f"{role}:{permission}")
+            for role, grants in ROLE_GRANTS.items() for permission in grants
+        ])
     ))
-    op.execute(sa.text("DELETE FROM access_roles WHERE id = ANY(:role_ids)").bindparams(
-        sa.bindparam("role_ids", value=role_ids, type_=postgresql.ARRAY(postgresql.UUID(as_uuid=True))),
-    ))
-    op.execute(sa.text("DELETE FROM access_permissions WHERE id = ANY(:permission_ids)").bindparams(
-        sa.bindparam("permission_ids", value=permission_ids, type_=postgresql.ARRAY(postgresql.UUID(as_uuid=True))),
-    ))
+    connection.execute(sa.delete(roles).where(roles.c.id.in_(role_ids)))
+    connection.execute(sa.delete(permissions).where(permissions.c.id.in_(permission_ids)))
     op.drop_table("scheduler_runs")
     op.drop_index("ix_scheduler_leases_lease_expires_at", table_name="scheduler_leases")
     op.drop_table("scheduler_leases")
