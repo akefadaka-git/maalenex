@@ -261,7 +261,7 @@ def assign_access_role(
     db.flush()
     record_event(
         db, event_type="staff.role.assigned", actor_type="staff", actor_id=str(context.user.id),
-        actor_role_snapshot="platform_access_manager", resource_type="role_assignment",
+        actor_role_snapshot=",".join(item["role_code"] for item in _access(db, context.user.id)["roles"]), resource_type="role_assignment",
         resource_id=str(assignment.id), action="assign", outcome="success",
         organization_id=payload.organization_id,
         metadata={"role_code": role.code, "target_user_id": str(user_id)},
