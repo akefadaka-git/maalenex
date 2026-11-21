@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import get_db
 from app.domains.audit.service import record_event
-from app.domains.notifications.service import create_notification
 from app.domains.identity.passenger_service import (
     PassengerAuthenticationError,
     PassengerContext,
@@ -21,6 +20,7 @@ from app.domains.identity.passenger_service import (
     resolve_passenger_session,
     verify_passenger_csrf,
 )
+from app.domains.notifications.service import create_notification
 
 router = APIRouter(prefix="/passenger/auth", tags=["passenger-auth"])
 SESSION_COOKIE = "mnm_passenger_session"
