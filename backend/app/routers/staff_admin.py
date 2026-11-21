@@ -286,6 +286,12 @@ def revoke_access_role(
 ) -> dict:
     require_csrf(request, context)
     _authorize(db, context, "platform.access.manage")
+    active_admin_assignments = list(db.scalars(select(RoleAssignment.id).join(
+        RolePermission, RolePermission.role_id == RoleAssignment.role_id
+    ).join(Permission, Permission.id == RolePermission.permission_id).where(
+        RoleAssignment.revoked_at.is_(None), RoleAssignment.organization_id.is_(None),
+        Permission.code == "platform.access.manage",
+    ).order_by(RoleAssignment.id).with_for_update()))
     assignment = db.scalar(select(RoleAssignment).where(
         RoleAssignment.id == assignment_id, RoleAssignment.revoked_at.is_(None)
     ).with_for_update())
@@ -293,18 +299,8 @@ def revoke_access_role(
         raise HTTPException(status_code=404, detail="Active role assignment not found.")
     if assignment.user_id == context.user.id:
         raise HTTPException(status_code=409, detail="Self-revocation is not permitted.")
-    grants_access_management = db.scalar(select(RolePermission.id).join(
-        Permission, Permission.id == RolePermission.permission_id
-    ).where(RolePermission.role_id == assignment.role_id, Permission.code == "platform.access.manage"))
-    if grants_access_management and assignment.organization_id is None:
-        active_admin_assignments = list(db.scalars(select(RoleAssignment.id).join(
-            RolePermission, RolePermission.role_id == RoleAssignment.role_id
-        ).join(Permission, Permission.id == RolePermission.permission_id).where(
-            RoleAssignment.revoked_at.is_(None), RoleAssignment.organization_id.is_(None),
-            Permission.code == "platform.access.manage",
-        ).with_for_update()))
-        if not any(item_id != assignment.id for item_id in active_admin_assignments):
-            raise HTTPException(status_code=409, detail="Cannot revoke the last active platform access administrator.")
+    if assignment.id in active_admin_assignments and len(active_admin_assignments) <= 1:
+        raise HTTPException(status_code=409, detail="Cannot revoke the last active platform access administrator.")
     assignment.revoked_at = db.scalar(select(func.now()))
     record_event(
         db, event_type="staff.role.revoked", actor_type="staff", actor_id=str(context.user.id),
