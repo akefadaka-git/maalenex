@@ -16,6 +16,8 @@ LEASE_NAME = "booking_hold_expiry"
 def _utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value.replace(" ", "T"))
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 
