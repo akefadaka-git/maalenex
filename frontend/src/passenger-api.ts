@@ -353,3 +353,15 @@ export function getPassengerNotifications(): Promise<PassengerNotificationInbox>
 export function markPassengerNotificationRead(id: string): Promise<PassengerNotification> {
   return request(`/passenger/notifications/${encodeURIComponent(id)}/read`, { method: "POST" });
 }
+
+
+export function claimPassengerBooking(
+  bookingId: string,
+  challengeId: string,
+  code: string,
+): Promise<{ booking_id: string; linked: boolean; status: string }> {
+  return request(`/passenger/bookings/${encodeURIComponent(bookingId)}/claim`, {
+    method: "POST",
+    body: JSON.stringify({ challenge_id: challengeId, code }),
+  });
+}
