@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Provision a synthetic local platform administrator.
 
 Run from backend/: python scripts/seed_synthetic_admin.py
