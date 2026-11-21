@@ -18,7 +18,7 @@ from app.domains.fleet.models import Vehicle
 from app.domains.identity.authorization import has_permission
 from app.domains.identity.models import Permission, Role, RoleAssignment, RolePermission, User
 from app.domains.identity.service import StaffContext
-from app.domains.organizations.models import Organization, OrganizationMembership
+from app.domains.organizations.models import Organization, OrganizationInvitation, OrganizationMembership
 from app.domains.support.passenger_models import PassengerSupportCase
 from app.domains.support.report_models import PassengerReport
 from app.domains.trips.models import Trip
@@ -159,6 +159,50 @@ def list_access_users(
         "login_identifier": user.login_identifier, "status": user.status,
         "roles": _access(db, user.id)["roles"],
     } for user in users]}
+
+
+
+@router.get("/access/organizations")
+def list_access_organizations(
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _authorize(db, context, "platform.access.manage")
+    organizations = db.scalars(select(Organization).where(
+        Organization.organization_type == "operator",
+        Organization.status == "approved",
+    ).order_by(Organization.display_name)).all()
+    return {"items": [{
+        "id": str(item.id), "display_name": item.display_name, "status": item.status,
+    } for item in organizations]}
+
+
+@router.get("/access/invitations")
+def list_access_invitations(
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _authorize(db, context, "platform.access.manage")
+    now = db.scalar(select(func.now()))
+    rows = db.execute(
+        select(OrganizationInvitation, Organization, Role)
+        .join(Organization, Organization.id == OrganizationInvitation.organization_id)
+        .join(Role, Role.id == OrganizationInvitation.role_id)
+        .where(
+            OrganizationInvitation.accepted_at.is_(None),
+            OrganizationInvitation.revoked_at.is_(None),
+            OrganizationInvitation.expires_at > now,
+        )
+        .order_by(OrganizationInvitation.created_at.desc()).limit(200)
+    ).all()
+    return {"items": [{
+        "id": str(invitation.id), "organization_id": str(organization.id),
+        "organization_name": organization.display_name,
+        "login_identifier": invitation.login_identifier,
+        "display_name": invitation.display_name, "role_code": role.code,
+        "created_at": invitation.created_at.isoformat(),
+        "expires_at": invitation.expires_at.isoformat(),
+    } for invitation, organization, role in rows]}
 
 
 @router.post("/access/users/{user_id}/roles", status_code=201)
