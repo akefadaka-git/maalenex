@@ -22,6 +22,7 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.domains.audit.service import record_event
 from app.domains.identity.passenger_service import PassengerContext, verify_passenger_csrf
+from app.domains.notifications.service import create_notification
 from app.domains.support.report_models import PassengerReport, PassengerReportAttachment
 from app.routers.passenger_auth import current_passenger_context
 
@@ -142,6 +143,12 @@ def create_report(
         actor_id=str(context.passenger.id), resource_type="passenger_report",
         resource_id=str(report.id), action="create", outcome="success",
         metadata={"report_type": report.report_type, "category": report.category, "severity": report.severity, "reference": report.report_reference},
+    )
+    create_notification(
+        db, passenger_id=context.passenger.id, notification_type="report_created",
+        title="Report received", body=f"Your {report.report_type} {report.report_reference} was received.",
+        dedupe_key=f"report-created:{report.id}", resource_type="report",
+        resource_reference=report.report_reference,
     )
     db.commit()
     db.refresh(report)
