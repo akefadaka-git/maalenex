@@ -143,8 +143,7 @@ export function BookingFlow({ trip, passengerCount, language, onClose }: Props) 
     if (!claimChallenge) return;
     setClaimBusy(true); setClaimError(""); setClaimMessage("");
     try {
-      const verified = await verifyBookingChallenge(claimChallenge.challenge_id, claimCode.trim());
-      await claimPassengerBooking(verified.booking_id, claimChallenge.challenge_id, claimCode.trim());
+      await claimPassengerBooking(claimChallenge.challenge_id, claimCode.trim());
       setClaimMessage(am ? "ማስያዣው ከመለያዎ ጋር ተገናኝቷል።" : "Booking successfully linked to your passenger account.");
       setClaimReference(""); setClaimPhone("+251"); setClaimCode(""); setClaimChallenge(null);
     } catch (reason) {
