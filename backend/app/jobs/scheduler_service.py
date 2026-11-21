@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta
 from time import perf_counter
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.domains.operations.models import SchedulerLease, SchedulerRun
@@ -47,6 +47,12 @@ def run_scheduler_cycle(session_factory, *, worker_id: str, batch_size: int = 10
             ),
         ).returning(SchedulerLease.lease_name)
         acquired = db.scalar(claim)
+        if acquired is not None:
+            db.execute(update(SchedulerRun).where(
+                SchedulerRun.job_name == LEASE_NAME,
+                SchedulerRun.status == "running",
+                SchedulerRun.worker_id != worker_id,
+            ).values(status="abandoned", finished_at=now, error_code="worker_lease_expired"))
         db.commit()
         if acquired is None:
             return {"status": "lease_held_by_another_worker", "records_processed": 0}
@@ -115,10 +121,15 @@ def scheduler_snapshot(db, *, stale_after_seconds: int = 90, limit: int = 20) ->
     if lease is None:
         health = "not_configured"
         heartbeat_age = None
+        lease_active = False
+        lease_remaining = None
     else:
         heartbeat = _utc(lease.heartbeat_at)
         heartbeat_age = max(0, int((now - heartbeat).total_seconds())) if heartbeat else None
-        if heartbeat_age is None or heartbeat_age > stale_after_seconds:
+        lease_expiry = _utc(lease.lease_expires_at)
+        lease_remaining = max(0, int((lease_expiry - now).total_seconds())) if lease_expiry else None
+        lease_active = bool(lease_expiry and lease_expiry > now)
+        if heartbeat_age is None or heartbeat_age > stale_after_seconds or not lease_active:
             health = "stale"
         elif lease.consecutive_failures:
             health = "degraded"
@@ -129,6 +140,8 @@ def scheduler_snapshot(db, *, stale_after_seconds: int = 90, limit: int = 20) ->
         "health": health,
         "worker_enabled_by_default": False,
         "worker_mode": "separate_process",
+        "lease_active": lease_active,
+        "lease_remaining_seconds": lease_remaining,
         "lease": None if lease is None else {
             "owner_id": lease.owner_id,
             "lease_expires_at": _utc(lease.lease_expires_at).isoformat(),
