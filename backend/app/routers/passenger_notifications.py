@@ -2,7 +2,6 @@
 # FastAPI dependency injection requires Depends instances in endpoint defaults.
 # ruff: noqa: B008
 from uuid import UUID
-from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
