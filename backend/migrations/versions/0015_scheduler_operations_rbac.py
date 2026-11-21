@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Durable scheduler telemetry and role catalogue.
 
 Revision ID: 0015_scheduler_operations_rbac
@@ -114,6 +115,7 @@ def upgrade() -> None:
         sa.Column("finished_at", sa.DateTime(timezone=True)),
         sa.Column("records_processed", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("duration_ms", sa.Integer()),
+        sa.Column("error_code", sa.String(80)),
     )
     for column in ("job_name", "worker_id", "status", "started_at"):
         op.create_index(f"ix_scheduler_runs_{column}", "scheduler_runs", [column])
