@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Standalone scheduler process. It is opt-in and synthetic dev/test only."""
 import logging
 import time
