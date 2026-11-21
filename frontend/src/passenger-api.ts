@@ -364,3 +364,14 @@ export function claimPassengerBooking(
     body: JSON.stringify({ challenge_id: challengeId, code }),
   });
 }
+
+
+export function cancelGuestBooking(bookingId: string): Promise<{
+  booking_id: string;
+  booking_reference: string;
+  status: "cancelled";
+  payment_collected: false;
+  refund_required: false;
+}> {
+  return request(`/bookings/${encodeURIComponent(bookingId)}/cancel`, { method: "POST" }, "mnm_booking_csrf");
+}
