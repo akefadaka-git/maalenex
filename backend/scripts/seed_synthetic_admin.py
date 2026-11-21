@@ -32,6 +32,9 @@ PLATFORM_PERMISSIONS = (
     "operator.fare.propose",
     "organization.members.manage",
     "platform.support.manage",
+    "platform.scheduler.read",
+    "platform.scheduler.manage",
+    "platform.dashboard.read",
     "operator.trip.manifest.read",
 )
 
