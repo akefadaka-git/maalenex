@@ -13,6 +13,7 @@ from app.db.session import SessionLocal, get_db
 from app.domains.audit.models import AuditEvent
 from app.domains.audit.service import record_event
 from app.domains.bookings.models import Booking
+from app.domains.catalog.models import Location, Route, Terminal
 from app.domains.fares.models import Fare
 from app.domains.fleet.models import Vehicle
 from app.domains.identity.authorization import has_permission
@@ -104,6 +105,13 @@ def staff_dashboard(
             stats["reports"] = db.scalar(select(func.count()).select_from(PassengerReport)) or 0
         if "platform.audit.read" in permissions:
             stats["audit_events"] = db.scalar(select(func.count()).select_from(AuditEvent)) or 0
+        if permissions.intersection({"platform.catalog.manage", "platform.catalog.publish"}):
+            stats["locations"] = db.scalar(select(func.count()).select_from(Location)) or 0
+            stats["terminals"] = db.scalar(select(func.count()).select_from(Terminal)) or 0
+            stats["routes"] = db.scalar(select(func.count()).select_from(Route)) or 0
+        if "platform.access.manage" in permissions:
+            stats["staff_accounts"] = db.scalar(select(func.count()).select_from(User)) or 0
+            stats["active_role_assignments"] = db.scalar(select(func.count()).select_from(RoleAssignment).where(RoleAssignment.revoked_at.is_(None))) or 0
     elif organization_ids:
         if "operator.fleet.manage" in permissions:
             stats["vehicles"] = db.scalar(select(func.count()).select_from(Vehicle).where(Vehicle.organization_id.in_(organization_ids))) or 0
@@ -289,13 +297,13 @@ def revoke_access_role(
         Permission, Permission.id == RolePermission.permission_id
     ).where(RolePermission.role_id == assignment.role_id, Permission.code == "platform.access.manage"))
     if grants_access_management and assignment.organization_id is None:
-        remaining = db.scalar(select(func.count()).select_from(RoleAssignment).join(
+        active_admin_assignments = list(db.scalars(select(RoleAssignment.id).join(
             RolePermission, RolePermission.role_id == RoleAssignment.role_id
         ).join(Permission, Permission.id == RolePermission.permission_id).where(
             RoleAssignment.revoked_at.is_(None), RoleAssignment.organization_id.is_(None),
-            RoleAssignment.id != assignment.id, Permission.code == "platform.access.manage",
-        )) or 0
-        if remaining == 0:
+            Permission.code == "platform.access.manage",
+        ).with_for_update()))
+        if not any(item_id != assignment.id for item_id in active_admin_assignments):
             raise HTTPException(status_code=409, detail="Cannot revoke the last active platform access administrator.")
     assignment.revoked_at = db.scalar(select(func.now()))
     record_event(
