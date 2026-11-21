@@ -1,15 +1,16 @@
 name: G1 backend foundation verification
 # Wallet slice verification: run lint, tests and PostgreSQL migrations on the exact PR head.
 # Passenger wallet: run exact-head lint, tests and PostgreSQL migration verification.
+# Verification coverage includes My Bookings, ownership-safe cancellation, and scheduled hold expiry.
 
 on:
   push:
-    branches: [feat/passenger-identity-service, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service]
+    branches: [feat/passenger-identity-service, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications]
     paths:
       - "backend/**"
       - ".github/workflows/g1-backend-verification.yml"
   pull_request:
-    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/acceptance-remediation, feat/passenger-identity-service, feat/passenger-journey-search, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service]
+    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/acceptance-remediation, feat/passenger-identity-service, feat/passenger-journey-search, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service]
     paths:
       - "backend/**"
       - ".github/workflows/g1-backend-verification.yml"
@@ -91,6 +92,8 @@ jobs:
           app/domains/bookings/service.py
           app/domains/notifications/**
           app/routers/passenger_notifications.py
+          app/routers/passenger_bookings.py
+          app/jobs/booking_hold_expiry.py
           tests/test_passenger_notifications.py
           migrations/versions/0013_passenger_notifications.py
           migrations/versions/0014_verified_booking_ownership.py

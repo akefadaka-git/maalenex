@@ -375,3 +375,45 @@ export function cancelGuestBooking(bookingId: string): Promise<{
 }> {
   return request(`/bookings/${encodeURIComponent(bookingId)}/cancel`, { method: "POST" }, "mnm_booking_csrf");
 }
+
+
+export type PassengerBooking = {
+  booking_id: string; booking_reference: string; status: string;
+  created_at: string | null; confirmed_at: string | null; hold_expires_at: string | null;
+  can_cancel: boolean; departure_at: string | null; arrival_estimate_at: string | null;
+  passengers: Array<{ name: string; seat: string }>;
+  fare: { amount_minor_units: number; currency_code: string } | null;
+  reservation_reference: string | null;
+  payment_collected: false; ticket_issued: false; boarding_authorized: false;
+};
+
+export function listMyBookings(): Promise<{ items: PassengerBooking[]; limit: number }> {
+  return request("/passenger/bookings");
+}
+
+export function cancelMyBooking(bookingId: string): Promise<{
+  booking_id: string; booking_reference: string; status: "cancelled";
+  payment_collected: false; refund_required: false;
+}> {
+  return request("/passenger/bookings/" + encodeURIComponent(bookingId) + "/cancel", { method: "POST" });
+}
+
+export function markAllPassengerNotificationsRead(): Promise<{ updated: number }> {
+  return request("/passenger/notifications/read-all", { method: "POST" });
+}
+
+export type PassengerNotificationPreferences = {
+  in_app_enabled: boolean; email_enabled: boolean; sms_enabled: boolean;
+  email_delivery_available: boolean; sms_delivery_available: boolean;
+};
+
+export function getPassengerNotificationPreferences(): Promise<PassengerNotificationPreferences> {
+  return request("/passenger/notifications/preferences");
+}
+
+export function updatePassengerNotificationPreferences(in_app_enabled: boolean): Promise<PassengerNotificationPreferences> {
+  return request("/passenger/notifications/preferences", {
+    method: "PATCH",
+    body: JSON.stringify({ in_app_enabled, email_enabled: false, sms_enabled: false }),
+  });
+}

@@ -12,6 +12,7 @@ from app.domains.audit.models import AuditEvent
 from app.domains.bookings.models import Booking, BookingContact, SeatAllocation, SeatHold
 from app.domains.bookings.service import BookingConflict, cancel_unconfirmed_booking, claim_booking_for_passenger
 from app.domains.identity.passenger_models import PassengerAccount
+from app.jobs.booking_hold_expiry import expire_due_booking_holds
 from app.domains.notifications.models import PassengerNotification, PassengerNotificationPreference
 
 
@@ -124,3 +125,33 @@ def test_reserved_booking_cancellation_fails_closed_until_policy_exists(db):
         cancel_unconfirmed_booking(
             db, booking_id=booking.id, actor_type="guest", actor_id=None,
         )
+
+
+def test_scheduled_expiry_releases_due_holds_and_notifies_linked_passenger(db):
+    passenger = PassengerAccount(
+        login_identifier="expiry-rider@example.test", display_name="Expiry Rider",
+        status="active",
+    )
+    db.add(passenger)
+    booking = _booking(db)
+    booking.passenger_account_id = passenger.id
+    booking.expires_at = datetime.now(UTC) - timedelta(minutes=1)
+    seat_id = uuid4()
+    db.add(SeatHold(
+        booking_id=booking.id, trip_id=booking.trip_id, trip_seat_id=seat_id,
+        status="active", expires_at=booking.expires_at,
+    ))
+    db.add(SeatAllocation(
+        booking_id=booking.id, booking_passenger_id=uuid4(),
+        trip_id=booking.trip_id, trip_seat_id=seat_id, status="active",
+    ))
+    db.flush()
+
+    assert expire_due_booking_holds(db, batch_size=10) == 1
+    db.commit()
+
+    assert booking.status == "expired"
+    assert db.query(SeatHold).filter_by(booking_id=booking.id).one().status == "expired"
+    assert db.query(SeatAllocation).filter_by(booking_id=booking.id).one().status == "expired"
+    notice = db.query(PassengerNotification).filter_by(passenger_id=passenger.id).one()
+    assert "expired" in notice.body
