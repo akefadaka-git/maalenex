@@ -105,3 +105,54 @@ def test_staff_access_profile_resolves_only_active_role_permissions():
         assert _access(db, user.id)["permissions"] == []
         assert not has_permission(db, user_id=user.id, permission_code="platform.scheduler.read", organization_id=None)
     engine.dispose()
+
+
+def test_scheduler_configuration_rejects_remote_database_and_non_synthetic_data():
+    for overrides, expected in [
+        (
+            {"database_url": "postgresql+psycopg://user:pass@example.com:5432/maalenex_dev"},
+            "host must be local",
+        ),
+        ({"synthetic_data_only": False}, "Synthetic-only mode is mandatory"),
+        ({"database_url": "postgresql+psycopg://localhost:5432/production"}, "database name must be maalenex_dev"),
+    ]:
+        try:
+            Settings(**overrides)
+        except ValueError as error:
+            assert expected in str(error)
+        else:
+            raise AssertionError(f"Unsafe scheduler configuration was accepted: {overrides}")
+
+
+def test_scheduler_timing_configuration_enforces_lease_and_batch_bounds():
+    invalid_settings = [
+        ({"scheduler_interval_seconds": 4}, "interval must be between"),
+        ({"scheduler_interval_seconds": 60, "scheduler_lease_seconds": 90}, "at least twice"),
+        ({"scheduler_batch_size": 0}, "batch size must be between"),
+        ({"scheduler_batch_size": 1001}, "batch size must be between"),
+    ]
+    for overrides, expected in invalid_settings:
+        try:
+            Settings(**overrides)
+        except ValueError as error:
+            assert expected in str(error)
+        else:
+            raise AssertionError(f"Invalid scheduler timing was accepted: {overrides}")
+
+
+def test_staff_admin_sensitive_read_routes_fail_closed_without_staff_session():
+    client = TestClient(app)
+    protected_gets = [
+        "/api/v1/admin/dashboard",
+        "/api/v1/admin/access/roles",
+        "/api/v1/admin/access/users",
+        "/api/v1/admin/access/organizations",
+        "/api/v1/admin/access/invitations",
+        "/api/v1/admin/operations/scheduler",
+        "/api/v1/audit/events",
+        "/api/v1/support/cases",
+        "/api/v1/reports/passenger",
+    ]
+    for path in protected_gets:
+        response = client.get(path)
+        assert response.status_code == 401, (path, response.status_code)
