@@ -13,7 +13,6 @@ from app.domains.wallet.passenger_service import (
 )
 from app.routers.passenger_auth import current_passenger_context
 
-
 router = APIRouter(prefix="/passenger/wallet", tags=["passenger-wallet"])
 
 
