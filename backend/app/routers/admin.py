@@ -49,7 +49,7 @@ class OperatorReview(BaseModel):
 
 class OperatorRoleAssignment(BaseModel):
     user_id: UUID
-    role_code: Literal["synthetic_operator_manager"] = "synthetic_operator_manager"
+    role_code: Literal["synthetic_operator_manager", "operator_manager", "operator_dispatcher", "operator_fleet_manager", "operator_fare_manager"] = "synthetic_operator_manager"
 
 
 class SupportResolution(BaseModel):
@@ -65,6 +65,7 @@ class ReportReview(BaseModel):
 class OperatorInvitationCreate(BaseModel):
     login_identifier: str = Field(min_length=5, max_length=254)
     display_name: str = Field(min_length=2, max_length=160)
+    role_code: Literal["synthetic_operator_manager", "operator_manager", "operator_dispatcher", "operator_fleet_manager", "operator_fare_manager"] = "synthetic_operator_manager"
 
 
 class LocationCreate(BaseModel):
@@ -199,6 +200,15 @@ def assign_operator_role(
         membership = OrganizationMembership(organization_id=organization_id, user_id=user.id, membership_status="active")
         db.add(membership)
         db.flush()
+    elif membership.membership_status != "active":
+        raise HTTPException(status_code=409, detail="Operator membership is not active.")
+    duplicate = db.scalar(select(RoleAssignment.id).where(
+        RoleAssignment.user_id == user.id, RoleAssignment.role_id == role.id,
+        RoleAssignment.organization_id == organization_id,
+        RoleAssignment.revoked_at.is_(None),
+    ))
+    if duplicate:
+        raise HTTPException(status_code=409, detail="An equivalent active assignment already exists.")
     assignment = RoleAssignment(
         user_id=user.id, role_id=role.id, organization_id=organization_id,
         assigned_by=context.user.id,
@@ -233,9 +243,9 @@ def create_operator_invitation(
         raise HTTPException(status_code=422, detail="A valid login email is required.")
     if db.scalar(select(User.id).where(User.login_identifier == login)) is not None:
         raise HTTPException(status_code=409, detail="A staff account already exists for this login.")
-    role = db.scalar(select(Role).where(Role.code == "synthetic_operator_manager"))
+    role = db.scalar(select(Role).where(Role.code == payload.role_code))
     if role is None:
-        raise HTTPException(status_code=503, detail="Operator manager role has not been provisioned.")
+        raise HTTPException(status_code=503, detail="Selected operator role has not been provisioned.")
     now = db.scalar(select(func.now()))
     stale = list(db.scalars(select(OrganizationInvitation).where(
         OrganizationInvitation.organization_id == organization_id,

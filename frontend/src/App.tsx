@@ -32,19 +32,20 @@ import {
 } from "./passenger-api";
 import { BookingFlow } from "./BookingFlow";
 import { MyBookings } from "./MyBookings";
+import { StaffConsole } from "./StaffConsole";
 import { Icon } from "./components/nexus-icons";
 
 type Language = "am" | "en";
-type Page = "dashboard" | "map" | "wallet" | "bookings" | "notifications" | "profile" | "help" | "report" | "login" | "register" | "forgot" | "about";
+type Page = "dashboard" | "map" | "wallet" | "bookings" | "notifications" | "profile" | "help" | "report" | "login" | "register" | "forgot" | "about" | "staff";
 const labels = {
-  am: { dashboard:"ዳሽቦርድ", map:"ካርታ", wallet:"ቦርሳ", profile:"መገለጫ", help:"እገዛ", report:"ሪፖርት", login:"ግባ", register:"መለያ ፍጠር", about:"ስለ እኛ", welcome:"ወደ MaaleNex እንኳን በደህና መጡ", subtitle:"የጉዞዎን ቀጣይ እርምጃ በአንድ ቦታ ያቀናብሩ።", search:"መነሻ ወይም መድረሻ ይፈልጉ", quick:"ፈጣን አገልግሎቶች", journeys:"የጉዞ መረጃ", empty:"የተረጋገጠ የጉዞ መረጃ ሲገኝ እዚህ ይታያል።", balance:"የቦርሳ ቀሪ ሂሳብ", demo:"የማሳያ ሁኔታ", noFunds:"የእውነተኛ ገንዘብ ግብይት አልነቃም።", mapNote:"ካርታው የአካባቢ ማሳያ ነው፤ የተረጋገጡ መስመሮች ገና አልታተሙም።", name:"ሙሉ ስም", phone:"ስልክ ቁጥር", password:"የይለፍ ቃል", email:"ኢሜይል", submit:"ቀጥል", coming:"ይህ ባህሪ ከደህንነት እና ከአገልግሎት ማገናኛ ማረጋገጫ በኋላ ይነቃል።", support:"እንዴት ልንርዳዎ?", reportTitle:"ችግር ሪፖርት ያድርጉ", message:"መልዕክትዎ", send:"ሪፖርት ላክ", sent:"የማሳያ ሪፖርት ተመዝግቧል። አሁንም ወደ ድጋፍ ሰርቨር አልተላከም።", account:"መለያዎን ያስተዳድሩ", language:"ቋንቋ", notifications:"ማሳወቂያዎች", bookings:"ማስያዣዎች", signout:"ውጣ", noLogin:"አሁን የማሳያ ሁኔታ ብቻ ነው።" },
-  en: { dashboard:"Dashboard", map:"Map", wallet:"Wallet", profile:"Profile", help:"Help", report:"Report", login:"Log in", register:"Create account", about:"About", welcome:"Welcome to MaaleNex", subtitle:"Your mobility tools, information and support in one place.", search:"Search origin or destination", quick:"Quick access", journeys:"Journey information", empty:"Verified journey information will appear here when published.", balance:"Wallet balance", demo:"DEMO MODE", noFunds:"Real-money transactions are not enabled.", mapNote:"This is a map preview. No verified operating routes have been published yet.", name:"Full name", phone:"Phone number", password:"Password", email:"Email", submit:"Continue", coming:"This capability will activate after security and service-provider verification.", support:"How can we help?", reportTitle:"Report an issue", message:"Your message", send:"Submit report", sent:"Demo report captured locally. It has not been sent to a support server.", account:"Manage your account", language:"Language", notifications:"Notifications", bookings:"My Bookings", signout:"Sign out", noLogin:"This is currently a demonstration session only." }
+  am: { dashboard:"ዳሽቦርድ", map:"ካርታ", wallet:"ቦርሳ", profile:"መገለጫ", help:"እገዛ", report:"ሪፖርት", login:"ግባ", register:"መለያ ፍጠር", about:"ስለ እኛ", welcome:"ወደ MaaleNex እንኳን በደህና መጡ", subtitle:"የጉዞዎን ቀጣይ እርምጃ በአንድ ቦታ ያቀናብሩ።", search:"መነሻ ወይም መድረሻ ይፈልጉ", quick:"ፈጣን አገልግሎቶች", journeys:"የጉዞ መረጃ", empty:"የተረጋገጠ የጉዞ መረጃ ሲገኝ እዚህ ይታያል።", balance:"የቦርሳ ቀሪ ሂሳብ", demo:"የማሳያ ሁኔታ", noFunds:"የእውነተኛ ገንዘብ ግብይት አልነቃም።", mapNote:"ካርታው የአካባቢ ማሳያ ነው፤ የተረጋገጡ መስመሮች ገና አልታተሙም።", name:"ሙሉ ስም", phone:"ስልክ ቁጥር", password:"የይለፍ ቃል", email:"ኢሜይል", submit:"ቀጥል", coming:"ይህ ባህሪ ከደህንነት እና ከአገልግሎት ማገናኛ ማረጋገጫ በኋላ ይነቃል።", support:"እንዴት ልንርዳዎ?", reportTitle:"ችግር ሪፖርት ያድርጉ", message:"መልዕክትዎ", send:"ሪፖርት ላክ", sent:"የማሳያ ሪፖርት ተመዝግቧል። አሁንም ወደ ድጋፍ ሰርቨር አልተላከም።", account:"መለያዎን ያስተዳድሩ", language:"ቋንቋ", notifications:"ማሳወቂያዎች", bookings:"ማስያዣዎች", staff:"የሰራተኛ ማዕከል", signout:"ውጣ", noLogin:"አሁን የማሳያ ሁኔታ ብቻ ነው።" },
+  en: { dashboard:"Dashboard", map:"Map", wallet:"Wallet", profile:"Profile", help:"Help", report:"Report", login:"Log in", register:"Create account", about:"About", welcome:"Welcome to MaaleNex", subtitle:"Your mobility tools, information and support in one place.", search:"Search origin or destination", quick:"Quick access", journeys:"Journey information", empty:"Verified journey information will appear here when published.", balance:"Wallet balance", demo:"DEMO MODE", noFunds:"Real-money transactions are not enabled.", mapNote:"This is a map preview. No verified operating routes have been published yet.", name:"Full name", phone:"Phone number", password:"Password", email:"Email", submit:"Continue", coming:"This capability will activate after security and service-provider verification.", support:"How can we help?", reportTitle:"Report an issue", message:"Your message", send:"Submit report", sent:"Demo report captured locally. It has not been sent to a support server.", account:"Manage your account", language:"Language", notifications:"Notifications", bookings:"My Bookings", staff:"Staff workspace", signout:"Sign out", noLogin:"This is currently a demonstration session only." }
 } as const;
 
 type NavPage = Exclude<Page, "login" | "register" | "forgot" | "about">;
-const nav: NavPage[] = ["dashboard","map","wallet","bookings","notifications","profile","help","report"];
+const nav: NavPage[] = ["dashboard","map","wallet","bookings","notifications","staff","profile","help","report"];
 const iconFor: Record<Page, "home"|"map"|"wallet"|"user"|"help"|"flag"|"compass"|"globe"|"shield"|"route"|"arrow"|"bell"> = {
- dashboard:"home", map:"map", wallet:"wallet", bookings:"route", notifications:"bell", profile:"user", help:"help", report:"flag", login:"user", register:"user", forgot:"shield", about:"compass"
+ dashboard:"home", map:"map", wallet:"wallet", bookings:"route", notifications:"bell", staff:"shield", profile:"user", help:"help", report:"flag", login:"user", register:"user", forgot:"shield", about:"compass"
 };
 
 function Tile({title,detail,onClick,icon}:{title:string;detail:string;onClick:()=>void;icon:Page}) {
@@ -285,7 +286,7 @@ export default function App() {
   <a className="skip-link" href="#main-content">{language==="am"?"ወደ ዋና ይዘት ዝለል":"Skip to main content"}</a>
   <header className="platform-header">
    <button className="brand-lockup" onClick={()=>go("dashboard")} aria-label="MaaleNex dashboard"><img src="./brand/maalenex-nexus-emblem.svg" alt="" width="42" height="42"/><span>MaaleNex</span></button>
-   <div className="header-context"><span className={isOnline?"online-dot":"online-dot offline-dot"}/><span>{!isOnline?(language==="am"?"ከመስመር ውጭ":"Offline"):(language==="am"?"የተጠቃሚ ማዕከል":"Passenger hub")}</span></div>
+   <div className="header-context"><span className={isOnline?"online-dot":"online-dot offline-dot"}/><span>{!isOnline?(language==="am"?"ከመስመር ውጭ":"Offline"):page==="staff"?(language==="am"?"የሰራተኛ ማዕከል":"Staff workspace"):(language==="am"?"የተጠቃሚ ማዕከል":"Passenger hub")}</span></div>
    <div className="header-actions"><button className="icon-button" aria-label={t.notifications} onClick={()=>setNotice(t.coming)}><Icon name="bell"/></button><button className="language-switch" onClick={()=>setLanguage(language==="am"?"en":"am")}><Icon name="globe"/>{language==="am"?"EN":"አማ"}</button><button className="profile-chip" onClick={()=>go("profile")}><Icon name="user"/><span>{language==="am"?"መገለጫ":"Profile"}</span></button></div>
   </header>
   <div className="platform-layout">
@@ -300,6 +301,7 @@ export default function App() {
     <div className="page-heading"><div><p className="eyebrow"><span className="eyebrow-dot"/>MAALENEX / {page.toUpperCase()}</p><h1>{page==="dashboard"?t.welcome:title}</h1><p>{page==="dashboard"?t.subtitle:""}</p></div><span className="mode-pill">{t.demo}</span></div>
     {notice&&<p className="notice-panel" role="status">{notice}</p>}
 
+    {page==="staff"&&<StaffConsole language={language}/>}
     {page==="notifications"&&<section className="content-section">
      <div className="panel-card notification-panel">
       <div className="notification-heading"><div><h2>{language==="am"?"ማሳወቂያዎች":"Notifications"}</h2><p>{language==="am"?"ያልተነበቡ ":""}{notificationUnread}{language==="am"?"":" unread"}</p></div><Icon name="bell"/></div>

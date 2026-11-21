@@ -5,12 +5,12 @@ name: G1 backend foundation verification
 
 on:
   push:
-    branches: [feat/passenger-identity-service, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications]
+    branches: [feat/passenger-identity-service, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards]
     paths:
       - "backend/**"
       - ".github/workflows/g1-backend-verification.yml"
   pull_request:
-    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/acceptance-remediation, feat/passenger-identity-service, feat/passenger-journey-search, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service]
+    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/acceptance-remediation, feat/passenger-identity-service, feat/passenger-journey-search, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications]
     paths:
       - "backend/**"
       - ".github/workflows/g1-backend-verification.yml"
@@ -99,6 +99,15 @@ jobs:
           migrations/versions/0014_verified_booking_ownership.py
           migrations/versions/0012_passenger_wallet.py
           tests/test_verified_booking_ownership.py
+          app/domains/operations/**
+          app/jobs/scheduler_service.py
+          app/jobs/scheduler_worker.py
+          app/routers/staff_admin.py
+          app/routers/auth.py
+          app/core/config.py
+          tests/test_scheduler_operations.py
+          migrations/versions/0015_scheduler_operations_rbac.py
+          scripts/seed_synthetic_admin.py
       - name: Backend tests
         run: python -m pytest -q
       - name: Apply baseline migration to empty database
