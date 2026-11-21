@@ -35,8 +35,8 @@ from app.domains.bookings.models import (
 from app.domains.bookings.service import (
     BookingConflict,
     accept_reservation,
-    claim_booking_for_passenger,
     cancel_unconfirmed_booking,
+    claim_booking_for_passenger,
     create_seat_hold,
 )
 from app.domains.identity.passenger_service import PassengerContext, verify_passenger_csrf
