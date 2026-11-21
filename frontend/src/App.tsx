@@ -114,7 +114,7 @@ export default function App() {
   if(!passenger){setNotificationItems([]);setNotificationUnread(0);setNotificationError("");return;}
   let active=true;
   setNotificationLoading(true);setNotificationError("");
-  Promise.all([getPassengerNotifications(),getPassengerNotificationPreferences()]).then(([result,prefs])=>{
+  Promise.all([getPassengerNotifications(),getPassengerNotificationPreferences().catch(()=>({in_app_enabled:true,email_enabled:false,sms_enabled:false,email_delivery_available:false,sms_delivery_available:false}))]).then(([result,prefs])=>{
    if(active){setNotificationItems(result.items);setNotificationUnread(result.unread_count);setNotificationPreferences(prefs);}
   }).catch(error=>{
    if(active)setNotificationError(error instanceof Error?error.message:"Unable to load notifications.");
