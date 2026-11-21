@@ -1,12 +1,15 @@
 """Passenger-owned in-app inbox and preference operations."""
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.domains.audit.service import record_event
-from app.domains.notifications.models import PassengerNotification, PassengerNotificationPreference
+from app.domains.notifications.models import (
+    PassengerNotification,
+    PassengerNotificationPreference,
+)
 
 
 def create_notification(
