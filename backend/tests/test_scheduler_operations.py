@@ -7,8 +7,11 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.config import Settings, settings
 from app.db.base import Base
+from app.domains.identity.authorization import has_permission
+from app.domains.identity.models import Permission, Role, RoleAssignment, RolePermission, User
 from app.domains.operations.models import SchedulerLease, SchedulerRun
 from app.jobs.scheduler_service import scheduler_snapshot
+from app.routers.staff_admin import _access
 from app.main import app
 
 
@@ -70,3 +73,32 @@ def test_staff_operations_routes_are_registered_and_protected():
     client = TestClient(app)
     assert client.get("/api/v1/admin/dashboard").status_code == 401
     assert client.get("/api/v1/admin/operations/scheduler").status_code == 401
+
+
+def test_staff_access_profile_resolves_only_active_role_permissions():
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine, tables=[
+        User.__table__, Role.__table__, Permission.__table__,
+        RolePermission.__table__, RoleAssignment.__table__,
+    ])
+    with Session(engine) as db:
+        user = User(login_identifier="rbac@example.test", display_name="RBAC Tester", status="active")
+        role = Role(code="platform_scheduler_operator", description="Scheduler operator")
+        permission = Permission(code="platform.scheduler.read", description="Read scheduler")
+        db.add_all([user, role, permission])
+        db.flush()
+        db.add(RolePermission(role_id=role.id, permission_id=permission.id))
+        assignment = RoleAssignment(user_id=user.id, role_id=role.id, organization_id=None, assigned_by=user.id)
+        db.add(assignment)
+        db.flush()
+        access = _access(db, user.id)
+        assert access["permissions"] == ["platform.scheduler.read"]
+        assert access["roles"][0]["role_code"] == "platform_scheduler_operator"
+        assert has_permission(db, user_id=user.id, permission_code="platform.scheduler.read", organization_id=None)
+        assignment.revoked_at = datetime.now(UTC)
+        db.flush()
+        assert _access(db, user.id)["permissions"] == []
+        assert not has_permission(db, user_id=user.id, permission_code="platform.scheduler.read", organization_id=None)
+    engine.dispose()
