@@ -1,4 +1,4 @@
- # ruff: noqa: I001
+# ruff: noqa: I001
 import asyncio
 import logging
 from contextlib import asynccontextmanager
