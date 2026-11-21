@@ -301,3 +301,30 @@ export function passengerReportAttachmentUrl(reportReference: string, attachment
   const root = API_ROOT || "/api/v1";
   return `${root}/passenger/reports/${encodeURIComponent(reportReference)}/attachments/${encodeURIComponent(attachmentId)}`;
 }
+
+
+export type PassengerWalletTransaction = {
+  reference: string;
+  transaction_type: string;
+  status: "posted" | "reversed";
+  direction: "credit" | "debit" | "neutral";
+  amount_minor_units: number;
+  currency_code: "ETB";
+  description: string;
+  posted_at: string;
+};
+
+export type PassengerWallet = {
+  wallet_id: string;
+  account_status: "active" | "frozen" | "closed";
+  balance_minor_units: number;
+  currency_code: "ETB";
+  history: PassengerWalletTransaction[];
+  funding_enabled: false;
+  withdrawals_enabled: false;
+  transfers_enabled: false;
+};
+
+export function getPassengerWallet(): Promise<PassengerWallet> {
+  return request("/passenger/wallet");
+}
