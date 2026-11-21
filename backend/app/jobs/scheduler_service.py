@@ -72,12 +72,15 @@ def run_scheduler_cycle(session_factory, *, worker_id: str, batch_size: int = 10
             finished = _utc(db.scalar(select(func.now()))) or datetime.now(UTC)
             run = db.get(SchedulerRun, run_id)
             lease = db.get(SchedulerLease, LEASE_NAME)
-            if run is not None:
-                run.status = "succeeded"
+            owns_lease = lease is not None and lease.owner_id == worker_id
+            if run is not None and run.status == "running":
+                run.status = "succeeded" if owns_lease else "abandoned"
                 run.finished_at = finished
                 run.records_processed = processed
                 run.duration_ms = duration_ms
-            if lease is not None and lease.owner_id == worker_id:
+                if not owns_lease:
+                    run.error_code = "lease_lost_during_execution"
+            if owns_lease:
                 lease.heartbeat_at = finished
                 lease.lease_expires_at = finished + timedelta(seconds=lease_seconds)
                 lease.last_success_at = finished
@@ -95,12 +98,13 @@ def run_scheduler_cycle(session_factory, *, worker_id: str, batch_size: int = 10
             finished = _utc(db.scalar(select(func.now()))) or datetime.now(UTC)
             run = db.get(SchedulerRun, run_id)
             lease = db.get(SchedulerLease, LEASE_NAME)
-            if run is not None:
-                run.status = "failed"
+            owns_lease = lease is not None and lease.owner_id == worker_id
+            if run is not None and run.status == "running":
+                run.status = "failed" if owns_lease else "abandoned"
                 run.finished_at = finished
                 run.duration_ms = duration_ms
-                run.error_code = error_code
-            if lease is not None and lease.owner_id == worker_id:
+                run.error_code = error_code if owns_lease else "lease_lost_during_execution"
+            if owns_lease:
                 lease.heartbeat_at = finished
                 lease.lease_expires_at = finished + timedelta(seconds=lease_seconds)
                 lease.last_failure_at = finished
