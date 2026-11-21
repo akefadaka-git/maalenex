@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
   acceptGuestReservation,
+  cancelGuestBooking,
   claimPassengerBooking,
   createBookingHold,
   getGuestBooking,
@@ -20,7 +21,7 @@ type Props = {
   onClose: () => void;
 };
 
-type Stage = "seats" | "verify" | "review" | "done";
+type Stage = "seats" | "verify" | "review" | "done" | "cancelled";
 
 export function BookingFlow({ trip, passengerCount, language, onClose }: Props) {
   const am = language === "am";
@@ -151,6 +152,18 @@ export function BookingFlow({ trip, passengerCount, language, onClose }: Props) 
     } finally { setClaimBusy(false); }
   };
 
+  const cancelHold = async () => {
+    if (!booking || booking.status !== "held") return;
+    setBusy(true); setError("");
+    try {
+      await cancelGuestBooking(booking.booking_id);
+      setBooking({ ...booking, status: "cancelled" });
+      setStage("cancelled");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Unable to cancel this seat hold.");
+    } finally { setBusy(false); }
+  };
+
   const money = (minor: number) => new Intl.NumberFormat(am ? "am-ET" : "en-ET", {
     style: "currency", currency: "ETB",
   }).format(minor / 100);
@@ -248,13 +261,15 @@ export function BookingFlow({ trip, passengerCount, language, onClose }: Props) 
           </form>}
         </div>
       )}
-      {(stage === "review" || stage === "done") && booking && (
+      {(stage === "review" || stage === "done" || stage === "cancelled") && booking && (
         <div>
-          <h3>{stage === "done" ? (am ? "ማስያዣው ተረጋግጧል" : "Reservation confirmed") : (am ? "የማስያዣ ማጠቃለያ" : "Review reservation")}</h3>
+          <h3>{stage === "done" ? (am ? "ማስያዣው ተረጋግጧል" : "Reservation confirmed") : stage === "cancelled" ? (am ? "ማስያዣው ተሰርዟል" : "Booking cancelled") : (am ? "የማስያዣ ማጠቃለያ" : "Review reservation")}</h3>
           <p>{am ? "ማጣቀሻ" : "Reference"}: <strong>{booking.booking_reference}</strong></p>
           {booking.passengers.map((person, index) => <p key={index}>{person.name} — {person.seat}</p>)}
           {booking.fare && <p>{am ? "ጠቅላላ ዋጋ" : "Total fare"}: {money(booking.fare.amount_minor_units)}</p>}
+          {stage === "review" && booking.status === "held" && <button type="button" className="secondary-action" onClick={cancelHold} disabled={busy}>{busy ? (am ? "በመሰረዝ ላይ…" : "Cancelling…") : (am ? "የመቀመጫ ይዞታን ሰርዝ" : "Cancel seat hold")}</button>}
           {stage === "review" && <button className="primary-action" onClick={confirmReservation} disabled={busy}>{busy ? (am ? "በማረጋገጥ ላይ…" : "Confirming…") : (am ? "ማስያዣን አረጋግጥ" : "Confirm reservation")}</button>}
+          {stage === "cancelled" && <p className="notice-panel">{am ? "የመቀመጫ ይዞታው ተሰርዟል። ክፍያ ስላልተፈጸመ ተመላሽ አያስፈልግም።" : "The seat hold was cancelled. No payment was collected, so no refund is due."}</p>}
           {stage === "done" && booking.reservation && <p className="notice-panel">{am ? "የተረጋገጠ ማስያዣ ቁጥር" : "Reservation reference"}: <strong>{booking.reservation.reservation_reference}</strong></p>}
           <p className="field-hint">{am ? "ክፍያ አልተፈጸመም፤ የጉዞ ትኬት አልተሰጠም።" : "No payment was collected and no travel ticket was issued."}</p>
         </div>
