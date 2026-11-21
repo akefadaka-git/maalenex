@@ -1,4 +1,5 @@
 name: MaaleNex NEXUS UI verification (exact head)
+# Wallet slice verification: run frontend tests, typecheck and production build on the exact PR head.
 # Passenger wallet: run exact-head frontend, typecheck and production build verification.
 
 on:
