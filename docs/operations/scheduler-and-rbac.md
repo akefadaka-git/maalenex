@@ -20,6 +20,7 @@ The scheduler uses PostgreSQL-backed durable state:
 - Lease acquisition uses atomic PostgreSQL upsert with a conditional takeover only after expiry or for the same worker.
 - The hold-expiry batch uses ordered row locks and `SKIP LOCKED`; concurrent workers cannot claim the same booking row.
 - Each cycle is bounded by batch size and commits the booking batch independently.
+- A composite booking status/expiry index supports the due-hold scan and backlog monitor without a full booking-table scan.
 - Crashed workers stop heartbeating; another worker may take over after lease expiry.
 - Failures are recorded and retried after the configured interval. No raw exception message, passenger data, or secrets are stored in telemetry.
 
