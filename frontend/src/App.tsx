@@ -22,21 +22,24 @@ import {
   passengerReportAttachmentUrl,
   getPassengerWallet,
   type PassengerWallet,
+  getPassengerNotifications,
+  markPassengerNotificationRead,
+  type PassengerNotification,
 } from "./passenger-api";
 import { BookingFlow } from "./BookingFlow";
 import { Icon } from "./components/nexus-icons";
 
 type Language = "am" | "en";
-type Page = "dashboard" | "map" | "wallet" | "profile" | "help" | "report" | "login" | "register" | "forgot" | "about";
+type Page = "dashboard" | "map" | "wallet" | "notifications" | "profile" | "help" | "report" | "login" | "register" | "forgot" | "about";
 const labels = {
-  am: { dashboard:"ዳሽቦርድ", map:"ካርታ", wallet:"ቦርሳ", profile:"መገለጫ", help:"እገዛ", report:"ሪፖርት", login:"ግባ", register:"መለያ ፍጠር", about:"ስለ እኛ", welcome:"ወደ MaaleNex እንኳን በደህና መጡ", subtitle:"የጉዞዎን ቀጣይ እርምጃ በአንድ ቦታ ያቀናብሩ።", search:"መነሻ ወይም መድረሻ ይፈልጉ", quick:"ፈጣን አገልግሎቶች", journeys:"የጉዞ መረጃ", empty:"የተረጋገጠ የጉዞ መረጃ ሲገኝ እዚህ ይታያል።", balance:"የቦርሳ ቀሪ ሂሳብ", demo:"የማሳያ ሁኔታ", noFunds:"የእውነተኛ ገንዘብ ግብይት አልነቃም።", mapNote:"ካርታው የአካባቢ ማሳያ ነው፤ የተረጋገጡ መስመሮች ገና አልታተሙም።", name:"ሙሉ ስም", phone:"ስልክ ቁጥር", password:"የይለፍ ቃል", email:"ኢሜይል", submit:"ቀጥል", coming:"ይህ ባህሪ ከደህንነት እና ከአገልግሎት ማገናኛ ማረጋገጫ በኋላ ይነቃል።", support:"እንዴት ልንርዳዎ?", reportTitle:"ችግር ሪፖርት ያድርጉ", message:"መልዕክትዎ", send:"ሪፖርት ላክ", sent:"የማሳያ ሪፖርት ተመዝግቧል። አሁንም ወደ ድጋፍ ሰርቨር አልተላከም።", account:"መለያዎን ያስተዳድሩ", language:"ቋንቋ", notifications:"ማሳወቂያዎች", signout:"ውጣ", noLogin:"አሁን የማሳያ ሁኔታ ብቻ ነው።" },
-  en: { dashboard:"Dashboard", map:"Map", wallet:"Wallet", profile:"Profile", help:"Help", report:"Report", login:"Log in", register:"Create account", about:"About", welcome:"Welcome to MaaleNex", subtitle:"Your mobility tools, information and support in one place.", search:"Search origin or destination", quick:"Quick access", journeys:"Journey information", empty:"Verified journey information will appear here when published.", balance:"Wallet balance", demo:"DEMO MODE", noFunds:"Real-money transactions are not enabled.", mapNote:"This is a map preview. No verified operating routes have been published yet.", name:"Full name", phone:"Phone number", password:"Password", email:"Email", submit:"Continue", coming:"This capability will activate after security and service-provider verification.", support:"How can we help?", reportTitle:"Report an issue", message:"Your message", send:"Submit report", sent:"Demo report captured locally. It has not been sent to a support server.", account:"Manage your account", language:"Language", notifications:"Notifications", signout:"Sign out", noLogin:"This is currently a demonstration session only." }
+  am: { dashboard:"ዳሽቦርድ", map:"ካርታ", wallet:"ቦርሳ", profile:"መገለጫ", help:"እገዛ", report:"ሪፖርት", notifications:"ማሳወቂያዎች", login:"ግባ", register:"መለያ ፍጠር", about:"ስለ እኛ", welcome:"ወደ MaaleNex እንኳን በደህና መጡ", subtitle:"የጉዞዎን ቀጣይ እርምጃ በአንድ ቦታ ያቀናብሩ።", search:"መነሻ ወይም መድረሻ ይፈልጉ", quick:"ፈጣን አገልግሎቶች", journeys:"የጉዞ መረጃ", empty:"የተረጋገጠ የጉዞ መረጃ ሲገኝ እዚህ ይታያል።", balance:"የቦርሳ ቀሪ ሂሳብ", demo:"የማሳያ ሁኔታ", noFunds:"የእውነተኛ ገንዘብ ግብይት አልነቃም።", mapNote:"ካርታው የአካባቢ ማሳያ ነው፤ የተረጋገጡ መስመሮች ገና አልታተሙም።", name:"ሙሉ ስም", phone:"ስልክ ቁጥር", password:"የይለፍ ቃል", email:"ኢሜይል", submit:"ቀጥል", coming:"ይህ ባህሪ ከደህንነት እና ከአገልግሎት ማገናኛ ማረጋገጫ በኋላ ይነቃል።", support:"እንዴት ልንርዳዎ?", reportTitle:"ችግር ሪፖርት ያድርጉ", message:"መልዕክትዎ", send:"ሪፖርት ላክ", sent:"የማሳያ ሪፖርት ተመዝግቧል። አሁንም ወደ ድጋፍ ሰርቨር አልተላከም።", account:"መለያዎን ያስተዳድሩ", language:"ቋንቋ", notifications:"ማሳወቂያዎች", signout:"ውጣ", noLogin:"አሁን የማሳያ ሁኔታ ብቻ ነው።" },
+  en: { dashboard:"Dashboard", map:"Map", wallet:"Wallet", profile:"Profile", help:"Help", report:"Report", notifications:"Notifications", login:"Log in", register:"Create account", about:"About", welcome:"Welcome to MaaleNex", subtitle:"Your mobility tools, information and support in one place.", search:"Search origin or destination", quick:"Quick access", journeys:"Journey information", empty:"Verified journey information will appear here when published.", balance:"Wallet balance", demo:"DEMO MODE", noFunds:"Real-money transactions are not enabled.", mapNote:"This is a map preview. No verified operating routes have been published yet.", name:"Full name", phone:"Phone number", password:"Password", email:"Email", submit:"Continue", coming:"This capability will activate after security and service-provider verification.", support:"How can we help?", reportTitle:"Report an issue", message:"Your message", send:"Submit report", sent:"Demo report captured locally. It has not been sent to a support server.", account:"Manage your account", language:"Language", notifications:"Notifications", signout:"Sign out", noLogin:"This is currently a demonstration session only." }
 } as const;
 
 type NavPage = Exclude<Page, "login" | "register" | "forgot" | "about">;
-const nav: NavPage[] = ["dashboard","map","wallet","profile","help","report"];
-const iconFor: Record<Page, "home"|"map"|"wallet"|"user"|"help"|"flag"|"compass"|"globe"|"shield"|"route"|"arrow"> = {
- dashboard:"home", map:"map", wallet:"wallet", profile:"user", help:"help", report:"flag", login:"user", register:"user", forgot:"shield", about:"compass"
+const nav: NavPage[] = ["dashboard","map","wallet","notifications","profile","help","report"];
+const iconFor: Record<Page, "home"|"map"|"wallet"|"user"|"help"|"flag"|"compass"|"globe"|"shield"|"route"|"arrow"|"bell"> = {
+ dashboard:"home", map:"map", wallet:"wallet", notifications:"bell", profile:"user", help:"help", report:"flag", login:"user", register:"user", forgot:"shield", about:"compass"
 };
 
 function Tile({title,detail,onClick,icon}:{title:string;detail:string;onClick:()=>void;icon:Page}) {
@@ -76,6 +79,10 @@ export default function App() {
  const [walletData,setWalletData]=useState<PassengerWallet|null>(null);
  const [walletLoading,setWalletLoading]=useState(false);
  const [walletError,setWalletError]=useState("");
+ const [notificationItems,setNotificationItems]=useState<PassengerNotification[]>([]);
+ const [notificationUnread,setNotificationUnread]=useState(0);
+ const [notificationLoading,setNotificationLoading]=useState(false);
+ const [notificationError,setNotificationError]=useState("");
  const [authIdentifier,setAuthIdentifier]=useState("");
  const [authName,setAuthName]=useState("");
  const [authPassword,setAuthPassword]=useState("");
@@ -93,6 +100,28 @@ export default function App() {
  const todayLocal=(()=>{const now=new Date();return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);})();
  const t=labels[language];
  useEffect(()=>{document.documentElement.lang=language;},[language]);
+
+ useEffect(()=>{
+  if(page!=="notifications")return;
+  if(!passenger){setNotificationItems([]);setNotificationUnread(0);setNotificationError("");return;}
+  let active=true;
+  setNotificationLoading(true);setNotificationError("");
+  getPassengerNotifications().then(result=>{
+   if(active){setNotificationItems(result.items);setNotificationUnread(result.unread_count);}
+  }).catch(error=>{
+   if(active)setNotificationError(error instanceof Error?error.message:"Unable to load notifications.");
+  }).finally(()=>{if(active)setNotificationLoading(false);});
+  return()=>{active=false;};
+ },[page,passenger]);
+ const markRead=async(item:PassengerNotification)=>{
+  if(item.read)return;
+  try{
+   const updated=await markPassengerNotificationRead(item.id);
+   setNotificationItems(current=>current.map(row=>row.id===updated.id?updated:row));
+   setNotificationUnread(current=>Math.max(0,current-1));
+  }catch(error){setNotificationError(error instanceof Error?error.message:"Unable to update notification.");}
+ };
+
 
  useEffect(()=>{
   if(page!=="wallet")return;
@@ -260,6 +289,21 @@ export default function App() {
    <main id="main-content" className="platform-main" tabIndex={-1}>
     <div className="page-heading"><div><p className="eyebrow"><span className="eyebrow-dot"/>MAALENEX / {page.toUpperCase()}</p><h1>{page==="dashboard"?t.welcome:title}</h1><p>{page==="dashboard"?t.subtitle:""}</p></div><span className="mode-pill">{t.demo}</span></div>
     {notice&&<p className="notice-panel" role="status">{notice}</p>}
+
+    {page==="notifications"&&<section className="content-section">
+     <div className="panel-card notification-panel">
+      <div className="notification-heading"><div><h2>{language==="am"?"ማሳወቂያዎች":"Notifications"}</h2><p>{language==="am"?"ያልተነበቡ ":""}{notificationUnread}{language==="am"?"":" unread"}</p></div><Icon name="bell"/></div>
+      {!passenger&&<p className="notice-panel">{language==="am"?"ማሳወቂያዎችን ለማየት ይግቡ።":"Sign in to view your notifications."} <button className="text-link" onClick={()=>go("login")}>{t.login}</button></p>}
+      {notificationLoading&&<p role="status">{language==="am"?"በመጫን ላይ…":"Loading notifications…"}</p>}
+      {notificationError&&<p role="alert" className="support-error">{notificationError}</p>}
+      {passenger&&!notificationLoading&&notificationItems.length===0&&<p>{language==="am"?"አዲስ ማሳወቂያ የለም።":"You have no notifications yet."}</p>}
+      {notificationItems.map(item=><article className={item.read?"notification-item":"notification-item unread"} key={item.id}>
+       <div><strong>{item.title}</strong><p>{item.body}</p><small>{new Date(item.created_at).toLocaleString(language==="am"?"am-ET":"en-ET")}{item.resource_reference?" · "+item.resource_reference:""}</small></div>
+       {!item.read&&<button className="secondary-action" onClick={()=>markRead(item)}>{language==="am"?"ተነብቧል ብለው ምልክት ያድርጉ":"Mark read"}</button>}
+      </article>)}
+     </div>
+     <p className="compliance-note">{language==="am"?"ይህ የውስጥ መተግበሪያ ማሳወቂያ ነው። የኢሜይልና የኤስኤምኤስ ማድረሻ ገና አልተነቃም።":"These are in-app notifications. Email and SMS delivery are not configured or enabled."}</p>
+    </section>}
     {page==="dashboard"&&<>
       <section className="dashboard-hero"><div><span className="hero-kicker">{language==="am"?"የጉዞ ማዕከል":"MOBILITY COMMAND CENTER"}</span><h2>{language==="am"?"ቀጣይ ጉዞዎ ከዚህ ይጀምራል":"Your next journey starts here."}</h2><p>{language==="am"?"የጉዞ መረጃ፣ ካርታ እና ድጋፍ በቀላሉ ያግኙ።":"Discover journey information, maps and passenger support."}</p><button className="primary-action" onClick={()=>go("map")}>{language==="am"?"ካርታውን ይመልከቱ":"Explore map"}<Icon name="arrow"/></button></div><div className="hero-emblem"><img src="./brand/maalenex-nexus-emblem.svg" alt=""/></div></section>
       <section className="stat-grid"><button type="button" className="stat-card stat-action" onClick={()=>go("wallet")}><span>{t.balance}</span><strong>— ETB</strong><small>{t.noFunds} · {language==="am"?"ዝርዝር ይመልከቱ":"Open wallet"}</small></button><button type="button" className="stat-card stat-action" onClick={()=>go("map")}><span>{t.journeys}</span><strong>0</strong><small>{t.empty} · {language==="am"?"ጉዞ ይፈልጉ":"Explore journeys"}</small></button><button type="button" className="stat-card stat-action" onClick={()=>go("profile")}><span>{language==="am"?"የመለያ ሁኔታ":"Account status"}</span><strong>{language==="am"?"እንግዳ":"Guest"}</strong><small>{t.noLogin} · {language==="am"?"መገለጫ":"Open profile"}</small></button></section>
