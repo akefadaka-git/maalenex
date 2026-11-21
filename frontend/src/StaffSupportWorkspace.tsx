@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  claimStaffSupportItem, getStaffSupportQueues, resolveStaffSupportItem, reviewStaffSupportReport,
+  claimStaffSupportItem, getStaffSession, getStaffSupportQueues, resolveStaffSupportItem, reviewStaffSupportReport,
   type StaffPassengerReport, type StaffSupportCase,
 } from "./staff-api";
 
@@ -9,6 +9,7 @@ type QueueKind = "booking" | "passenger" | "report";
 
 export function StaffSupportWorkspace({ language }: Props) {
   const am = language === "am";
+  const [currentStaffId, setCurrentStaffId] = useState("");
   const [bookingCases, setBookingCases] = useState<StaffSupportCase[]>([]);
   const [passengerCases, setPassengerCases] = useState<StaffSupportCase[]>([]);
   const [reports, setReports] = useState<StaffPassengerReport[]>([]);
@@ -23,7 +24,8 @@ export function StaffSupportWorkspace({ language }: Props) {
   const refresh = useCallback(async () => {
     setError("");
     try {
-      const queues = await getStaffSupportQueues();
+      const [queues, session] = await Promise.all([getStaffSupportQueues(), getStaffSession()]);
+      setCurrentStaffId(session.id);
       setBookingCases(queues.bookingCases);
       setPassengerCases(queues.passengerCases);
       setReports(queues.reports);
@@ -103,7 +105,7 @@ export function StaffSupportWorkspace({ language }: Props) {
           {!item.assigned_to && <button className="secondary-action" disabled={busy === key || !!busy} onClick={() => void claim(kind, item.id)}>{am ? "ጉዳዩን ውሰድ" : "Claim case"}</button>}
           <label>{am ? "የውሳኔ ኮድ" : "Resolution code"}<input value={codes[key] ?? ""} maxLength={80} onChange={event => setCodes(current => ({ ...current, [key]: event.target.value }))} /></label>
           <label>{am ? "የመፍትሄ ማብራሪያ" : "Resolution note"}<textarea value={notes[key] ?? ""} maxLength={1000} onChange={event => setNotes(current => ({ ...current, [key]: event.target.value }))} /></label>
-          <button className="primary-action" disabled={!!busy || !item.assigned_to} onClick={() => void resolve(kind, item)}>{am ? "መፍትሄ መዝግብ" : "Resolve case"}</button>
+          <button className="primary-action" disabled={!!busy || item.assigned_to !== currentStaffId} onClick={() => void resolve(kind, item)}>{am ? "መፍትሄ መዝግብ" : "Resolve case"}</button>
         </div>}
       </div>
     </article>;
@@ -130,7 +132,7 @@ export function StaffSupportWorkspace({ language }: Props) {
         {isOpen && <div className="role-assignment-form">
           {!item.assigned_to && <button className="secondary-action" disabled={!!busy} onClick={() => void claim("report", item.id)}>{am ? "ለምርመራ ውሰድ" : "Claim for review"}</button>}
           <label>{am ? "የግምገማ ማስታወሻ" : "Review note"}<textarea value={notes[key] ?? ""} maxLength={1000} onChange={event => setNotes(current => ({ ...current, [key]: event.target.value }))} /></label>
-          <div className="staff-tabs"><button className="secondary-action" disabled={!!busy || !item.assigned_to} onClick={() => void reviewReport(item, "action_required")}>{am ? "ተጨማሪ እርምጃ" : "Action required"}</button><button className="primary-action" disabled={!!busy || !item.assigned_to} onClick={() => void reviewReport(item, "resolved")}>{am ? "ፈታ" : "Resolve"}</button><button className="secondary-action" disabled={!!busy || !item.assigned_to} onClick={() => void reviewReport(item, "dismissed")}>{am ? "ውድቅ አድርግ" : "Dismiss"}</button></div>
+          <div className="staff-tabs"><button className="secondary-action" disabled={!!busy || item.assigned_to !== currentStaffId} onClick={() => void reviewReport(item, "action_required")}>{am ? "ተጨማሪ እርምጃ" : "Action required"}</button><button className="primary-action" disabled={!!busy || item.assigned_to !== currentStaffId} onClick={() => void reviewReport(item, "resolved")}>{am ? "ፈታ" : "Resolve"}</button><button className="secondary-action" disabled={!!busy || item.assigned_to !== currentStaffId} onClick={() => void reviewReport(item, "dismissed")}>{am ? "ውድቅ አድርግ" : "Dismiss"}</button></div>
         </div>}
       </div></article>;
     })}
