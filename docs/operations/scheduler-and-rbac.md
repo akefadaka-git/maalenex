@@ -27,7 +27,7 @@ Defaults: 30-second poll interval, 90-second lease, 100 bookings per batch. The 
 
 ## Monitoring and alert semantics
 
-`GET /api/v1/admin/operations/scheduler` requires `platform.scheduler.read`. It exposes:
+`GET /api/v1/admin/operations/scheduler` requires `platform.scheduler.read`. `POST /api/v1/admin/operations/scheduler/run-once` requires `platform.scheduler.manage`, CSRF, and the explicit development/test opt-in flag. It exposes:
 - health: `not_configured`, `healthy`, `degraded`, or `stale`;
 - heartbeat age and lease expiry;
 - last success/failure and sanitized error class;
@@ -48,6 +48,7 @@ Staff authentication remains separate from passenger identity and uses the exist
 
 Seeded roles:
 - Synthetic platform administrator (manual local provisioning only)
+- Platform access manager (staff role and invitation administration)
 - Platform operations manager
 - Platform support agent
 - Platform safety moderator
@@ -61,7 +62,27 @@ Seeded roles:
 
 Platform roles require a null organization scope. Operator roles require an active organization membership and explicit organization ID. Platform roles cannot be assigned by operator invitation. Role assignment and revocation require platform access-management permission, CSRF, an audit event, and a second administrator (self-assignment/revocation is rejected).
 
-The staff dashboard returns only modules and aggregate statistics allowed by the current permission set. Platform metrics are not returned to organization-scoped staff; operator metrics are filtered to the assigned organizations. The access-management endpoints expose the role catalogue, staff accounts and active assignments to authorized access administrators.
+### Role and dashboard matrix
+
+| Role | Scope | Dashboard / permissions |
+|---|---|---|
+| `synthetic_platform_admin` | Platform | Full platform permission set; manual synthetic bootstrap only |
+| `platform_access_manager` | Platform | Staff accounts, role catalogue, role assignments, invitations, audit read |
+| `platform_operations_manager` | Platform | Operator review, catalog, trip, fleet, fare, support and scheduler read |
+| `platform_support_agent` | Platform | Passenger/operator support and complaint queues |
+| `platform_safety_moderator` | Platform | Support/safety moderation and audit read |
+| `platform_auditor` | Platform | Read-only audit and scheduler monitoring |
+| `platform_scheduler_operator` | Platform | Scheduler monitoring and guarded one-cycle action |
+| `platform_catalog_manager` | Platform | Locations, terminals and routes |
+| `platform_dispatch_manager` | Platform | Trip approval and publication |
+| `platform_fleet_reviewer` | Platform | Vehicle and seat-layout review |
+| `platform_fare_manager` | Platform | Fare approval and publication |
+| `operator_manager` | Operator organization | Organization-scoped fleet, trips, fare proposals and manifests |
+| `operator_dispatcher` | Operator organization | Organization-scoped trip and manifest operations |
+| `operator_fleet_manager` | Operator organization | Organization-scoped fleet |
+| `operator_fare_manager` | Operator organization | Organization-scoped fare proposals |
+
+The staff dashboard returns only modules and aggregate statistics allowed by the current permission set. Platform metrics are not returned to organization-scoped staff; operator metrics are filtered to the assigned organizations. The access-management endpoints expose the role catalogue, staff accounts, approved operator organizations, pending invitations and active assignments to authorized access administrators. The staff console supports role assignment/revocation, invitation creation/revocation, scheduler monitoring, audit review, and permission-driven dashboards. Invitation tokens are displayed only to the authorized operator admin for controlled synthetic testing; no delivery provider is called.
 
 ## Operational rollout gates (not authorized by this change)
 
