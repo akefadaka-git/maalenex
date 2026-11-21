@@ -9,6 +9,36 @@ from app.domains.audit.service import record_event
 from app.domains.notifications.models import PassengerNotification, PassengerNotificationPreference
 
 
+
+def create_notification(
+    db: Session, *, passenger_id: UUID, notification_type: str,
+    title: str, body: str, dedupe_key: str,
+    resource_type: str | None = None, resource_reference: str | None = None,
+) -> PassengerNotification | None:
+    prefs = db.scalar(
+        select(PassengerNotificationPreference).where(
+            PassengerNotificationPreference.passenger_id == passenger_id
+        )
+    )
+    if prefs is not None and not prefs.in_app_enabled:
+        return None
+    existing = db.scalar(
+        select(PassengerNotification).where(PassengerNotification.dedupe_key == dedupe_key)
+    )
+    if existing is not None:
+        return existing
+    item = PassengerNotification(
+        passenger_id=passenger_id,
+        notification_type=notification_type,
+        title=title[:160],
+        body=body,
+        resource_type=resource_type,
+        resource_reference=resource_reference,
+        dedupe_key=dedupe_key[:128],
+    )
+    db.add(item)
+    return item
+
 def notification_payload(item: PassengerNotification) -> dict:
     return {
         "id": str(item.id),
