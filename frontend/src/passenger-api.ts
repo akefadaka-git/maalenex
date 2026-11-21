@@ -356,11 +356,10 @@ export function markPassengerNotificationRead(id: string): Promise<PassengerNoti
 
 
 export function claimPassengerBooking(
-  bookingId: string,
   challengeId: string,
   code: string,
 ): Promise<{ booking_id: string; linked: boolean; status: string }> {
-  return request(`/passenger/bookings/${encodeURIComponent(bookingId)}/claim`, {
+  return request("/passenger/bookings/claim", {
     method: "POST",
     body: JSON.stringify({ challenge_id: challengeId, code }),
   });
