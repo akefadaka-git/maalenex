@@ -83,8 +83,8 @@ ROLE_DESCRIPTIONS = {
 }
 
 
-def _id(kind: str, code: str) -> str:
-    return str(uuid5(NAMESPACE_URL, f"maalenex:{kind}:{code}"))
+def _id(kind: str, code: str):
+    return uuid5(NAMESPACE_URL, f"maalenex:{kind}:{code}")
 
 
 def upgrade() -> None:
