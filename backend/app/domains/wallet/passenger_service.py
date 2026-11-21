@@ -8,7 +8,6 @@ from app.domains.audit.service import record_event
 from app.domains.identity.passenger_models import PassengerAccount
 from app.domains.wallet.models import LedgerAccount, LedgerPosting, LedgerTransaction
 
-
 WALLET_KIND = "passenger_wallet"
 WALLET_CURRENCY = "ETB"
 HISTORY_LIMIT = 50
