@@ -20,6 +20,8 @@ import {
   uploadPassengerReportAttachment,
   type PassengerReport,
   passengerReportAttachmentUrl,
+  getPassengerWallet,
+  type PassengerWallet,
 } from "./passenger-api";
 import { BookingFlow } from "./BookingFlow";
 import { Icon } from "./components/nexus-icons";
@@ -71,6 +73,9 @@ export default function App() {
  const [profileSaved,setProfileSaved]=useState(false);
  const [isOnline,setIsOnline]=useState(true);
  const [passenger,setPassenger]=useState<PassengerSession|null>(null);
+ const [walletData,setWalletData]=useState<PassengerWallet|null>(null);
+ const [walletLoading,setWalletLoading]=useState(false);
+ const [walletError,setWalletError]=useState("");
  const [authIdentifier,setAuthIdentifier]=useState("");
  const [authName,setAuthName]=useState("");
  const [authPassword,setAuthPassword]=useState("");
@@ -88,6 +93,18 @@ export default function App() {
  const todayLocal=(()=>{const now=new Date();return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);})();
  const t=labels[language];
  useEffect(()=>{document.documentElement.lang=language;},[language]);
+
+ useEffect(()=>{
+  if(page!=="wallet")return;
+  if(!passenger){setWalletData(null);setWalletError("");setWalletLoading(false);return;}
+  let active=true;
+  setWalletLoading(true);setWalletError("");
+  getPassengerWallet().then(result=>{if(active)setWalletData(result);})
+   .catch(error=>{if(active)setWalletError(error instanceof Error?error.message:"Unable to load the wallet ledger.");})
+   .finally(()=>{if(active)setWalletLoading(false);});
+  return()=>{active=false;};
+ },[page,passenger]);
+
  useEffect(()=>{
   if(page!=="map")return;
   let active=true;
@@ -335,7 +352,32 @@ export default function App() {
         </div>
         <p className="muted-copy">{t.mapNote}</p>
       </section>
-    )}{page==="wallet"&&<section className="content-section wallet-view"><article className="wallet-card"><span>{t.balance}</span><strong>— <small>ETB</small></strong><span className="wallet-badge">{t.demo}</span><p>{t.noFunds}</p></article><div className="wallet-actions"><button onClick={()=>setNotice(t.coming)}><Icon name="plus"/> {language==="am"?"ገንዘብ ጨምር":"Add funds"}</button><button onClick={()=>setNotice(t.coming)}><Icon name="arrow"/> {language==="am"?"ገንዘብ አውጣ":"Withdraw"}</button><button onClick={()=>setNotice(t.coming)}><Icon name="receipt"/> {language==="am"?"ደረሰኞች":"Receipts"}</button></div><div className="panel-card"><h2>{language==="am"?"የግብይት ታሪክ":"Transaction history"}</h2><p>{language==="am"?"ገና ምንም ግብይት የለም።":"No transactions yet."}</p></div><p className="compliance-note">{t.coming}</p></section>}
+    )}{page==="wallet"&&<section className="content-section wallet-view">
+     <article className="wallet-card">
+      <span>{t.balance}</span>
+      <strong>{passenger&&walletData?formatTripFare(walletData.balance_minor_units,walletData.currency_code):"—"} <small>ETB</small></strong>
+      <span className="wallet-badge">{walletData?.account_status==="frozen"?(language==="am"?"ታግዷል":"FROZEN"):walletData?.account_status==="closed"?(language==="am"?"ተዘግቷል":"CLOSED"):(language==="am"?"የሂሳብ መዝገብ":"LEDGER ACCOUNT")}</span>
+      <p>{language==="am"?"ቀሪ ሂሳቡ ከተመዘገቡ የሂሳብ መዝገብ ግቤቶች ይሰላል። እውነተኛ ገንዘብ ግብይት አልነቃም።":"Balance is derived from posted double-entry ledger records. Real-money movement is disabled."}</p>
+     </article>
+     {!passenger&&<div className="notice-panel">{language==="am"?"የቦርሳ ሂሳብዎን ለማየት ይግቡ።":"Sign in to view your wallet account."} <button type="button" className="text-link" onClick={()=>go("login")}>{t.login}</button></div>}
+     {walletLoading&&<p role="status">{language==="am"?"የቦርሳ ሂሳብ በመጫን ላይ…":"Loading wallet ledger…"}</p>}
+     {walletError&&<p className="notice-panel" role="alert">{walletError}</p>}
+     <div className="wallet-actions">
+      <button disabled title={language==="am"?"የክፍያ አጋር እስኪፈቀድ ድረስ አይነቃም":"Unavailable until a licensed payment partner is approved"}><Icon name="plus"/> {language==="am"?"ገንዘብ ጨምር":"Add funds"}</button>
+      <button disabled title={language==="am"?"የክፍያ አጋር እስኪፈቀድ ድረስ አይነቃም":"Unavailable until a licensed payment partner is approved"}><Icon name="arrow"/> {language==="am"?"ገንዘብ አውጣ":"Withdraw"}</button>
+      <button disabled={!walletData||walletData.history.length===0} onClick={()=>document.getElementById("wallet-transactions")?.scrollIntoView({behavior:"smooth"})}><Icon name="receipt"/> {language==="am"?"ግብይቶች":"Transactions"}</button>
+     </div>
+     <div className="panel-card" id="wallet-transactions">
+      <h2>{language==="am"?"የግብይት ታሪክ":"Transaction history"}</h2>
+      {!passenger?<p>{language==="am"?"ለመቀጠል ይግቡ።":"Sign in to view transactions."}</p>:walletLoading?<p>{language==="am"?"በመጫን ላይ…":"Loading…"}</p>:walletData?.history.length?walletData.history.map(item=><article className="support-case" key={item.reference}>
+       <div><strong>{item.description}</strong><small>{item.reference} · {item.transaction_type}</small></div>
+       <span className="wallet-badge">{item.status}</span>
+       <strong>{item.direction==="debit"?"−":item.direction==="credit"?"+":""}{formatTripFare(item.amount_minor_units,item.currency_code)}</strong>
+       <small>{new Date(item.posted_at).toLocaleString(language==="am"?"am-ET":"en-ET")}</small>
+      </article>):<p>{language==="am"?"ገና የተመዘገቡ ግብይቶች የሉም።":"No posted ledger transactions yet."}</p>}
+     </div>
+     <p className="compliance-note">{language==="am"?"ገንዘብ መጨመር፣ ማውጣት እና ማስተላለፍ የቁጥጥር ፈቃድና የባንክ/ክፍያ አጋር ማረጋገጫ እስኪገኝ ድረስ ተዘግተዋል።":"Funding, withdrawals and transfers remain disabled pending regulatory clearance and verified banking/payment partners."}</p>
+    </section>}
     {page==="profile"&&<section className="content-section"><div className="panel-card profile-panel"><span className="large-avatar">{profileName.trim()?profileName.trim().charAt(0).toUpperCase():"M"}</span><h2>{profileName||(passenger?(language==="am"?"ተሳፋሪ":"Passenger"):(language==="am"?"የእንግዳ መገለጫ":"Guest profile"))}</h2><p>{passenger?.login_identifier||profilePhone||t.noLogin}</p><div className="form-actions"><button className="primary-action" onClick={()=>{setProfileEditing(!profileEditing);setProfileSaved(false);}}>{profileEditing?(language==="am"?"ዝጋ":"Close"):(language==="am"?"መገለጫ አርትዕ":"Edit profile")}<Icon name="arrow"/></button>{!passenger&&<button className="secondary-action" onClick={()=>go("login")}>{t.login}</button>}</div></div>{profileEditing&&<form className="form-card" onSubmit={saveProfile}><h2>{language==="am"?"የመገለጫ መረጃ":"Edit profile"}</h2><label>{t.name}<input value={profileName} onChange={e=>setProfileName(e.target.value)} required minLength={2} maxLength={120} autoComplete="name"/></label><label>{t.phone}<input value={profilePhone} onChange={e=>setProfilePhone(e.target.value)} inputMode="tel" autoComplete="tel" disabled={Boolean(passenger)}/></label><label>{t.email}<input type="email" value={profileEmail} onChange={e=>setProfileEmail(e.target.value)} autoComplete="email" disabled={Boolean(passenger)}/></label><p className="field-hint">{passenger?(language==="am"?"የሙሉ ስም ለውጥ ወደ መለያዎ ይቀመጣል።":"Your display name is saved to your passenger account. Contact changes require verification."):(language==="am"?"ይህ የእንግዳ ማሳያ ነው፤ ለማስቀመጥ ይግቡ።":"Guest profile edits are preview-only until you sign in.")}</p><button className="primary-action" type="submit">{language==="am"?"አስቀምጥ":"Save profile"}</button></form>}<div className="panel-card settings-list"><h2>{t.account}</h2><button onClick={()=>setLanguage(language==="am"?"en":"am")}>{t.language}<span>{language==="am"?"አማርኛ":"English"}</span></button><button onClick={()=>setNotice(t.coming)}>{t.notifications}<span>›</span></button><button onClick={()=>go("forgot")}>{language==="am"?"የይለፍ ቃል መቀየር":"Password and security"}<span>›</span></button><button onClick={()=>go("help")}>{t.help}<span>›</span></button>{passenger&&<button onClick={signOut}>{t.signout}<span>↗</span></button>}</div>{profileSaved&&<p className="notice-panel" role="status">{language==="am"?"መገለጫው ተዘምኗል":"Profile updated"}</p>}</section>}{(page==="login"||page==="register"||page==="forgot")&&<section className="content-section"><form className="form-card" onSubmit={submitAuth} aria-busy={authBusy}><h2>{page==="login"?t.login:page==="register"?t.register:(language==="am"?"የይለፍ ቃል መመለስ":"Recover password")}</h2>{page==="register"&&<label>{t.name}<input required minLength={2} maxLength={120} autoComplete="name" value={authName} onChange={e=>setAuthName(e.target.value)} placeholder={language==="am"?"ሙሉ ስም":"Enter your full name"}/></label>}{page!=="forgot"&&<label>{language==="am"?"ኢሜይል ወይም ዓለም አቀፍ ስልክ ቁጥር":"Email or international phone number"}<input required minLength={5} maxLength={254} autoComplete="username" value={authIdentifier} onChange={e=>setAuthIdentifier(e.target.value)} placeholder="+2519… or name@example.com"/></label>}{page!=="forgot"&&<label>{t.password}<div className="password-field"><input required minLength={page==="register"?12:1} maxLength={128} type={passwordVisible?"text":"password"} value={authPassword} onChange={e=>setAuthPassword(e.target.value)} autoComplete={page==="login"?"current-password":"new-password"}/><button type="button" className="secondary-action" aria-label={passwordVisible?(language==="am"?"ደብቅ":"Hide password"):(language==="am"?"አሳይ":"Show password")} onClick={()=>setPasswordVisible(!passwordVisible)}>{passwordVisible?(language==="am"?"ደብቅ":"Hide"):(language==="am"?"አሳይ":"Show")}</button></div></label>}{page==="register"&&<><label>{language==="am"?"የይለፍ ቃል ድገም":"Confirm password"}<input required minLength={12} maxLength={128} type={passwordVisible?"text":"password"} value={authConfirmPassword} onChange={e=>setAuthConfirmPassword(e.target.value)} autoComplete="new-password"/></label><label className="consent-row"><input type="checkbox" required/><span>{language==="am"?"የአጠቃቀም ውሎችን እና የግላዊነት መመሪያን ተቀብያለሁ":"I agree to the Terms of Use and Privacy Notice."}</span></label></>}{page==="forgot"&&<><label>{language==="am"?"ኢሜይል ወይም ስልክ ቁጥር":"Email or phone number"}<input required minLength={5} maxLength={254} value={authIdentifier} onChange={e=>setAuthIdentifier(e.target.value)}/></label><p className="field-hint">{language==="am"?"የመለያ መመለሻ ማድረሻ አገልግሎት ገና አልተገናኘም።":"Password recovery delivery is not configured yet. No reset email or SMS will be sent."}</p></>}{page!=="forgot"&&<p className="field-hint">{page==="register"?(language==="am"?"የምዝገባ እና የግባ አገልግሎት ከመለያ ሰርቨር ጋር ይገናኛል።":"Your account will be created by the passenger account service. Contact verification is not yet configured."):(language==="am"?"የተሳፋሪ መለያዎን ይጠቀሙ።":"Sign in with your passenger account credentials.")}</p>}<button className="primary-action" type="submit" disabled={authBusy}>{authBusy?(language==="am"?"በመጫን ላይ…":"Working…"):page==="forgot"?(language==="am"?"መመለሻ ጀምር":"Start recovery"):t.submit}<Icon name="arrow"/></button>{page==="login"&&<button type="button" className="text-link" onClick={()=>go("forgot")}>{language==="am"?"የይለፍ ቃል ረሳሁ":"Forgot password?"}</button>}<button type="button" className="text-link" onClick={()=>{setAuthPassword("");setAuthConfirmPassword("");go(page==="login"?"register":"login");}}>{page==="login"?t.register:t.login}</button></form></section>}{page==="help"&&<section className="content-section support-layout">
      <div className="panel-card support-panel">
       <h2>{t.support}</h2>
