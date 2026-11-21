@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { cancelMyBooking, listMyBookings, type PassengerBooking } from "./passenger-api";
+import { cancelMyBooking, listMyBookings, requestBookingChallenge, claimPassengerBooking, type BookingChallenge, type PassengerBooking } from "./passenger-api";
 
 type Props = { language: "am" | "en"; onClose: () => void };
 export function MyBookings({ language, onClose }: Props) {
@@ -9,7 +9,7 @@ export function MyBookings({ language, onClose }: Props) {
   const [error,setError] = useState("");
   const [busy,setBusy] = useState("");
   const [filter,setFilter] = useState("all");
-  const [expanded,setExpanded] = useState("");
+  const [expanded,setExpanded] = useState("");\n  const [claimReference,setClaimReference] = useState("");\n  const [claimPhone,setClaimPhone] = useState("+251");\n  const [claimCode,setClaimCode] = useState("");\n  const [claimChallenge,setClaimChallenge] = useState<BookingChallenge|null>(null);\n  const [claimBusy,setClaimBusy] = useState(false);\n  const [claimError,setClaimError] = useState("");\n  const [claimMessage,setClaimMessage] = useState("");
   const refresh = async () => {
     setLoading(true); setError("");
     try { setItems((await listMyBookings()).items); }
@@ -24,7 +24,7 @@ export function MyBookings({ language, onClose }: Props) {
     catch (reason) { setError(reason instanceof Error ? reason.message : "Cancellation failed."); }
     finally { setBusy(""); }
   };
-  const visible = items.filter(item => filter === "all" || item.status === filter);
+  const visible = items.filter(item => filter === "all" || item.status === filter);\n  const startClaim = async (event: React.FormEvent<HTMLFormElement>) => {\n    event.preventDefault(); setClaimBusy(true); setClaimError(""); setClaimMessage("");\n    try { const challenge = await requestBookingChallenge(claimReference.trim(),claimPhone.trim()); setClaimChallenge(challenge); }\n    catch (reason) { setClaimError(reason instanceof Error ? reason.message : "Unable to start booking verification."); }\n    finally { setClaimBusy(false); }\n  };\n  const completeClaim = async (event: React.FormEvent<HTMLFormElement>) => {\n    event.preventDefault(); if (!claimChallenge) return; setClaimBusy(true); setClaimError("");\n    try { await claimPassengerBooking(claimChallenge.challenge_id,claimCode.trim()); setClaimMessage(am ? "ማስያዣው ከመለያዎ ጋር ተገናኝቷል።" : "Booking successfully linked to your passenger account."); setClaimReference(""); setClaimPhone("+251"); setClaimCode(""); setClaimChallenge(null); await refresh(); }\n    catch (reason) { setClaimError(reason instanceof Error ? reason.message : "Unable to link this booking."); }\n    finally { setClaimBusy(false); }\n  };
   const statusLabel = (status: string) => {
     const labels: Record<string, string> = {held:"ጊዜያዊ ይዞታ",reserved:"ተረጋግጧል",expired:"ጊዜው አልፏል",cancelled:"ተሰርዟል"};
     return am ? (labels[status] ?? status) : status.replaceAll("_"," ");
@@ -34,6 +34,22 @@ export function MyBookings({ language, onClose }: Props) {
     : (am ? "አልተገኘም" : "Not available");
   return <section className="content-section"><div className="panel-card bookings-panel">
     <div className="section-heading"><div><span className="section-kicker">PASSENGER ACCOUNT</span><h2>{am?"የእኔ ማስያዣዎች":"My Bookings"}</h2><p>{am?"ከመለያዎ ጋር የተገናኙ ማስያዣዎችን ይመልከቱና ያስተዳድሩ።":"View and manage bookings securely linked to your passenger account."}</p></div><button className="secondary-action" onClick={onClose}>{am?"ዝጋ":"Close"}</button></div>
+    <details className="booking-claim-panel" open>
+      <summary>{am?"ነባር ማስያዣን ከመለያ ጋር ያገናኙ":"Link an existing guest booking"}</summary>
+      <p className="field-hint">{am?"የማስያዣ ማጣቀሻና የተመዘገበ ስልክ በመጠቀም ባለቤትነትዎን ያረጋግጡ።":"Verify control of the booking contact. Only the exact verified booking is linked; bookings are never matched by phone number alone."}</p>
+      {!claimChallenge?<form onSubmit={startClaim}>
+        <label>{am?"የማስያዣ ማጣቀሻ":"Booking reference"}<input required minLength={8} maxLength={64} value={claimReference} onChange={event=>setClaimReference(event.target.value)}/></label>
+        <label>{am?"የተመዘገበ ስልክ":"Registered booking phone"}<input required minLength={8} maxLength={32} inputMode="tel" value={claimPhone} onChange={event=>setClaimPhone(event.target.value)}/></label>
+        <button className="secondary-action" type="submit" disabled={claimBusy}>{claimBusy?(am?"በመጠየቅ ላይ…":"Requesting…"):(am?"ማረጋገጫ ጠይቅ":"Request verification")}</button>
+      </form>:<form onSubmit={completeClaim}>
+        {claimChallenge.synthetic_test_code&&<p className="notice-panel">{am?"የሙከራ ኮድ":"Test-only code"}: <strong>{claimChallenge.synthetic_test_code}</strong></p>}
+        <label>{am?"የማረጋገጫ ኮድ":"Six-digit verification code"}<input required minLength={6} maxLength={6} inputMode="numeric" pattern="[0-9]{6}" value={claimCode} onChange={event=>setClaimCode(event.target.value.replace(/\\D/g,"").slice(0,6))}/></label>
+        <button className="secondary-action" type="submit" disabled={claimBusy||claimCode.length!==6}>{claimBusy?(am?"በማረጋገጥ ላይ…":"Verifying…"):(am?"አረጋግጥና አገናኝ":"Verify and link")}</button>
+        <button className="text-link" type="button" onClick={()=>{setClaimChallenge(null);setClaimCode("");}}>{am?"ተመለስ":"Start over"}</button>
+      </form>}
+      {claimError&&<p className="support-error" role="alert">{claimError}</p>}
+      {claimMessage&&<p className="notice-panel" role="status">{claimMessage}</p>}
+    </details>
     <div className="booking-filters">{["all","held","reserved","expired","cancelled"].map(value=><button key={value} className={filter===value?"filter-active":"secondary-action"} onClick={()=>setFilter(value)}>{value==="all"?(am?"ሁሉም":"All"):statusLabel(value)}</button>)}</div>
     {loading&&<p role="status">{am?"ማስያዣዎችን በመጫን ላይ…":"Loading your bookings…"}</p>}
     {error&&<p role="alert" className="support-error">{error}</p>}
