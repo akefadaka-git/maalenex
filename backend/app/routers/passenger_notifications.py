@@ -2,6 +2,8 @@
 # FastAPI dependency injection requires Depends instances in endpoint defaults.
 # ruff: noqa: B008
 from uuid import UUID
+from datetime import UTC, datetime
+from sqlalchemy import update
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -14,6 +16,7 @@ from app.domains.notifications.service import (
     get_preferences,
     list_notifications,
     mark_notification_read,
+    PassengerNotification,
     notification_payload,
 )
 from app.routers.passenger_auth import current_passenger_context
@@ -56,6 +59,17 @@ def mark_read(
     db.commit()
     db.refresh(item)
     return notification_payload(item)
+
+
+@router.post("/read-all")
+def mark_all_read(request: Request, context: PassengerContext = Depends(current_passenger_context), db: Session = Depends(get_db)) -> dict:
+    _check_mutation(request, context)
+    result = db.execute(update(PassengerNotification).where(
+        PassengerNotification.passenger_id == context.passenger.id,
+        PassengerNotification.read_at.is_(None),
+    ).values(read_at=datetime.now(UTC)))
+    db.commit()
+    return {"updated": result.rowcount or 0}
 
 
 @router.get("/preferences")
