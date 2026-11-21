@@ -73,6 +73,7 @@ def run_scheduler_cycle(session_factory, *, worker_id: str, batch_size: int = 10
             run = db.get(SchedulerRun, run_id)
             lease = db.get(SchedulerLease, LEASE_NAME)
             owns_lease = lease is not None and lease.owner_id == worker_id
+            cycle_status = "succeeded" if owns_lease else "abandoned"
             if run is not None and run.status == "running":
                 run.status = "succeeded" if owns_lease else "abandoned"
                 run.finished_at = finished
@@ -90,7 +91,7 @@ def run_scheduler_cycle(session_factory, *, worker_id: str, batch_size: int = 10
                 lease.records_processed += processed
                 lease.last_duration_ms = duration_ms
             db.commit()
-        return {"status": "succeeded", "records_processed": processed, "duration_ms": duration_ms}
+        return {"status": cycle_status, "records_processed": processed, "duration_ms": duration_ms}
     except Exception as exc:
         duration_ms = int((perf_counter() - started_clock) * 1000)
         error_code = type(exc).__name__[:80]
