@@ -77,7 +77,7 @@ def get_or_create_passenger_wallet(db: Session, passenger_id: uuid.UUID) -> Ledg
     return wallet
 
 
-def passenger_wallet_snapshot(db: Session, passenger_id: UUID) -> dict:
+def passenger_wallet_snapshot(db: Session, passenger_id: uuid.UUID) -> dict:
     wallet = get_or_create_passenger_wallet(db, passenger_id)
     signed_amount = case(
         (LedgerPosting.side == "credit", LedgerPosting.amount_minor_units),
