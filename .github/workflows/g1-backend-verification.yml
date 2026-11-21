@@ -87,11 +87,15 @@ jobs:
           app/domains/wallet/passenger_service.py
           app/routers/passenger_wallet.py
           tests/test_passenger_wallet.py
+          app/domains/bookings/models.py
+          app/domains/bookings/service.py
           app/domains/notifications/**
           app/routers/passenger_notifications.py
           tests/test_passenger_notifications.py
           migrations/versions/0013_passenger_notifications.py
+          migrations/versions/0014_verified_booking_ownership.py
           migrations/versions/0012_passenger_wallet.py
+          tests/test_verified_booking_ownership.py
       - name: Backend tests
         run: python -m pytest -q
       - name: Apply baseline migration to empty database
