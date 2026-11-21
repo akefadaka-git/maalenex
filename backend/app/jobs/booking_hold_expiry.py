@@ -1,6 +1,7 @@
 """Concurrent-safe expiry worker for unconfirmed passenger seat holds."""
 # ruff: noqa: I001
-from sqlalchemy import func, select
+from datetime import UTC, datetime
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.domains.audit.service import record_event
 from app.domains.bookings.models import Booking, SeatAllocation, SeatHold
@@ -8,7 +9,7 @@ from app.domains.bookings.service import _notify_booking_status
 
 def expire_due_booking_holds(db: Session, *, batch_size: int = 100) -> int:
     """Expire a bounded batch; SKIP LOCKED permits concurrent worker instances."""
-    now = db.scalar(select(func.now()))
+    now = datetime.now(UTC)
     due = list(db.scalars(
         select(Booking).where(Booking.status == "held", Booking.expires_at.is_not(None), Booking.expires_at <= now)
         .order_by(Booking.expires_at, Booking.id).limit(batch_size).with_for_update(skip_locked=True)
