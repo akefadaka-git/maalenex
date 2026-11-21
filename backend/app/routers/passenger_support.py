@@ -13,11 +13,11 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import get_db
 from app.domains.audit.service import record_event
-from app.domains.notifications.service import create_notification
 from app.domains.identity.passenger_service import (
     PassengerContext,
     verify_passenger_csrf,
 )
+from app.domains.notifications.service import create_notification
 from app.domains.support.passenger_models import PassengerSupportCase
 from app.routers.passenger_auth import current_passenger_context
 
