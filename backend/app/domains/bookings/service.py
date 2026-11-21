@@ -255,6 +255,46 @@ def accept_reservation(db: Session, *, booking_id: UUID) -> ReservationReference
 
 
 
+
+def cancel_unconfirmed_booking(db: Session, *, booking_id: UUID, actor_type: str, actor_id: str | None) -> Booking:
+    """Cancel a held booking before reservation; no payment/refund is involved."""
+    now = db.scalar(select(func.now()))
+    booking = db.scalar(select(Booking).where(Booking.id == booking_id).with_for_update())
+    if booking is None:
+        raise BookingConflict("Booking not found.")
+    if booking.status != "held":
+        raise BookingConflict("Only an unconfirmed seat hold can be cancelled. Reserved bookings require an approved cancellation policy.")
+    holds = list(db.scalars(
+        select(SeatHold).where(SeatHold.booking_id == booking.id).with_for_update()
+    ))
+    if not holds or any(hold.status != "active" for hold in holds):
+        raise BookingConflict("The booking no longer has an active hold to cancel.")
+    for hold in holds:
+        hold.status = "cancelled"
+        hold.released_at = now
+        hold.release_reason = "passenger_cancelled"
+    allocations = list(db.scalars(
+        select(SeatAllocation).where(
+            SeatAllocation.booking_id == booking.id,
+            SeatAllocation.status == "active",
+        ).with_for_update()
+    ))
+    for allocation in allocations:
+        allocation.status = "cancelled"
+        allocation.released_at = now
+    booking.status = "cancelled"
+    booking.version += 1
+    record_event(
+        db, event_type="booking.hold.cancelled", actor_type=actor_type,
+        actor_id=actor_id, resource_type="booking", resource_id=str(booking.id),
+        action="cancel_hold", outcome="success",
+        metadata={"payment_collected": False, "refund_required": False},
+    )
+    _notify_booking_status(db, booking, "cancelled")
+    db.flush()
+    return booking
+
+
 def _notify_booking_status(db: Session, booking: Booking, status: str) -> None:
     if booking.passenger_account_id is None:
         return
