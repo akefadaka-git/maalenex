@@ -11,6 +11,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,6 +24,13 @@ class LedgerAccount(Base):
         CheckConstraint("normal_balance IN ('debit', 'credit')", name="ck_ledger_accounts_normal_balance"),
         CheckConstraint("status IN ('active', 'frozen', 'closed')", name="ck_ledger_accounts_status"),
         Index("ix_ledger_accounts_owner", "owner_type", "owner_ref"),
+        Index(
+            "uq_passenger_wallet_owner_currency",
+            "owner_type", "owner_ref", "account_kind", "currency_code",
+            unique=True,
+            postgresql_where=text("owner_type = 'passenger' AND account_kind = 'passenger_wallet' AND owner_ref IS NOT NULL"),
+            sqlite_where=text("owner_type = 'passenger' AND account_kind = 'passenger_wallet' AND owner_ref IS NOT NULL"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
