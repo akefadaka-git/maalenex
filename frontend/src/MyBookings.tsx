@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { cancelMyBooking, listMyBookings, requestBookingChallenge, claimPassengerBooking, type BookingChallenge, type PassengerBooking } from "./passenger-api";
 
 type Props = { language: "am" | "en"; onClose: () => void };
@@ -32,13 +32,13 @@ export function MyBookings({ language, onClose }: Props) {
     finally { setBusy(""); }
   };
   const visible = items.filter(item => filter === "all" || item.status === filter);
-  const startClaim = async (event: React.FormEvent<HTMLFormElement>) => {
+  const startClaim = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); setClaimBusy(true); setClaimError(""); setClaimMessage("");
     try { const challenge = await requestBookingChallenge(claimReference.trim(),claimPhone.trim()); setClaimChallenge(challenge); }
     catch (reason) { setClaimError(reason instanceof Error ? reason.message : "Unable to start booking verification."); }
     finally { setClaimBusy(false); }
   };
-  const completeClaim = async (event: React.FormEvent<HTMLFormElement>) => {
+  const completeClaim = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); if (!claimChallenge) return; setClaimBusy(true); setClaimError("");
     try { await claimPassengerBooking(claimChallenge.challenge_id,claimCode.trim()); setClaimMessage(am ? "ማስያዣው ከመለያዎ ጋር ተገናኝቷል።" : "Booking successfully linked to your passenger account."); setClaimReference(""); setClaimPhone("+251"); setClaimCode(""); setClaimChallenge(null); await refresh(); }
     catch (reason) { setClaimError(reason instanceof Error ? reason.message : "Unable to link this booking."); }
