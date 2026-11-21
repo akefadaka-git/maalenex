@@ -1,4 +1,5 @@
 name: G1 backend foundation verification
+# Passenger wallet: run exact-head lint, tests and PostgreSQL migration verification.
 
 on:
   push:
