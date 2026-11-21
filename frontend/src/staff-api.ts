@@ -104,3 +104,45 @@ export function createStaffInvitation(organizationId: string, input: {
 export function revokeStaffInvitation(organizationId: string, invitationId: string): Promise<{ revoked: boolean }> {
   return request(`/operators/${encodeURIComponent(organizationId)}/invitations/${encodeURIComponent(invitationId)}/revoke`, { method: "POST" });
 }
+
+export type StaffSupportCase = {
+  id: string; case_reference: string; subject: string; category: string; message: string;
+  status: string; assigned_to: string | null; created_at: string;
+};
+export type StaffPassengerReport = {
+  id: string; report_reference: string; report_type: string; category: string;
+  severity: string; subject: string; description: string; status: string;
+  assigned_to: string | null; created_at: string;
+  attachments: Array<{ id: string; file_name: string; content_type: string; size_bytes: number; sha256: string }>;
+};
+export async function getStaffSupportQueues(): Promise<{
+  bookingCases: StaffSupportCase[]; passengerCases: StaffSupportCase[]; reports: StaffPassengerReport[];
+}> {
+  const [bookingCases, passengerCases, reports] = await Promise.all([
+    request<StaffSupportCase[]>("/support/cases?limit=100"),
+    request<StaffSupportCase[]>("/support/passenger-cases?limit=100"),
+    request<StaffPassengerReport[]>("/reports/passenger?limit=100"),
+  ]);
+  return { bookingCases, passengerCases, reports };
+}
+export function claimStaffSupportItem(kind: "booking" | "passenger" | "report", id: string): Promise<unknown> {
+  const path = kind === "booking" ? "support/cases" :
+    kind === "passenger" ? "support/passenger-cases" : "reports/passenger";
+  return request(`/${path}/${encodeURIComponent(id)}/claim`, { method: "POST" });
+}
+export function resolveStaffSupportItem(
+  kind: "booking" | "passenger", id: string,
+  input: { resolution_code: string; resolution_note: string },
+): Promise<unknown> {
+  const path = kind === "booking" ? "support/cases" : "support/passenger-cases";
+  return request(`/${path}/${encodeURIComponent(id)}/resolve`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+export function reviewStaffSupportReport(
+  id: string, input: { status: "action_required" | "resolved" | "dismissed"; resolution_note: string },
+): Promise<unknown> {
+  return request(`/reports/passenger/${encodeURIComponent(id)}/review`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
