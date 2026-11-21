@@ -41,6 +41,7 @@ PERMISSIONS = {
 ROLE_GRANTS = {
     "synthetic_platform_admin": [code for code in PERMISSIONS if code.startswith("platform.")],
     "synthetic_operator_manager": [code for code in PERMISSIONS if code.startswith("operator.") or code == "organization.members.manage"],
+    "platform_access_manager": ["platform.access.manage", "platform.dashboard.read", "platform.audit.read"],
     "platform_operations_manager": [
         "platform.dashboard.read", "platform.operator.create", "platform.operator.review",
         "platform.catalog.manage", "platform.catalog.publish", "platform.trip.approve",
@@ -64,6 +65,7 @@ ROLE_GRANTS = {
 ROLE_DESCRIPTIONS = {
     "synthetic_platform_admin": "Synthetic-only local platform administrator; never provisioned automatically",
     "synthetic_operator_manager": "Legacy synthetic operator manager, organization-scoped",
+    "platform_access_manager": "Platform access and role assignment administrator",
     "platform_operations_manager": "Platform-wide operations coordination",
     "platform_support_agent": "Passenger and operator support case handling",
     "platform_safety_moderator": "Safety, fraud and complaint moderation",
