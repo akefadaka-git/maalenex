@@ -357,14 +357,14 @@ export default function App() {
       <span>{t.balance}</span>
       <strong>{passenger&&walletData?formatTripFare(walletData.balance_minor_units,walletData.currency_code):"—"} <small>ETB</small></strong>
       <span className="wallet-badge">{walletData?.account_status==="frozen"?(language==="am"?"ታግዷል":"FROZEN"):walletData?.account_status==="closed"?(language==="am"?"ተዘግቷል":"CLOSED"):(language==="am"?"የሂሳብ መዝገብ":"LEDGER ACCOUNT")}</span>
-      <p>{language==="am"?"ቀሪ ሂሳቡ ከተመዘገቡ የሂሳብ መዝገብ ግቤቶች ይሰላል። እውነተኛ ገንዘብ ግብይት አልነቃም።":"Balance is derived from posted double-entry ledger records. Real-money movement is disabled."}</p>
+      <p>{language==="am"?"ቀሪ ሂሳቡ ከተመዘገቡ የሂሳብ መዝገብ ግቤቶች ይሰላል። እውነተኛ ገንዘብ ግብይት አልነቃም።":"Balance is derived from posted double-entry ledger records. {t.noFunds}"}</p>
      </article>
      {!passenger&&<div className="notice-panel">{language==="am"?"የቦርሳ ሂሳብዎን ለማየት ይግቡ።":"Sign in to view your wallet account."} <button type="button" className="text-link" onClick={()=>go("login")}>{t.login}</button></div>}
      {walletLoading&&<p role="status">{language==="am"?"የቦርሳ ሂሳብ በመጫን ላይ…":"Loading wallet ledger…"}</p>}
      {walletError&&<p className="notice-panel" role="alert">{walletError}</p>}
      <div className="wallet-actions">
-      <button disabled title={language==="am"?"የክፍያ አጋር እስኪፈቀድ ድረስ አይነቃም":"Unavailable until a licensed payment partner is approved"}><Icon name="plus"/> {language==="am"?"ገንዘብ ጨምር":"Add funds"}</button>
-      <button disabled title={language==="am"?"የክፍያ አጋር እስኪፈቀድ ድረስ አይነቃም":"Unavailable until a licensed payment partner is approved"}><Icon name="arrow"/> {language==="am"?"ገንዘብ አውጣ":"Withdraw"}</button>
+      <button onClick={()=>setNotice(t.coming)} title={language==="am"?"የክፍያ አጋር እስኪፈቀድ ድረስ አይነቃም":"Unavailable until a licensed payment partner is approved"}><Icon name="plus"/> {language==="am"?"ገንዘብ ጨምር":"Add funds"}</button>
+      <button onClick={()=>setNotice(t.coming)} title={language==="am"?"የክፍያ አጋር እስኪፈቀድ ድረስ አይነቃም":"Unavailable until a licensed payment partner is approved"}><Icon name="arrow"/> {language==="am"?"ገንዘብ አውጣ":"Withdraw"}</button>
       <button disabled={!walletData||walletData.history.length===0} onClick={()=>document.getElementById("wallet-transactions")?.scrollIntoView({behavior:"smooth"})}><Icon name="receipt"/> {language==="am"?"ግብይቶች":"Transactions"}</button>
      </div>
      <div className="panel-card" id="wallet-transactions">
