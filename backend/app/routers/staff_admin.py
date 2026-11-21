@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.session import get_db
+from app.db.session import SessionLocal, get_db
 from app.domains.audit.models import AuditEvent
 from app.domains.audit.service import record_event
 from app.domains.bookings.models import Booking
@@ -18,7 +18,6 @@ from app.domains.fleet.models import Vehicle
 from app.domains.identity.authorization import has_permission
 from app.domains.identity.models import Permission, Role, RoleAssignment, RolePermission, User
 from app.domains.identity.service import StaffContext
-from app.domains.operations.models import SchedulerRun
 from app.domains.organizations.models import Organization, OrganizationMembership
 from app.domains.support.passenger_models import PassengerSupportCase
 from app.domains.support.report_models import PassengerReport
@@ -288,15 +287,14 @@ def read_scheduler_operations(
 def run_scheduler_once(
     request: Request,
     context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
 ) -> dict:
     require_csrf(request, context)
-    db = request.state.db if hasattr(request.state, "db") else None
     if settings.app_env not in {"development", "test"} or not settings.synthetic_data_only or not settings.scheduler_enabled:
         raise HTTPException(status_code=409, detail="Scheduler manual execution is disabled by the current safety configuration.")
     _authorize(db, context, "platform.scheduler.manage")
     result = run_scheduler_cycle(
-        __import__("app.db.session", fromlist=["SessionLocal"]).SessionLocal,
-        worker_id=f"admin-once-{uuid4()}",
+        SessionLocal, worker_id=f"admin-once-{uuid4()}",
         batch_size=settings.scheduler_batch_size,
         lease_seconds=settings.scheduler_lease_seconds,
     )
