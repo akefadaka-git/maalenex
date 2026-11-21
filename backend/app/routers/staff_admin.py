@@ -243,6 +243,7 @@ def assign_access_role(
             OrganizationMembership.organization_id == payload.organization_id,
             OrganizationMembership.user_id == user_id,
             OrganizationMembership.revoked_at.is_(None),
+            OrganizationMembership.membership_status == "active",
         ))
         if org is None or org.organization_type != "operator" or org.status != "approved" or membership is None:
             raise HTTPException(status_code=409, detail="An active membership in an approved operator organization is required.")
