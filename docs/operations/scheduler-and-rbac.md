@@ -9,7 +9,7 @@ This design is production-compatible in its process and database coordination mo
 Run the API and maintenance worker as separate processes. The API never starts a scheduler task in its lifespan. Start the worker explicitly from `backend/`:
 
 ```bash
-MAALENEX_SCHEDULER_ENABLED=true python -m app.jobs.scheduler_worker
+SCHEDULER_ENABLED=true python -m app.jobs.scheduler_worker
 ```
 
 The worker refuses to start unless the application is in development/test mode, synthetic-only mode is true, and the explicit enable flag is set. The existing configuration still rejects production mode, non-local databases, and non-synthetic operation.
@@ -73,4 +73,4 @@ Before any production operation, separately approve:
 5. Retention policy for scheduler runs and audit data.
 6. Separate production approval and change record.
 
-Until those gates are complete, keep `MAALENEX_SCHEDULER_ENABLED=false`, `APP_ENV` in development/test, and synthetic-only mode true.
+Until those gates are complete, keep `SCHEDULER_ENABLED=false`, `APP_ENV` in development/test, and synthetic-only mode true.
