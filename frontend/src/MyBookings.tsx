@@ -25,9 +25,10 @@ export function MyBookings({ language, onClose }: Props) {
     finally { setBusy(""); }
   };
   const visible = items.filter(item => filter === "all" || item.status === filter);
-  const statusLabel = (status: string) => am
-    ? ({held:"ጊዜያዊ ይዞታ",reserved:"ተረጋግጧል",expired:"ጊዜው አልፏል",cancelled:"ተሰርዟል"}[status] ?? status)
-    : status.replaceAll("_"," ");
+  const statusLabel = (status: string) => {
+    const labels: Record<string, string> = {held:"ጊዜያዊ ይዞታ",reserved:"ተረጋግጧል",expired:"ጊዜው አልፏል",cancelled:"ተሰርዟል"};
+    return am ? (labels[status] ?? status) : status.replaceAll("_"," ");
+  };
   const date = (value: string | null) => value
     ? new Intl.DateTimeFormat(am ? "am-ET" : "en-ET",{dateStyle:"medium",timeStyle:"short",timeZone:"Africa/Addis_Ababa"}).format(new Date(value))
     : (am ? "አልተገኘም" : "Not available");
