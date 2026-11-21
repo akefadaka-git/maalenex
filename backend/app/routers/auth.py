@@ -1,3 +1,4 @@
+# ruff: noqa: B008, I001
 # ruff: noqa: I001
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, SecretStr
