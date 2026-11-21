@@ -191,7 +191,7 @@ export function BookingFlow({ trip, passengerCount, language, onClose }: Props) 
           <label>{am ? "የማረጋገጫ ኮድ" : "Verification code"}
             <input required minLength={6} maxLength={6} inputMode="numeric" pattern="[0-9]{6}" value={claimCode} onChange={e=>setClaimCode(e.target.value.replace(/\D/g,"").slice(0,6))} />
           </label>
-          <button className="secondary-action" type="submit" disabled={claimBusy || !claimChallenge.synthetic_test_code}>{claimBusy ? (am ? "በማረጋገጥ ላይ…" : "Verifying…") : (am ? "አረጋግጥና አገናኝ" : "Verify and link booking")}</button>
+          <button className="secondary-action" type="submit" disabled={claimBusy || claimCode.length !== 6}>{claimBusy ? (am ? "በማረጋገጥ ላይ…" : "Verifying…") : (am ? "አረጋግጥና አገናኝ" : "Verify and link booking")}</button>
           <button type="button" className="text-link" onClick={()=>{setClaimChallenge(null);setClaimCode("");}}>{am ? "ተመለስ" : "Start over"}</button>
         </form>}
         {claimError && <p className="support-error" role="alert">{claimError}</p>}
