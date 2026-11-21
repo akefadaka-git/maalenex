@@ -29,6 +29,7 @@ Defaults: 30-second poll interval, 90-second lease, 100 bookings per batch. The 
 
 `GET /api/v1/admin/operations/scheduler` requires `platform.scheduler.read`. `POST /api/v1/admin/operations/scheduler/run-once` requires `platform.scheduler.manage`, CSRF, and the explicit development/test opt-in flag. It exposes:
 - health: `not_configured`, `healthy`, `degraded`, or `stale`;
+- number of due-but-not-expired seat holds and age of the oldest overdue hold;
 - heartbeat age and lease expiry;
 - last success/failure and sanitized error class;
 - consecutive failures, total batches/records and last duration;
