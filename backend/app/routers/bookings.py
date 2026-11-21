@@ -36,6 +36,7 @@ from app.domains.bookings.service import (
     BookingConflict,
     accept_reservation,
     claim_booking_for_passenger,
+    cancel_unconfirmed_booking,
     create_seat_hold,
 )
 from app.domains.identity.passenger_service import PassengerContext, verify_passenger_csrf
@@ -393,12 +394,31 @@ def revoke_guest_booking_access(
 
 @router.post("/bookings/{booking_id}/cancel")
 def cancel_guest_booking(
-    booking_id: UUID, grant: BookingAccessGrant = Depends(current_booking_grant),
-) -> None:
-    raise HTTPException(status_code=409, detail={
-        "code": "CAPABILITY_DISABLED",
-        "message": "Live cancellation is disabled until the Owner-approved cancellation and refund policy is finalized.",
-    })
+    booking_id: UUID, request: Request,
+    grant: BookingAccessGrant = Depends(current_booking_grant),
+    db: Session = Depends(get_db),
+) -> dict:
+    _require_origin(request)
+    if grant.scope != "manage" or not verify_booking_csrf(
+        grant, cookie_token=request.cookies.get(CSRF_COOKIE),
+        header_token=request.headers.get("X-CSRF-Token"),
+    ):
+        raise HTTPException(status_code=403, detail="Booking cancellation authorization failed.")
+    try:
+        booking = cancel_unconfirmed_booking(
+            db, booking_id=booking_id, actor_type="guest", actor_id=None,
+        )
+        db.commit()
+    except BookingConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {
+        "booking_id": str(booking.id),
+        "booking_reference": booking.booking_reference,
+        "status": booking.status,
+        "payment_collected": False,
+        "refund_required": False,
+    }
 
 
 @router.post("/tickets")
