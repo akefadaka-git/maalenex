@@ -195,12 +195,13 @@ def assign_operator_role(
         OrganizationMembership.organization_id == organization_id,
         OrganizationMembership.user_id == user.id,
         OrganizationMembership.revoked_at.is_(None),
-            OrganizationMembership.membership_status == "active",
     ))
     if membership is None:
         membership = OrganizationMembership(organization_id=organization_id, user_id=user.id, membership_status="active")
         db.add(membership)
         db.flush()
+    elif membership.membership_status != "active":
+        raise HTTPException(status_code=409, detail="Operator membership is not active.")
     duplicate = db.scalar(select(RoleAssignment.id).where(
         RoleAssignment.user_id == user.id, RoleAssignment.role_id == role.id,
         RoleAssignment.organization_id == organization_id,
