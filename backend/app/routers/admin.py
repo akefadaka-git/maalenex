@@ -195,6 +195,7 @@ def assign_operator_role(
         OrganizationMembership.organization_id == organization_id,
         OrganizationMembership.user_id == user.id,
         OrganizationMembership.revoked_at.is_(None),
+            OrganizationMembership.membership_status == "active",
     ))
     if membership is None:
         membership = OrganizationMembership(organization_id=organization_id, user_id=user.id, membership_status="active")
