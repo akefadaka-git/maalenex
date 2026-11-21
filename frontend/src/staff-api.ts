@@ -86,3 +86,20 @@ export function revokeStaffRole(assignmentId: string): Promise<{ revoked: boolea
   return request(`/admin/access/role-assignments/${encodeURIComponent(assignmentId)}`, { method: "DELETE" });
 }
 export function getStaffAudit(): Promise<AuditItem[]> { return request("/audit/events?limit=30"); }
+
+export type StaffOrganization = { id: string; display_name: string; status: string };
+export type StaffInvitation = { id: string; organization_id: string; organization_name: string;
+  login_identifier: string; display_name: string; role_code: string; created_at: string; expires_at: string };
+export function getStaffOrganizations(): Promise<{ items: StaffOrganization[] }> { return request("/admin/access/organizations"); }
+export function getStaffInvitations(): Promise<{ items: StaffInvitation[] }> { return request("/admin/access/invitations"); }
+export function createStaffInvitation(organizationId: string, input: {
+  login_identifier: string; display_name: string; role_code: string;
+}): Promise<{ invitation_id: string; login_identifier: string; expires_at: string;
+  delivery: string; synthetic_invitation_token: string }> {
+  return request(`/operators/${encodeURIComponent(organizationId)}/invitations`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+export function revokeStaffInvitation(organizationId: string, invitationId: string): Promise<{ revoked: boolean }> {
+  return request(`/operators/${encodeURIComponent(organizationId)}/invitations/${encodeURIComponent(invitationId)}/revoke`, { method: "POST" });
+}
