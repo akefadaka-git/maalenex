@@ -460,3 +460,37 @@ def claim_passenger_booking(
         secure=secure_cookie, samesite="lax", path="/",
     )
     return {"booking_id": str(booking.id), "linked": True, "status": booking.status}
+
+
+@router.post("/passenger/bookings/claim")
+def claim_passenger_booking_by_verified_challenge(
+    payload: ClaimBookingRequest, request: Request,
+    context: PassengerContext = Depends(current_passenger_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Atomically consume the contact challenge and link its exact booking."""
+    _require_origin(request)
+    if not verify_passenger_csrf(
+        context, cookie_token=request.cookies.get("mnm_passenger_csrf"),
+        header_token=request.headers.get("X-CSRF-Token"),
+    ):
+        raise HTTPException(status_code=403, detail="CSRF validation failed.")
+    try:
+        booking, _grant, _access_token, _csrf_token = verify_access_challenge(
+            db, challenge_id=payload.challenge_id, code=payload.code,
+            client_ip=_client_ip(request),
+        )
+        booking = claim_booking_for_passenger(
+            db, booking_id=booking.id, passenger_id=context.passenger.id,
+        )
+        db.commit()
+    except BookingAccessRateLimited:
+        db.commit()
+        raise HTTPException(status_code=429, detail="Too many verification attempts. Try again later.")
+    except BookingAccessError:
+        db.rollback()
+        raise HTTPException(status_code=401, detail="Invalid or expired booking verification.")
+    except BookingConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {"booking_id": str(booking.id), "linked": True, "status": booking.status}
