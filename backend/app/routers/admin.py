@@ -200,6 +200,13 @@ def assign_operator_role(
         membership = OrganizationMembership(organization_id=organization_id, user_id=user.id, membership_status="active")
         db.add(membership)
         db.flush()
+    duplicate = db.scalar(select(RoleAssignment.id).where(
+        RoleAssignment.user_id == user.id, RoleAssignment.role_id == role.id,
+        RoleAssignment.organization_id == organization_id,
+        RoleAssignment.revoked_at.is_(None),
+    ))
+    if duplicate:
+        raise HTTPException(status_code=409, detail="An equivalent active assignment already exists.")
     assignment = RoleAssignment(
         user_id=user.id, role_id=role.id, organization_id=organization_id,
         assigned_by=context.user.id,
