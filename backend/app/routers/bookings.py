@@ -39,9 +39,9 @@ from app.domains.bookings.service import (
     create_seat_hold,
 )
 from app.domains.identity.passenger_service import PassengerContext, verify_passenger_csrf
-from app.routers.passenger_auth import current_passenger_context
 from app.domains.reservations.models import BookingAccessGrant, ReservationReference
 from app.domains.support.models import SupportCase
+from app.routers.passenger_auth import current_passenger_context
 from app.domains.trips.models import TripSeat
 
 router = APIRouter(tags=["passenger-bookings"])
@@ -168,7 +168,7 @@ def verify_booking_access_challenge(
 ) -> dict:
     _require_origin(request)
     try:
-        booking, grant, access_token, csrf_token = verify_access_challenge(
+        booking, _grant, access_token, csrf_token = verify_access_challenge(
             db, challenge_id=challenge_id, code=payload.code,
             client_ip=_client_ip(request),
         )
