@@ -41,8 +41,8 @@ from app.domains.bookings.service import (
 from app.domains.identity.passenger_service import PassengerContext, verify_passenger_csrf
 from app.domains.reservations.models import BookingAccessGrant, ReservationReference
 from app.domains.support.models import SupportCase
-from app.routers.passenger_auth import current_passenger_context
 from app.domains.trips.models import TripSeat
+from app.routers.passenger_auth import current_passenger_context
 
 router = APIRouter(tags=["passenger-bookings"])
 ACCESS_COOKIE = "mnm_booking_access"
@@ -430,7 +430,7 @@ def claim_passenger_booking(
     ):
         raise HTTPException(status_code=403, detail="CSRF validation failed.")
     try:
-        booking, grant, access_token, csrf_token = verify_access_challenge(
+        booking, _grant, access_token, csrf_token = verify_access_challenge(
             db, challenge_id=payload.challenge_id, code=payload.code,
             client_ip=_client_ip(request),
         )
