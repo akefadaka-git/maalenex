@@ -11,7 +11,10 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.domains.identity.passenger_service import PassengerContext, verify_passenger_csrf
 from app.domains.notifications.service import (
-    get_preferences, list_notifications, mark_notification_read, notification_payload,
+    get_preferences,
+    list_notifications,
+    mark_notification_read,
+    notification_payload,
 )
 from app.routers.passenger_auth import current_passenger_context
 
