@@ -43,9 +43,12 @@ export function StaffConsole({ language }: Props) {
       try { setScheduler(await getSchedulerStatus()); } catch { setScheduler(null); }
     } else setScheduler(null);
     if(summary.permissions.includes("platform.access.manage")) {
-      const [roleResult,userResult] = await Promise.all([getStaffRoles(),getStaffUsers()]);
+      const [roleResult,userResult,organizationResult,invitationResult] = await Promise.all([
+        getStaffRoles(), getStaffUsers(), getStaffOrganizations(), getStaffInvitations(),
+      ]);
       setRoles(roleResult.items); setUsers(userResult.items);
-    } else { setRoles([]); setUsers([]); }
+      setOrganizations(organizationResult.items); setInvitations(invitationResult.items);
+    } else { setRoles([]); setUsers([]); setOrganizations([]); setInvitations([]); }
     if(summary.permissions.includes("platform.audit.read")) {
       try { setAudit(await getStaffAudit()); } catch { setAudit([]); }
     } else setAudit([]);
@@ -53,7 +56,7 @@ export function StaffConsole({ language }: Props) {
   useEffect(()=>{let active=true;void getStaffSession().then(async current=>{if(active)await refresh(current);}).catch(()=>{if(active)setSession(null);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
   useEffect(()=>{if(!session||tab!=="scheduler")return;let active=true;const poll=()=>void getSchedulerStatus().then(value=>{if(active)setScheduler(value);}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:"Scheduler monitoring unavailable.");});poll();const timer=window.setInterval(poll,15000);return()=>{active=false;window.clearInterval(timer);};},[session,tab]);
   const signIn=async(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();setBusy(true);setError("");try{const current=await staffLogin(login.trim(),password);setPassword("");await refresh(current);}catch(reason){setError(reason instanceof Error?reason.message:"Staff sign-in failed.");}finally{setBusy(false);}};
-  const signOut=async()=>{setBusy(true);try{await staffLogout();setSession(null);setDashboard(null);setScheduler(null);setUsers([]);setRoles([]);setAudit([]);}catch(reason){setError(reason instanceof Error?reason.message:"Unable to sign out.");}finally{setBusy(false);}};
+  const signOut=async()=>{setBusy(true);try{await staffLogout();setSession(null);setDashboard(null);setScheduler(null);setUsers([]);setRoles([]);setOrganizations([]);setInvitations([]);setAudit([]);}catch(reason){setError(reason instanceof Error?reason.message:"Unable to sign out.");}finally{setBusy(false);}};
   const assign=async(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();const role=roles.find(item=>item.code===selectedRole);if(!selectedUser||!role)return;setBusy(true);setError("");setMessage("");try{await assignStaffRole(selectedUser,role.code,role.scope==="organization"?organizationId.trim():null);setMessage(am?"የሚና ፈቃድ ተመድቧል።":"Role assigned successfully.");setOrganizationId("");await refresh();}catch(reason){setError(reason instanceof Error?reason.message:"Role assignment failed.");}finally{setBusy(false);}};
   const invite=async(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();setBusy(true);setError("");setMessage("");setInviteToken("");try{const result=await createStaffInvitation(inviteOrganizationId,{login_identifier:inviteLogin.trim(),display_name:inviteName.trim(),role_code:inviteRole});setInviteToken(result.synthetic_invitation_token);setMessage(am?"ግብዣው ተፈጥሯል፤ ማድረስ አልነቃም።":"Invitation created. Delivery is disabled; copy the one-time synthetic token for controlled testing.");setInviteLogin("");setInviteName("");await refresh();}catch(reason){setError(reason instanceof Error?reason.message:"Invitation creation failed.");}finally{setBusy(false);}};
   const revokeInvite=async(item:StaffInvitation)=>{if(!window.confirm(am?"ይህን ግብዣ መሻር ይፈልጋሉ?":"Revoke this invitation?"))return;setBusy(true);setError("");try{await revokeStaffInvitation(item.organization_id,item.id);await refresh();}catch(reason){setError(reason instanceof Error?reason.message:"Invitation revocation failed.");}finally{setBusy(false);}};
