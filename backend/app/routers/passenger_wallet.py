@@ -7,9 +7,9 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.domains.identity.passenger_service import PassengerContext
 from app.domains.wallet.passenger_service import (
+    passenger_wallet_snapshot,
     WalletLedgerIntegrityError,
     WalletUnavailable,
-    passenger_wallet_snapshot,
 )
 from app.routers.passenger_auth import current_passenger_context
 
