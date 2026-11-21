@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -89,6 +90,7 @@ def test_unconfirmed_booking_cancellation_releases_seats_and_notifies(db):
     booking = _booking(db)
     booking.passenger_account_id = passenger.id
     seat_id = uuid4()
+    booking.expires_at = datetime.now(UTC) + timedelta(minutes=5)
     db.add(SeatHold(
         booking_id=booking.id, trip_id=booking.trip_id, trip_seat_id=seat_id,
         status="active", expires_at=booking.expires_at,
