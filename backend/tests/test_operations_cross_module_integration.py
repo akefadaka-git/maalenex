@@ -282,7 +282,8 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
     assert published_fare.status_code == 200, published_fare.text
     assert published_fare.json()["status"] == "published"
 
-    # Only after the effective ETB fare is published may the approved trip publish.
+    # Only the trip-publishing role may publish after the effective ETB fare exists.
+    selected["value"] = users["trip_manager"]
     published_trip = client.post(f"/api/v1/trips/{trip_id}/publish")
     assert published_trip.status_code == 200, published_trip.text
     assert published_trip.json()["status"] == "published"
