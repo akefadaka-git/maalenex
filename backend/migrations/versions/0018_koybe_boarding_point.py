@@ -3,7 +3,7 @@
 Revision ID: 0018_koybe_boarding_point
 Revises: 0017_passenger_map_geometry
 """
-from uuid import UUID, uuid5, NAMESPACE_URL
+from uuid import UUID
 
 from alembic import op
 import sqlalchemy as sa
@@ -63,16 +63,23 @@ def upgrade() -> None:
 
     terminals = bind.execute(
         sa.text(
-            "SELECT id FROM terminals WHERE location_id = :location_id "
-            "AND lower(trim(name)) = lower(:terminal_name) ORDER BY id"
+            "SELECT id, name FROM terminals WHERE location_id = :location_id ORDER BY id"
         ),
-        {"location_id": location_id, "terminal_name": TERMINAL_NAME},
+        {"location_id": location_id},
     ).all()
-    if len(terminals) > 1:
+    matching_terminals = [
+        row for row in terminals if row[1].strip().casefold() == TERMINAL_NAME.casefold()
+    ]
+    if len(matching_terminals) > 1:
         raise RuntimeError(
-            "Cannot register Koybe boarding point: duplicate Koybe passenger terminal records exist."
+            "Cannot register Koybe boarding point: duplicate matching passenger terminal records exist."
         )
-    if not terminals:
+    if not matching_terminals:
+        if terminals:
+            raise RuntimeError(
+                "Cannot safely identify the operator-confirmed Koybe terminal among existing terminals; "
+                "reconcile the terminal records before applying this migration."
+            )
         bind.execute(
             sa.text(
                 "INSERT INTO terminals (id, location_id, name, status) "
