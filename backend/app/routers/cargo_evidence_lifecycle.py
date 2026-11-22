@@ -728,6 +728,8 @@ def assess_evidence_rights_request(
     evidence = db.scalar(select(CargoDeliveryEvidence).where(
         CargoDeliveryEvidence.id == item.evidence_id,
     ).with_for_update())
+    if payload.outcome == "completed" and item.request_type == "erasure":
+        raise HTTPException(status_code=409, detail="An erasure request can be marked completed only after the controlled deletion workflow succeeds.")
     if payload.outcome == "eligible_for_erasure":
         if item.request_type != "erasure":
             raise HTTPException(status_code=422, detail="Only an erasure request can receive erasure eligibility.")
@@ -774,7 +776,7 @@ def request_evidence_deletion(
     block_reason = deletion_block_reason(evidence, now=datetime.now(UTC))
     if block_reason:
         raise HTTPException(status_code=409, detail=f"Evidence deletion fails closed: {block_reason}.")
-    if policy is None:
+    if policy is None and evidence.rights_request_status != "eligible_for_erasure":
         raise HTTPException(status_code=409, detail="An independently validated and activated retention policy is required; deletion fails closed.")
     item = CargoDeliveryEvidenceDeletionRequest(
         evidence_id=evidence.id, requested_by=context.user.id,
@@ -836,6 +838,13 @@ def approve_and_execute_evidence_deletion(
     evidence.storage_deleted_at = item.completed_at
     evidence.lifecycle_state = "deleted"
     evidence.deletion_failure_code = None
+    for rights_item in db.scalars(select(CargoDeliveryEvidenceRightsRequest).where(
+        CargoDeliveryEvidenceRightsRequest.evidence_id == evidence.id,
+        CargoDeliveryEvidenceRightsRequest.request_type == "erasure",
+        CargoDeliveryEvidenceRightsRequest.status == "eligible_for_erasure",
+    )).all():
+        rights_item.status = "completed"
+    evidence.rights_request_status = "none"
     _audit(db, context=context, evidence=evidence, action="deletion_completed", outcome="success")
     db.commit()
     return {"deletion_request_id": str(item.id), "status": "completed", "evidence_metadata_preserved": True}
