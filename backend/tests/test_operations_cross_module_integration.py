@@ -17,7 +17,7 @@ from app.domains.fares.models import Fare, FareApproval, FareVersion
 from app.domains.fleet.models import SeatLayoutVersion, Vehicle, VehicleSeat
 from app.domains.identity.models import Permission, Role, RoleAssignment, RolePermission, User
 from app.domains.organizations.models import Organization
-from app.domains.trips.models import Trip, TripSeat
+from app.domains.trips.models import Schedule, Trip, TripSeat
 from app.main import app
 from app.routers import admin
 
@@ -38,7 +38,7 @@ def operations_client(request, monkeypatch):
         User.__table__, Role.__table__, Permission.__table__, RolePermission.__table__,
         RoleAssignment.__table__, Organization.__table__, Location.__table__,
         Terminal.__table__, Route.__table__, RouteStop.__table__, Vehicle.__table__,
-        SeatLayoutVersion.__table__, VehicleSeat.__table__, Trip.__table__,
+        SeatLayoutVersion.__table__, VehicleSeat.__table__, Schedule.__table__, Trip.__table__,
         TripSeat.__table__, Fare.__table__, FareVersion.__table__,
         FareApproval.__table__, AuditEvent.__table__,
     ]
