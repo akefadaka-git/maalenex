@@ -117,17 +117,24 @@ def verify_compliance_object(
     except InvalidStoredObject:
         raise
     except Exception as exc:
+        error = getattr(exc, "response", {}).get("Error", {}).get("Code")
+        if error in {"404", "NoSuchKey", "NotFound"}:
+            raise InvalidStoredObject("Evidence object is missing from private storage.") from exc
         raise StorageOperationFailed("Private evidence storage verification failed; retry is safe.") from exc
 
     return {"content_type": content_type, "content_length": length}
 
 
-def create_cargo_delivery_download_url(*, object_key: str, expires_in_seconds: int = 60) -> str:
+def create_cargo_delivery_download_url(
+    *, object_key: str, carrier_organization_id: str, dispatch_id: str,
+    expires_in_seconds: int = 60,
+) -> str:
     """Create a bounded private GET URL; callers must authorize before invoking."""
     if not 1 <= expires_in_seconds <= 300:
         raise ValueError("Private evidence download URL lifetime must be 1-300 seconds.")
-    if not object_key.startswith("cargo-delivery/") or ".." in object_key or object_key.endswith("/"):
-        raise InvalidStoredObject("Evidence object key is invalid.")
+    expected_prefix = f"cargo-delivery/{carrier_organization_id}/{dispatch_id}/"
+    if not object_key.startswith(expected_prefix) or ".." in object_key or object_key.endswith("/"):
+        raise InvalidStoredObject("Evidence object key is not scoped to this carrier dispatch.")
     try:
         return _client().generate_presigned_url(
             "get_object",
@@ -138,10 +145,13 @@ def create_cargo_delivery_download_url(*, object_key: str, expires_in_seconds: i
         raise StorageOperationFailed("Private evidence download authorization failed; retry is safe.") from exc
 
 
-def delete_cargo_delivery_object(*, object_key: str) -> None:
+def delete_cargo_delivery_object(
+    *, object_key: str, carrier_organization_id: str, dispatch_id: str,
+) -> None:
     """Delete a private evidence object; storage errors are never reported as success."""
-    if not object_key.startswith("cargo-delivery/") or ".." in object_key or object_key.endswith("/"):
-        raise InvalidStoredObject("Evidence object key is invalid.")
+    expected_prefix = f"cargo-delivery/{carrier_organization_id}/{dispatch_id}/"
+    if not object_key.startswith(expected_prefix) or ".." in object_key or object_key.endswith("/"):
+        raise InvalidStoredObject("Evidence object key is not scoped to this carrier dispatch.")
     try:
         _client().delete_object(Bucket=settings.object_storage_bucket, Key=object_key)
     except Exception as exc:
