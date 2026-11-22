@@ -1,4 +1,5 @@
 """Governed lifecycle metadata for private cargo delivery evidence."""
+from calendar import monthrange
 from datetime import datetime
 from uuid import UUID, uuid4
 
@@ -86,3 +87,15 @@ class CargoDeliveryEvidenceDeletionRequest(Base):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+PROVISIONAL_RETENTION_MONTHS = 24
+PROVISIONAL_POLICY_VERSION = "owner-approved-provisional-24m-v1"
+
+
+def add_calendar_months(value: datetime, months: int) -> datetime:
+    """Add calendar months without overflowing at month-end."""
+    month_index = value.month - 1 + months
+    year = value.year + month_index // 12
+    month = month_index % 12 + 1
+    return value.replace(year=year, month=month, day=min(value.day, monthrange(year, month)[1]))
