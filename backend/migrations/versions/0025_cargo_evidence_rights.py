@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Add data-subject rights request triage for cargo evidence.
 
 Revision ID: 0025_cargo_evidence_rights
