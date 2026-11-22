@@ -270,6 +270,8 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
     selected["value"] = users["fleet_reviewer"]
     layout_approval = client.post(f"/api/v1/seat-layouts/{layout_id}/approve")
     assert layout_approval.status_code == 200, layout_approval.text
+    fleet_history_after_layout = client.get(f"/api/v1/vehicles/{vehicle_id}/history")
+    assert any(item["event_type"] == "fleet.seat_layout.approved" for item in fleet_history_after_layout.json()["events"])
     layout_detail = client.get(f"/api/v1/vehicles/{vehicle_id}/seat-layouts")
     assert layout_detail.status_code == 200, layout_detail.text
     assert layout_detail.json()[0]["geometry"]["markers"][0]["kind"] == "door"
