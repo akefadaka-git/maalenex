@@ -592,6 +592,8 @@ def classify_evidence_retention(
     evidence.dpia_reference = payload.dpia_reference
     evidence.retention_expires_at = expiry
     evidence.retention_started_at = retention_start
+    if schedule_code == "EC-3":
+        evidence.retention_policy_version = PROVISIONAL_POLICY_VERSION
     evidence.classification_status = f"{'ordinary' if schedule_code == 'EC-3' else 'statutory'}_pending_dpo"
     evidence.retention_legal_review_reference = payload.legal_review_reference
     evidence.retention_classified_by = context.user.id
