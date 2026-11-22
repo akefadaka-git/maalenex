@@ -13,8 +13,9 @@ on:
       - "backend/**"
       - "docs/deployment/**"
       - ".github/workflows/g1-backend-verification.yml"
+      - ".github/workflows/android-shell-verification.yml"
   pull_request:
-    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/acceptance-remediation, feat/passenger-identity-service, feat/passenger-journey-search, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards, feat/passenger-backend-connectivity-foundation, fix/passenger-password-minimum-six]
+    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/acceptance-remediation, feat/passenger-identity-service, feat/passenger-journey-search, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards, feat/passenger-backend-connectivity-foundation]
     paths:
       - "backend/**"
       - ".github/workflows/g1-backend-verification.yml"
