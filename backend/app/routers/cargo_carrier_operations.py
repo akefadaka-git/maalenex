@@ -184,13 +184,6 @@ def create_delivery_proof_upload_intent(
         raise HTTPException(status_code=503, detail="Private evidence storage is not configured.") from exc
     except InvalidStoredObject as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    record_event(
-        db, event_type="cargo.delivery_proof.upload_intent_created", actor_type="staff",
-        actor_id=str(context.user.id), resource_type="cargo_dispatch",
-        resource_id=str(dispatch.id), action="upload_intent", outcome="success",
-        organization_id=dispatch.carrier_organization_id,
-        metadata={"content_type": payload.content_type, "content_length": payload.content_length},
-    )
     now = datetime.now(UTC)
     evidence = CargoDeliveryEvidence(
         carrier_organization_id=dispatch.carrier_organization_id,
