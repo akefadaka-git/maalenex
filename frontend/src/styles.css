@@ -57,3 +57,9 @@
 .staff-token{font-family:monospace;overflow-wrap:anywhere;user-select:all;color:#e6f2e9;padding:10px;border-radius:8px;background:rgba(5,15,10,.45)}
 
 .staff-permission-details{margin:14px 0;padding:12px;border:1px solid rgba(145,224,180,.14);border-radius:12px;background:rgba(131,217,176,.035)}.staff-permission-details summary{cursor:pointer;color:#c9e5d3;font-size:12px;font-weight:650}.staff-permission-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.staff-permission-list code{padding:4px 7px;border-radius:6px;background:rgba(131,217,176,.08);color:#a8cbb6;font-size:9px}.staff-role-definition{padding:10px 0;border-bottom:1px solid rgba(180,219,197,.1)}.staff-role-definition strong,.staff-role-definition small{display:block}.staff-role-definition strong{color:#d8ebdf;font-size:11px}.staff-role-definition small{margin-top:4px;color:#92ad9d;font-size:10px}
+
+
+.seat-layout-preview { display: grid; gap: 0.65rem; margin-top: 1rem; padding: 1rem; border: 1px solid var(--border-color, #d9dee7); border-radius: 0.75rem; overflow-x: auto; }
+.seat-layout-row { display: flex; align-items: center; gap: 0.5rem; min-width: max-content; }
+.seat-layout-row > strong { width: 1.5rem; text-align: center; }
+.seat-layout-seat { display: inline-flex; min-width: 2.5rem; min-height: 2.5rem; align-items: center; justify-content: center; border: 1px solid var(--border-color, #cbd5e1); border-radius: 0.5rem; font-size: 0.8rem; }
