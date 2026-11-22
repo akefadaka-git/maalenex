@@ -2,6 +2,7 @@
 """Verify the packaged SPA's restrictive WebView CSP before Android packaging."""
 from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import urlsplit
 import sys
 
 
@@ -52,17 +53,28 @@ required = {
     "img-src": ["'self'", "data:"],
     "font-src": ["'self'"],
     "media-src": ["'self'"],
-    "connect-src": ["'self'", "https:"],
     "worker-src": ["'self'"],
     "manifest-src": ["'self'"],
 }
 for name, expected in required.items():
     if directives.get(name) != expected:
         raise SystemExit(f"FAIL: CSP directive {name} expected {expected}, got {directives.get(name)}")
+
+connect_sources = directives.get("connect-src", [])
+if not connect_sources or connect_sources[0] != "'self'" or len(connect_sources) > 2:
+    raise SystemExit(f"FAIL: connect-src must contain self and at most one configured API origin: {connect_sources}")
+if len(connect_sources) == 2:
+    api_origin = urlsplit(connect_sources[1])
+    local_http = api_origin.scheme == "http" and api_origin.hostname in {"localhost", "127.0.0.1", "::1"}
+    if not api_origin.netloc or (api_origin.scheme != "https" and not local_http):
+        raise SystemExit(f"FAIL: API CSP origin must be HTTPS (HTTP only for localhost): {connect_sources[1]}")
+    if api_origin.username or api_origin.password or api_origin.path not in {"", "/"} or api_origin.query or api_origin.fragment:
+        raise SystemExit(f"FAIL: API CSP entry must be an origin only: {connect_sources[1]}")
+
 for name, sources in directives.items():
     if "*" in sources or "'unsafe-inline'" in sources or "'unsafe-eval'" in sources:
         raise SystemExit(f"FAIL: unsafe CSP source in {name}: {sources}")
 print("PASS: exactly one CSP policy is present in packaged index.html")
-for name in required:
-    print(f"PASS: CSP {name} = {' '.join(required[name])}")
+for name, sources in directives.items():
+    print(f"PASS: CSP {name} = {' '.join(sources)}")
 print("PASS: no wildcard, unsafe-inline, or unsafe-eval source")
