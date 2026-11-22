@@ -323,7 +323,7 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
         assert {
             "catalog.route.published", "fleet.vehicle.reviewed",
             "fleet.seat_layout.approved", "trip.created", "trip.submitted",
-            "trip.approved", "fare.version.proposed", "fare.version.submitted",
+            "trip.draft.updated", "trip.approved", "fare.version.proposed", "fare.version.submitted",
             "fare.version.reviewed", "fare.version.published", "trip.published",
         }.issubset(event_types)
 
