@@ -13,7 +13,9 @@ from sqlalchemy.orm import Session
 from app.domains.audit.service import record_event
 from app.domains.cargo.evidence_lifecycle import (
     CargoDeliveryEvidence, CargoDeliveryEvidenceHold, CargoDeliveryEvidenceRetentionPolicy,
+    CargoDeliveryEvidenceRightsRequest,
 )
+from app.domains.cargo.evidence_retention import deletion_block_reason
 from app.domains.fleet.object_storage import (
     StorageNotConfigured, StorageOperationFailed, delete_cargo_delivery_object,
 )
@@ -30,6 +32,12 @@ def cleanup_expired_unattached_evidence(
         select(CargoDeliveryEvidence)
         .where(
             CargoDeliveryEvidence.delivery_proof_id.is_(None),
+            CargoDeliveryEvidence.classification_status == "ordinary",
+            CargoDeliveryEvidence.accounting_document.is_(False),
+            CargoDeliveryEvidence.commercial_correspondence.is_(False),
+            CargoDeliveryEvidence.retention_dpo_reviewed_at.is_not(None),
+            CargoDeliveryEvidence.retention_expires_at.is_not(None),
+            CargoDeliveryEvidence.retention_expires_at <= now,
             CargoDeliveryEvidence.upload_intent_expires_at.is_not(None),
             CargoDeliveryEvidence.upload_intent_expires_at <= cutoff,
             CargoDeliveryEvidence.lifecycle_state.in_({"pending", "deletion_failed"}),
@@ -47,7 +55,28 @@ def cleanup_expired_unattached_evidence(
             CargoDeliveryEvidenceHold.evidence_id == evidence.id,
             CargoDeliveryEvidenceHold.released_at.is_(None),
         ).limit(1))
-        if active_hold is not None:
+        policy = db.scalar(select(CargoDeliveryEvidenceRetentionPolicy.version).where(
+            CargoDeliveryEvidenceRetentionPolicy.version == evidence.retention_policy_version,
+            CargoDeliveryEvidenceRetentionPolicy.status == "active",
+        ))
+        pending_rights = db.scalar(select(CargoDeliveryEvidenceRightsRequest.id).where(
+            CargoDeliveryEvidenceRightsRequest.evidence_id == evidence.id,
+            CargoDeliveryEvidenceRightsRequest.status == "pending",
+        ).limit(1))
+        blocked = deletion_block_reason(
+            classification_status=evidence.classification_status,
+            accounting_document=evidence.accounting_document,
+            commercial_correspondence=evidence.commercial_correspondence,
+            retention_expires_at=evidence.retention_expires_at,
+            retention_dpo_reviewed_at=evidence.retention_dpo_reviewed_at,
+            dpia_reference=evidence.dpia_reference,
+            dpo_deletion_suspended=evidence.dpo_deletion_suspended,
+            rights_review_status="pending" if pending_rights is not None else evidence.rights_review_status,
+            active_hold=active_hold is not None,
+            active_policy=policy is not None,
+            now=now,
+        )
+        if blocked:
             held += 1
             continue
         try:
@@ -112,7 +141,24 @@ def process_expired_retention_evidence(
             CargoDeliveryEvidenceHold.evidence_id == evidence.id,
             CargoDeliveryEvidenceHold.released_at.is_(None),
         ).limit(1))
-        if policy is None or active_hold is not None:
+        pending_rights = db.scalar(select(CargoDeliveryEvidenceRightsRequest.id).where(
+            CargoDeliveryEvidenceRightsRequest.evidence_id == evidence.id,
+            CargoDeliveryEvidenceRightsRequest.status == "pending",
+        ).limit(1))
+        reason = deletion_block_reason(
+            classification_status=evidence.classification_status,
+            accounting_document=evidence.accounting_document,
+            commercial_correspondence=evidence.commercial_correspondence,
+            retention_expires_at=evidence.retention_expires_at,
+            retention_dpo_reviewed_at=evidence.retention_dpo_reviewed_at,
+            dpia_reference=evidence.dpia_reference,
+            dpo_deletion_suspended=evidence.dpo_deletion_suspended,
+            rights_review_status="pending" if pending_rights is not None else evidence.rights_review_status,
+            active_hold=active_hold is not None,
+            active_policy=policy is not None,
+            now=now,
+        )
+        if reason is not None:
             blocked += 1
             continue
         try:
