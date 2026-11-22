@@ -215,11 +215,23 @@ export type FleetVehicle = {
 };
 export type FleetSeat = {
   id: string; seat_code: string; row_label: string | null; column_index: number;
-  seat_type: string; is_sellable: boolean;
+  x: number; y: number; seat_type: string; is_sellable: boolean;
+};
+export type SeatLayoutGeometry = {
+  width: number; height: number;
+  markers: Array<{ kind: "aisle" | "door"; x: number; y: number; label?: string | null }>;
 };
 export type FleetSeatLayout = {
   id: string; version_number: number; status: string; effective_from: string | null;
-  effective_to: string | null; seats: FleetSeat[];
+  effective_to: string | null; geometry: SeatLayoutGeometry; seats: FleetSeat[];
+};
+export type FleetComplianceDocument = {
+  id: string; document_type: string; status: string; evidence_reference: string;
+  issued_at: string | null; expires_at: string | null; review_reason: string | null; created_at: string | null;
+};
+export type FleetReviewHistory = {
+  documents: FleetComplianceDocument[];
+  events: Array<{ event_type: string; occurred_at: string; action: string; outcome: string; reason_code: string | null; metadata: Record<string, unknown> }>;
 };
 export function getFleetVehicles(organizationId?: string): Promise<FleetVehicle[]> {
   return request<FleetVehicle[]>(organizationId
@@ -237,10 +249,10 @@ export function createFleetVehicle(organizationId: string, vehicle_reference: st
   });
 }
 export function createFleetSeatLayout(vehicleId: string, seats: Array<{
-  seat_code: string; row_label: string; column_index: number; seat_type: string; is_sellable: boolean;
-}>): Promise<{ id: string; version_number: number; seat_count: number; status: string }> {
+  seat_code: string; row_label: string; column_index: number; x?: number; y?: number; seat_type: string; is_sellable: boolean;
+}>, geometry: SeatLayoutGeometry): Promise<{ id: string; version_number: number; seat_count: number; status: string }> {
   return request(`/vehicles/${encodeURIComponent(vehicleId)}/seat-layouts`, {
-    method: "POST", body: JSON.stringify({ seats }),
+    method: "POST", body: JSON.stringify({ seats, geometry }),
   });
 }
 export function reviewFleetVehicle(vehicleId: string, decision: "approved" | "rejected", reason: string): Promise<{
@@ -263,11 +275,26 @@ export function updateFleetVehicle(vehicleId: string, vehicle_reference: string)
   });
 }
 export function updateDraftFleetSeatLayout(layoutId: string, seats: Array<{
-  seat_code: string; row_label: string; column_index: number; seat_type: string; is_sellable: boolean;
-}>): Promise<{ id: string; version_number: number; seat_count: number; status: string }> {
+  seat_code: string; row_label: string; column_index: number; x?: number; y?: number; seat_type: string; is_sellable: boolean;
+}>, geometry: SeatLayoutGeometry): Promise<{ id: string; version_number: number; seat_count: number; status: string }> {
   return request(`/seat-layouts/${encodeURIComponent(layoutId)}`, {
-    method: "PUT", body: JSON.stringify({ seats }),
+    method: "PUT", body: JSON.stringify({ seats, geometry }),
   });
+}
+export function submitFleetComplianceEvidence(vehicleId: string, input: {
+  document_type: string; evidence_reference: string; issued_at: string | null; expires_at: string | null;
+}): Promise<{ id: string; document_type: string; status: string }> {
+  return request(`/vehicles/${encodeURIComponent(vehicleId)}/compliance-documents`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+export function reviewFleetComplianceEvidence(documentId: string, decision: "approved" | "rejected", reason: string): Promise<{ id: string; status: string }> {
+  return request(`/compliance-documents/${encodeURIComponent(documentId)}/review`, {
+    method: "POST", body: JSON.stringify({ decision, reason }),
+  });
+}
+export function getFleetReviewHistory(vehicleId: string): Promise<FleetReviewHistory> {
+  return request<FleetReviewHistory>(`/vehicles/${encodeURIComponent(vehicleId)}/history`);
 }
 
 
@@ -282,6 +309,11 @@ export type DispatchTrip = {
   boarding_terminal_id: string; boarding_terminal_name: string; vehicle_id: string; vehicle_reference: string;
   seat_layout_version_id: string; departure_at: string; arrival_estimate_at: string | null;
   status: string; seat_count: number; published_at: string | null;
+  exceptions?: TripOperationalException[];
+};
+export type TripOperationalException = {
+  id: string; category: string; severity: string; description: string; status: string;
+  resolution: string | null; created_at: string | null; resolved_at: string | null;
 };
 export type TripManifest = {
   trip_id: string; boarding_terminal_id: string; passenger_count: number;
@@ -326,6 +358,22 @@ export function getTripManifest(tripId: string): Promise<TripManifest> {
   return request<TripManifest>(`/trips/${encodeURIComponent(tripId)}/manifest`);
 }
 
+export function getTripOperationalExceptions(tripId: string): Promise<TripOperationalException[]> {
+  return request<TripOperationalException[]>(`/trips/${encodeURIComponent(tripId)}/exceptions`);
+}
+export function reportTripOperationalException(tripId: string, input: {
+  category: string; severity: "normal" | "high" | "critical"; description: string;
+}): Promise<{ id: string; trip_id: string; status: string }> {
+  return request(`/trips/${encodeURIComponent(tripId)}/exceptions`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+export function resolveTripOperationalException(exceptionId: string, resolution: string): Promise<{ id: string; status: string }> {
+  return request(`/trip-exceptions/${encodeURIComponent(exceptionId)}/resolve`, {
+    method: "POST", body: JSON.stringify({ resolution }),
+  });
+}
+
 
 export type FareOptions = {
   routes: Array<{ id: string; code: string }>;
@@ -335,6 +383,7 @@ export type FareVersionRecord = {
   id: string; version_number: number; amount_minor_units: number; currency_code: string;
   effective_from: string; effective_to: string | null; status: string; proposed_by: string;
   approved_by: string | null; published_by: string | null; published_at: string | null;
+  approval_history: Array<{ id: string; decision: string; reviewer_id: string; reason: string; decided_at: string | null }>;
 };
 export type FareRecord = {
   id: string; organization_id: string; organization_name: string; route_id: string;
