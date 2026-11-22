@@ -131,7 +131,7 @@ def _audit(db: Session, *, context: StaffContext, evidence: CargoDeliveryEvidenc
         db, event_type=f"cargo.delivery_evidence.{action}", actor_type="staff",
         actor_id=str(context.user.id), resource_type="cargo_delivery_evidence",
         resource_id=str(evidence.id), action=action, outcome=outcome,
-        organization_id=evidence.carrier_organization_id, reason_code=reason,
+        organization_id=evidence.carrier_organization_id, reason_code=reason[:100] if reason else None,
         metadata={"evidence_id": str(evidence.id), "dispatch_id": str(evidence.dispatch_id)},
     )
 
