@@ -1,3 +1,5 @@
+# FastAPI dependency injection requires Depends instances in endpoint defaults.
+# ruff: noqa: B008
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
