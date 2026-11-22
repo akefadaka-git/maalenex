@@ -624,6 +624,11 @@ def create_seat_layout(
         raise HTTPException(status_code=422, detail="Seat codes must be unique and 1–16 characters.")
     if len(set(positions)) != len(positions):
         raise HTTPException(status_code=422, detail="Seat positions must be unique within each row.")
+    coordinates = [(item["x"], item["y"]) for item in seat_rows if item["x"] is not None or item["y"] is not None]
+    if any((item["x"] is None) != (item["y"] is None) for item in seat_rows):
+        raise HTTPException(status_code=422, detail="Seat geometry coordinates must provide both x and y.")
+    if len(set(coordinates)) != len(coordinates):
+        raise HTTPException(status_code=422, detail="Seat geometry coordinates must be unique.")
     latest = db.scalar(select(func.max(SeatLayoutVersion.version_number)).where(
         SeatLayoutVersion.vehicle_id == vehicle.id
     )) or 0
@@ -1892,6 +1897,11 @@ def update_draft_seat_layout(
         raise HTTPException(status_code=422, detail="Seat codes must be unique and 1–16 characters.")
     if len(set(positions)) != len(positions):
         raise HTTPException(status_code=422, detail="Seat positions must be unique within each row.")
+    coordinates = [(item["x"], item["y"]) for item in seat_rows if item["x"] is not None or item["y"] is not None]
+    if any((item["x"] is None) != (item["y"] is None) for item in seat_rows):
+        raise HTTPException(status_code=422, detail="Seat geometry coordinates must provide both x and y.")
+    if len(set(coordinates)) != len(coordinates):
+        raise HTTPException(status_code=422, detail="Seat geometry coordinates must be unique.")
     for seat in db.scalars(select(VehicleSeat).where(
         VehicleSeat.seat_layout_version_id == layout.id
     ).with_for_update()):
