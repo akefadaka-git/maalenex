@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.domains.audit.service import record_event
-from app.domains.cargo.carrier_operations import CargoDeliveryProof
+from app.domains.cargo.carrier_operations import CarrierOperationalProfile, CargoDeliveryProof
 from app.domains.cargo.dispatch import CargoDispatch, CargoTrackingEvent
 from app.domains.cargo.dispatch_service import validate_dispatch_transition, validate_tracking_event
 from app.domains.cargo.models import CargoConsignment
@@ -106,6 +106,11 @@ def create_dispatch(
     carrier = db.get(Organization, payload.carrier_organization_id)
     if carrier is None or carrier.status != "approved" or carrier.organization_type != "operator":
         raise HTTPException(status_code=409, detail="Carrier must be an approved operator organization.")
+    carrier_profile = db.scalar(select(CarrierOperationalProfile).where(
+        CarrierOperationalProfile.organization_id == carrier.id
+    ))
+    if carrier_profile is None or carrier_profile.operational_status != "active":
+        raise HTTPException(status_code=409, detail="Carrier must have an active operational profile before dispatch.")
     if payload.vehicle_id is not None:
         vehicle = db.get(Vehicle, payload.vehicle_id)
         if (
