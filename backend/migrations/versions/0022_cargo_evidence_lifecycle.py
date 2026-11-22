@@ -200,6 +200,59 @@ def downgrade() -> None:
     count = connection.execute(sa.text("SELECT count(*) FROM cargo_delivery_evidence")).scalar_one()
     if count:
         raise RuntimeError("Refusing to drop cargo evidence lifecycle records during downgrade.")
+    from uuid import NAMESPACE_URL, uuid5
+    role_grants = {
+        "platform_evidence_reviewer": ["platform.cargo.delivery_proof.evidence.read"],
+        "platform_evidence_custodian": [
+            "platform.cargo.delivery_proof.evidence.access.manage",
+            "platform.cargo.delivery_proof.evidence.delete",
+        ],
+        "platform_legal_compliance_officer": [
+            "platform.cargo.delivery_proof.evidence.hold.manage",
+            "platform.cargo.delivery_proof.evidence.retention.manage",
+        ],
+        "platform_data_protection_officer": [
+            "platform.cargo.delivery_proof.evidence.hold.review",
+            "platform.cargo.delivery_proof.evidence.retention.review",
+        ],
+        "operator_manager": ["operator.cargo.delivery_proof.evidence.read"],
+        "operator_dispatcher": ["operator.cargo.delivery_proof.evidence.read"],
+        "synthetic_operator_manager": ["operator.cargo.delivery_proof.evidence.read"],
+    }
+    for role_code, codes in role_grants.items():
+        role_id = connection.execute(
+            sa.text("SELECT id FROM access_roles WHERE code=:code"), {"code": role_code},
+        ).scalar_one_or_none()
+        if role_id is None:
+            continue
+        for code in codes:
+            grant_id = uuid5(NAMESPACE_URL, f"maalenex:role-permission:{role_code}:{code}")
+            connection.execute(sa.text(
+                "DELETE FROM access_role_permissions WHERE id=:id"
+            ), {"id": grant_id})
+        if role_code.startswith("platform_evidence_") and role_id == uuid5(NAMESPACE_URL, f"maalenex:role:{role_code}"):
+            assigned = connection.execute(sa.text(
+                "SELECT count(*) FROM access_role_assignments WHERE role_id=:role"
+            ), {"role": role_id}).scalar_one()
+            if not assigned:
+                connection.execute(sa.text("DELETE FROM access_roles WHERE id=:id"), {"id": role_id})
+    permission_codes = [
+        "operator.cargo.delivery_proof.evidence.read",
+        "platform.cargo.delivery_proof.evidence.read",
+        "platform.cargo.delivery_proof.evidence.hold.manage",
+        "platform.cargo.delivery_proof.evidence.hold.review",
+        "platform.cargo.delivery_proof.evidence.delete",
+        "platform.cargo.delivery_proof.evidence.access.manage",
+        "platform.cargo.delivery_proof.evidence.retention.manage",
+        "platform.cargo.delivery_proof.evidence.retention.review",
+    ]
+    for code in permission_codes:
+        permission_id = uuid5(NAMESPACE_URL, f"maalenex:permission:{code}")
+        assigned = connection.execute(sa.text(
+            "SELECT count(*) FROM access_role_permissions WHERE permission_id=:permission"
+        ), {"permission": permission_id}).scalar_one()
+        if not assigned:
+            connection.execute(sa.text("DELETE FROM access_permissions WHERE id=:id"), {"id": permission_id})
     op.drop_table("cargo_delivery_evidence_retention_policies")
     op.drop_index("ix_cargo_evidence_access_user_active", table_name="cargo_delivery_evidence_access_grants")
     op.drop_table("cargo_delivery_evidence_access_grants")
