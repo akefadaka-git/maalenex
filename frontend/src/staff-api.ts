@@ -281,6 +281,28 @@ export function updateDraftFleetSeatLayout(layoutId: string, seats: Array<{
     method: "PUT", body: JSON.stringify({ seats, geometry }),
   });
 }
+export type FleetComplianceUploadIntent = {
+  object_key: string; upload_url: string; method: "PUT"; content_type: string;
+  max_bytes: number; expires_in_seconds: number;
+};
+export function createFleetComplianceUploadIntent(vehicleId: string, file: File): Promise<FleetComplianceUploadIntent> {
+  return request<FleetComplianceUploadIntent>(`/vehicles/${encodeURIComponent(vehicleId)}/compliance-documents/upload-intents`, {
+    method: "POST",
+    body: JSON.stringify({ content_type: file.type, content_length: file.size }),
+  });
+}
+export async function uploadFleetComplianceEvidence(vehicleId: string, file: File, input: {
+  document_type: string; issued_at: string | null; expires_at: string | null;
+}): Promise<{ id: string; document_type: string; status: string }> {
+  const intent = await createFleetComplianceUploadIntent(vehicleId, file);
+  const response = await fetch(intent.upload_url, {
+    method: "PUT", headers: { "Content-Type": intent.content_type }, body: file,
+  });
+  if (!response.ok) throw new Error("Private evidence upload failed. Check the storage endpoint and bucket CORS configuration.");
+  return submitFleetComplianceEvidence(vehicleId, {
+    ...input, evidence_reference: intent.object_key,
+  });
+}
 export function submitFleetComplianceEvidence(vehicleId: string, input: {
   document_type: string; evidence_reference: string; issued_at: string | null; expires_at: string | null;
 }): Promise<{ id: string; document_type: string; status: string }> {
