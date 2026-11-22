@@ -526,10 +526,16 @@ def create_vehicle(
     _require_mutation(request, context)
     _authorize(db, context, "operator.fleet.manage", organization_id)
     operator = db.get(Organization, organization_id)
-    if operator is None or operator.status != "approved":
-        raise HTTPException(status_code=409, detail="Operator must be approved before fleet setup.")
+    if operator is None or operator.organization_type != "operator" or operator.status != "approved":
+        raise HTTPException(status_code=409, detail="An approved operator organization is required for fleet setup.")
+    vehicle_reference = payload.vehicle_reference.strip()
+    if db.scalar(select(Vehicle.id).where(
+        Vehicle.organization_id == organization_id,
+        Vehicle.vehicle_reference == vehicle_reference,
+    ).limit(1)):
+        raise HTTPException(status_code=409, detail="Vehicle reference already exists for this operator.")
     vehicle = Vehicle(
-        organization_id=organization_id, vehicle_reference=payload.vehicle_reference.strip(),
+        organization_id=organization_id, vehicle_reference=vehicle_reference,
         status="draft", review_status="pending",
     )
     db.add(vehicle)
@@ -550,6 +556,8 @@ def create_seat_layout(
     if vehicle is None:
         raise HTTPException(status_code=404, detail="Vehicle not found.")
     _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
+    if vehicle.status != "active" or vehicle.review_status != "approved":
+        raise HTTPException(status_code=409, detail="Vehicle must be approved before creating a seat layout.")
     if bool(payload.seat_codes) == bool(payload.seats):
         raise HTTPException(status_code=422, detail="Provide either seat_codes or structured seats.")
     if payload.seats:
