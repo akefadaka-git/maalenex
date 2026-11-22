@@ -49,7 +49,12 @@ def cleanup_expired_unattached_evidence(
             CargoDeliveryEvidenceHold.evidence_id == evidence.id,
             CargoDeliveryEvidenceHold.released_at.is_(None),
         ).limit(1))
-        if active_hold is not None or deletion_block_reason(evidence, now=now) is not None:
+        active_policy = db.scalar(select(CargoDeliveryEvidenceRetentionPolicy.version).where(
+            CargoDeliveryEvidenceRetentionPolicy.version == evidence.retention_policy_version,
+            CargoDeliveryEvidenceRetentionPolicy.status == "active",
+        ))
+        if (active_policy is None or active_hold is not None
+                or deletion_block_reason(evidence, now=now) is not None):
             held += 1
             continue
         try:
