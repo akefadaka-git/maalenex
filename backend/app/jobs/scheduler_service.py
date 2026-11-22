@@ -182,6 +182,64 @@ def scheduler_snapshot(db, *, stale_after_seconds: int = 90, limit: int = 20) ->
             "records_processed": run.records_processed, "duration_ms": run.duration_ms,
             "error_code": run.error_code,
         } for run in runs],
+        "cargo_evidence_lifecycle": cargo_evidence_scheduler_snapshot(
+            db, now=now, stale_after_seconds=stale_after_seconds, limit=limit,
+        ),
+    }
+
+
+def cargo_evidence_scheduler_snapshot(db, *, now: datetime, stale_after_seconds: int = 90, limit: int = 20) -> dict:
+    lease = db.get(SchedulerLease, CARGO_EVIDENCE_LEASE_NAME)
+    due_reviews = db.scalar(select(func.count()).select_from(CargoDeliveryEvidenceHold).where(
+        CargoDeliveryEvidenceHold.released_at.is_(None),
+        CargoDeliveryEvidenceHold.review_due_at <= now,
+        CargoDeliveryEvidenceHold.review_alerted_at.is_(None),
+    )) or 0
+    runs = list(db.scalars(
+        select(SchedulerRun).where(SchedulerRun.job_name == CARGO_EVIDENCE_LEASE_NAME)
+        .order_by(SchedulerRun.started_at.desc()).limit(max(1, min(limit, 50)))
+    ))
+    if lease is None:
+        health = "not_configured"
+        heartbeat_age = None
+        lease_active = False
+        lease_remaining = None
+    else:
+        heartbeat = _utc(lease.heartbeat_at)
+        heartbeat_age = max(0, int((now - heartbeat).total_seconds())) if heartbeat else None
+        lease_expiry = _utc(lease.lease_expires_at)
+        lease_remaining = max(0, int((lease_expiry - now).total_seconds())) if lease_expiry else None
+        lease_active = bool(lease_expiry and lease_expiry > now)
+        health = "healthy" if heartbeat_age is not None and heartbeat_age <= stale_after_seconds and lease_active and not lease.consecutive_failures else "degraded" if lease.consecutive_failures else "stale"
+    return {
+        "job_name": CARGO_EVIDENCE_LEASE_NAME,
+        "health": health,
+        "worker_enabled_by_default": False,
+        "orphan_cleanup_requires_explicit_grace_hours": True,
+        "orphan_cleanup_default_grace_hours": 0,
+        "due_legal_hold_reviews": due_reviews,
+        "lease_active": lease_active,
+        "lease_remaining_seconds": lease_remaining,
+        "lease": None if lease is None else {
+            "owner_id": lease.owner_id,
+            "lease_expires_at": _utc(lease.lease_expires_at).isoformat(),
+            "heartbeat_at": _utc(lease.heartbeat_at).isoformat(),
+            "heartbeat_age_seconds": heartbeat_age,
+            "last_success_at": _utc(lease.last_success_at).isoformat() if lease.last_success_at else None,
+            "last_failure_at": _utc(lease.last_failure_at).isoformat() if lease.last_failure_at else None,
+            "last_error_code": lease.last_error_code,
+            "consecutive_failures": lease.consecutive_failures,
+            "batches_completed": lease.batches_completed,
+            "records_processed": lease.records_processed,
+            "last_duration_ms": lease.last_duration_ms,
+        },
+        "runs": [{
+            "id": str(run.id), "worker_id": run.worker_id, "status": run.status,
+            "started_at": _utc(run.started_at).isoformat(),
+            "finished_at": _utc(run.finished_at).isoformat() if run.finished_at else None,
+            "records_processed": run.records_processed, "duration_ms": run.duration_ms,
+            "error_code": run.error_code,
+        } for run in runs],
     }
 
 
