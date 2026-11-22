@@ -8,7 +8,7 @@ name: G1 backend foundation verification
 
 on:
   push:
-    branches: [feat/passenger-identity-service, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards, fix/passenger-password-minimum-six, feat/passenger-backend-connectivity-foundation, feat/iroka-integration-contract-v1, feat/cargo-consignment-backend-v1]
+    branches: [feat/passenger-identity-service, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards, fix/passenger-password-minimum-six, feat/passenger-backend-connectivity-foundation, feat/iroka-integration-contract-v1, feat/cargo-consignment-backend-v1, feat/cargo-dispatch-tracking-v1]
     paths:
       - "backend/**"
       - "docs/deployment/**"
@@ -151,6 +151,11 @@ jobs:
           app/routers/cargo.py
           tests/test_cargo_lifecycle.py
           migrations/versions/0019_cargo_consignments.py
+          app/domains/cargo/dispatch.py
+          app/domains/cargo/dispatch_service.py
+          app/routers/cargo_dispatch.py
+          tests/test_cargo_dispatch.py
+          migrations/versions/0020_cargo_dispatch_tracking.py
       - name: Backend tests
         run: python -m pytest -q
       - name: Apply baseline migration to empty database
