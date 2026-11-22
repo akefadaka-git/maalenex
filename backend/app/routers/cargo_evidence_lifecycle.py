@@ -22,8 +22,9 @@ from app.domains.cargo.dispatch import CargoDispatch
 from app.domains.cargo.evidence_lifecycle import (
     CargoDeliveryEvidence, CargoDeliveryEvidenceAccessGrant,
     CargoDeliveryEvidenceDeletionRequest, CargoDeliveryEvidenceHold,
-    CargoDeliveryEvidenceRetentionPolicy,
+    CargoDeliveryEvidenceRetentionPolicy, CargoDeliveryEvidenceRightsRequest,
 )
+from app.domains.cargo.legal_retention import deletion_block_reason, effective_retention_deadline
 from app.domains.fleet.object_storage import (
     InvalidStoredObject, StorageNotConfigured, StorageOperationFailed,
     create_cargo_delivery_download_url, create_cargo_delivery_upload_intent,
@@ -82,12 +83,40 @@ class EvidenceDeletionApproval(BaseModel):
 
 
 class EvidenceRetentionClassify(BaseModel):
-    classification: Literal["ordinary", "accounting_document", "extended_review"]
+    is_accounting_document: bool = False
+    is_commercial_correspondence: bool = False
+    is_ordinary_operational_evidence: bool = False
+    contains_personal_data: bool = True
+    contains_sensitive_personal_data: bool = False
+    accounting_document_date: datetime | None = None
+    commercial_correspondence_date: datetime | None = None
+    operational_legal_basis: Literal["contract", "legal_obligation", "legitimate_interests", "consent", "vital_interests", "public_interest"] | None = None
+    operational_retention_justification: str | None = Field(default=None, min_length=10, max_length=1000)
+    sensitive_data_handling_review_reference: str | None = Field(default=None, min_length=5, max_length=160)
     legal_review_reference: str = Field(min_length=5, max_length=160)
 
 
 class EvidenceRetentionReview(BaseModel):
     note: str = Field(min_length=5, max_length=500)
+    operational_dpia_reference: str | None = Field(default=None, min_length=5, max_length=160)
+    sensitive_data_handling_review_reference: str | None = Field(default=None, min_length=5, max_length=160)
+    tombstone_retention_until: datetime | None = None
+    audit_retention_until: datetime | None = None
+    metadata_retention_justification: str | None = Field(default=None, min_length=10, max_length=1000)
+
+
+class EvidenceHoldReleaseReview(BaseModel):
+    note: str = Field(min_length=5, max_length=500)
+
+
+class EvidenceRightsRequestCreate(BaseModel):
+    request_type: Literal["access", "rectification", "erasure", "restriction"]
+    request_reference: str = Field(min_length=5, max_length=160)
+
+
+class EvidenceRightsRequestAssessment(BaseModel):
+    outcome: Literal["under_review", "retained_by_legal_obligation", "eligible_for_erasure", "completed"]
+    note: str = Field(min_length=10, max_length=1000)
 
 
 class EvidenceAccessGrantCreate(BaseModel):
