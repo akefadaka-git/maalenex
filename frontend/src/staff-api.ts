@@ -150,8 +150,10 @@ export function reviewStaffSupportReport(
 
 export type CatalogLocation = { id: string; name: string; location_type: string; status: string };
 export type CatalogTerminal = { id: string; location_id: string; location_name: string; name: string; status: string };
+export type CatalogRouteStop = { id: string; location_id: string; location_name: string; sequence_number: number;
+  boarding_allowed: boolean; alighting_allowed: boolean; status: string };
 export type CatalogRoute = { id: string; code: string; origin_location_id: string; origin_name: string;
-  destination_location_id: string; destination_name: string; status: string };
+  destination_location_id: string; destination_name: string; status: string; stops: CatalogRouteStop[] };
 export type CatalogSnapshot = { locations: CatalogLocation[]; terminals: CatalogTerminal[]; routes: CatalogRoute[] };
 export async function getCatalogSnapshot(): Promise<CatalogSnapshot> {
   const [locations, terminals, routes] = await Promise.all([
@@ -178,4 +180,29 @@ export function createCatalogRoute(input: { code: string; origin_location_id: st
 }
 export function publishCatalogRoute(id: string): Promise<{ id: string; status: string }> {
   return request(`/catalog/routes/${encodeURIComponent(id)}/publish`, { method: "POST" });
+}
+
+
+export function updateCatalogLocation(id: string, input: { name?: string; location_type?: string }): Promise<unknown> {
+  return request(`/catalog/locations/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+export function updateCatalogTerminal(id: string, input: { name?: string; location_id?: string }): Promise<unknown> {
+  return request(`/catalog/terminals/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+export function updateCatalogRoute(id: string, input: {
+  code?: string; origin_location_id?: string; destination_location_id?: string;
+}): Promise<unknown> {
+  return request(`/catalog/routes/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+export function replaceCatalogRouteStops(id: string, stops: Array<{
+  location_id: string; boarding_allowed: boolean; alighting_allowed: boolean;
+}>): Promise<{ route_id: string; stops: number }> {
+  return request(`/catalog/routes/${encodeURIComponent(id)}/stops`, {
+    method: "PUT", body: JSON.stringify({ stops }),
+  });
+}
+export function archiveCatalogRecord(kind: "location" | "terminal" | "route", id: string): Promise<{ id: string; status: string }> {
+  return request(`/catalog/${kind === "location" ? "locations" : kind === "terminal" ? "terminals" : "routes"}/${encodeURIComponent(id)}/archive`, {
+    method: "POST",
+  });
 }
