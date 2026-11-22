@@ -44,6 +44,7 @@ def test_upload_intent_is_short_lived_content_type_bound_and_vehicle_scoped(fake
         "Bucket": "synthetic-private",
         "Key": result["object_key"],
         "ContentType": "application/pdf",
+        "ContentLength": 128,
     }
     assert ttl == 300
 
