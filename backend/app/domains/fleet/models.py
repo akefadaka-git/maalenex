@@ -30,3 +30,24 @@ class VehicleSeat(Base):
     position_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
     seat_type: Mapped[str] = mapped_column(String(24), default="standard")
     is_sellable: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class VehicleComplianceDocument(Base):
+    __tablename__ = "vehicle_compliance_documents"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    vehicle_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("vehicles.id", ondelete="CASCADE"), index=True,
+    )
+    document_type: Mapped[str] = mapped_column(String(40), index=True)
+    evidence_reference: Mapped[str] = mapped_column(String(255), unique=True)
+    issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
+    submitted_by: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
+    reviewed_by: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"), nullable=True,
+    )
+    review_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
