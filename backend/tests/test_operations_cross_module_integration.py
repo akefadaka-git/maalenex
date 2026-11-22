@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+import os
 from types import SimpleNamespace
 from uuid import UUID, uuid4
 
@@ -21,11 +22,18 @@ from app.main import app
 from app.routers import admin
 
 
-@pytest.fixture
-def operations_client(monkeypatch):
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool,
-    )
+@pytest.fixture(params=(
+    ["sqlite", "postgresql"]
+    if os.getenv("DATABASE_URL", "").startswith(("postgresql://", "postgresql+"))
+    else ["sqlite"]
+))
+def operations_client(request, monkeypatch):
+    if request.param == "postgresql":
+        engine = create_engine(os.environ["DATABASE_URL"], pool_pre_ping=True)
+    else:
+        engine = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool,
+        )
     tables = [
         User.__table__, Role.__table__, Permission.__table__, RolePermission.__table__,
         RoleAssignment.__table__, Organization.__table__, Location.__table__,
@@ -113,6 +121,7 @@ def operations_client(monkeypatch):
     app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(admin.current_staff_context, None)
     db.close()
+    Base.metadata.drop_all(engine, tables=tables)
     engine.dispose()
 
 
