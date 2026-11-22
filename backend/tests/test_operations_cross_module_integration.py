@@ -395,6 +395,10 @@ def test_cross_tenant_resource_integrity_and_fare_ownership(operations_client):
     # Operator A cannot inspect or mutate Operator B's vehicle or layout by ID.
     selected["value"] = users["operator"]
     assert client.get(f"/api/v1/vehicles/{ids['vehicle_b']}/seat-layouts").status_code == 403
+    assert client.patch(
+        f"/api/v1/vehicles/{ids['vehicle_b']}",
+        json={"vehicle_reference": "CROSS-TENANT-EDIT"},
+    ).status_code == 403
     assert client.post(
         f"/api/v1/vehicles/{ids['vehicle_b']}/seat-layouts",
         json={"seats": [{"seat_code": "X1", "row_label": "X", "column_index": 0}]},
@@ -404,6 +408,10 @@ def test_cross_tenant_resource_integrity_and_fare_ownership(operations_client):
         json={"seats": [{"seat_code": "X1", "row_label": "X", "column_index": 0}]},
     ).status_code == 403
     assert client.get(f"/api/v1/operators/{operator_b}/fares").status_code == 403
+    assert client.get(f"/api/v1/operators/{operator_b}/trips").status_code == 403
+    assert client.post(
+        f"/api/v1/fares/{ids['fare_b']}/versions/{ids['version_b']}/submit",
+    ).status_code == 403
     assert client.post(f"/api/v1/trips/{ids['trip_b']}/submit").status_code == 403
 
     # A trip cannot combine Operator A with Operator B's vehicle or layout.
