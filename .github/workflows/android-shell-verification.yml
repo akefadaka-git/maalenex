@@ -2,7 +2,7 @@ name: MaaleNex Android shell verification
 
 on:
   pull_request:
-    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards]
+    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards, fix/passenger-password-minimum-six]
     paths:
       - "android/**"
       - "frontend/**"
