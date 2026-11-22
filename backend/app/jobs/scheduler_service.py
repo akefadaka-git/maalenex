@@ -7,11 +7,17 @@ from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.domains.bookings.models import Booking
+from app.domains.cargo.evidence_lifecycle import CargoDeliveryEvidenceHold
 from app.domains.operations.models import SchedulerLease, SchedulerRun
 from app.jobs.booking_hold_expiry import expire_due_booking_holds
+from app.jobs.cargo_evidence_cleanup import (
+    alert_due_legal_hold_reviews, cleanup_expired_unattached_evidence,
+    process_expired_retention_evidence,
+)
 
 
 LEASE_NAME = "booking_hold_expiry"
+CARGO_EVIDENCE_LEASE_NAME = "cargo_evidence_lifecycle"
 
 
 def _utc(value: datetime | None) -> datetime | None:
@@ -177,3 +183,120 @@ def scheduler_snapshot(db, *, stale_after_seconds: int = 90, limit: int = 20) ->
             "error_code": run.error_code,
         } for run in runs],
     }
+
+
+def run_cargo_evidence_cycle(
+    session_factory, *, worker_id: str, batch_size: int = 100,
+    lease_seconds: int = 90, orphan_grace_hours: int = 0,
+) -> dict:
+    """Run bounded evidence maintenance under its own durable database lease.
+
+    Retention deletion remains fail-closed on an active policy and legal hold.
+    Orphan deletion is disabled unless an explicit positive grace period is configured.
+    """
+    if not 1 <= batch_size <= 1000 or lease_seconds < 10 or orphan_grace_hours < 0:
+        raise ValueError("Invalid cargo evidence scheduler bounds.")
+    started_clock = perf_counter()
+    with session_factory() as db:
+        now = _utc(db.scalar(select(func.now()))) or datetime.now(UTC)
+        lease_values = {
+            "lease_name": CARGO_EVIDENCE_LEASE_NAME,
+            "owner_id": worker_id,
+            "lease_expires_at": now + timedelta(seconds=lease_seconds),
+            "heartbeat_at": now,
+        }
+        claim = pg_insert(SchedulerLease).values(**lease_values).on_conflict_do_update(
+            index_elements=[SchedulerLease.lease_name],
+            set_={
+                "owner_id": worker_id,
+                "lease_expires_at": lease_values["lease_expires_at"],
+                "heartbeat_at": now,
+                "updated_at": now,
+            },
+            where=(
+                (SchedulerLease.lease_expires_at <= now)
+                | (SchedulerLease.owner_id == worker_id)
+            ),
+        ).returning(SchedulerLease.lease_name)
+        acquired = db.scalar(claim)
+        db.commit()
+        if acquired is None:
+            return {"status": "lease_held_by_another_worker", "records_processed": 0}
+        run = SchedulerRun(
+            job_name=CARGO_EVIDENCE_LEASE_NAME, worker_id=worker_id,
+            status="running", started_at=now,
+        )
+        db.add(run)
+        db.commit()
+        run_id = run.id
+
+    try:
+        with session_factory() as db:
+            now = datetime.now(UTC)
+            hold_result = alert_due_legal_hold_reviews(db, now=now, batch_size=batch_size)
+            retention_result = process_expired_retention_evidence(db, now=now, batch_size=batch_size)
+            orphan_result = (
+                cleanup_expired_unattached_evidence(
+                    db, now=now, grace_period=timedelta(hours=orphan_grace_hours),
+                    batch_size=batch_size,
+                )
+                if orphan_grace_hours > 0
+                else {"examined": 0, "deleted": 0, "failed": 0, "held": 0, "disabled": 1}
+            )
+            processed = (
+                hold_result["review_due"] + retention_result["examined"]
+                + orphan_result["examined"]
+            )
+        duration_ms = int((perf_counter() - started_clock) * 1000)
+        with session_factory() as db:
+            finished = _utc(db.scalar(select(func.now()))) or datetime.now(UTC)
+            run = db.get(SchedulerRun, run_id)
+            lease = db.get(SchedulerLease, CARGO_EVIDENCE_LEASE_NAME)
+            owns_lease = lease is not None and lease.owner_id == worker_id
+            status = "succeeded" if owns_lease else "abandoned"
+            if run is not None and run.status == "running":
+                run.status = status
+                run.finished_at = finished
+                run.records_processed = processed
+                run.duration_ms = duration_ms
+                if not owns_lease:
+                    run.error_code = "lease_lost_during_execution"
+            if owns_lease:
+                lease.heartbeat_at = finished
+                lease.lease_expires_at = finished + timedelta(seconds=lease_seconds)
+                lease.last_success_at = finished
+                lease.last_error_code = None
+                lease.consecutive_failures = 0
+                lease.batches_completed += 1
+                lease.records_processed += processed
+                lease.last_duration_ms = duration_ms
+            db.commit()
+        return {
+            "status": status, "records_processed": processed, "duration_ms": duration_ms,
+            "hold_reviews": hold_result, "retention": retention_result,
+            "orphan_cleanup": orphan_result,
+        }
+    except Exception as exc:
+        duration_ms = int((perf_counter() - started_clock) * 1000)
+        error_code = type(exc).__name__[:80]
+        with session_factory() as db:
+            finished = _utc(db.scalar(select(func.now()))) or datetime.now(UTC)
+            run = db.get(SchedulerRun, run_id)
+            lease = db.get(SchedulerLease, CARGO_EVIDENCE_LEASE_NAME)
+            owns_lease = lease is not None and lease.owner_id == worker_id
+            if run is not None and run.status == "running":
+                run.status = "failed" if owns_lease else "abandoned"
+                run.finished_at = finished
+                run.duration_ms = duration_ms
+                run.error_code = error_code if owns_lease else "lease_lost_during_execution"
+            if owns_lease:
+                lease.heartbeat_at = finished
+                lease.lease_expires_at = finished + timedelta(seconds=lease_seconds)
+                lease.last_failure_at = finished
+                lease.last_error_code = error_code
+                lease.consecutive_failures += 1
+                lease.last_duration_ms = duration_ms
+            db.commit()
+        raise
+
+
