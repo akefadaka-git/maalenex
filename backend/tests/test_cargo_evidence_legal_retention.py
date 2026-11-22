@@ -1,11 +1,7 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
-import pytest
-
-from app.domains.cargo.legal_retention import (
-    add_calendar_years, deletion_block_reason, effective_retention_deadline,
-)
+from app.domains.cargo.legal_retention import deletion_block_reason, effective_retention_deadline
 
 
 def test_ten_year_accounting_deadline_uses_document_preparation_date():
