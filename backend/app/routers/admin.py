@@ -125,13 +125,29 @@ class SeatDefinition(BaseModel):
     seat_code: str = Field(min_length=1, max_length=16)
     row_label: str | None = Field(default=None, max_length=12)
     column_index: int = Field(ge=0, le=20)
+    x: int | None = Field(default=None, ge=0, le=100)
+    y: int | None = Field(default=None, ge=0, le=100)
     seat_type: Literal["standard", "premium", "accessible"] = "standard"
     is_sellable: bool = True
+
+
+class LayoutMarker(BaseModel):
+    kind: Literal["aisle", "door"]
+    x: int = Field(ge=0, le=100)
+    y: int = Field(ge=0, le=100)
+    label: str | None = Field(default=None, max_length=40)
+
+
+class SeatLayoutGeometry(BaseModel):
+    width: int = Field(default=100, ge=1, le=100)
+    height: int = Field(default=100, ge=1, le=100)
+    markers: list[LayoutMarker] = Field(default_factory=list, max_length=30)
 
 
 class SeatLayoutCreate(BaseModel):
     seat_codes: list[str] = Field(default_factory=list, max_length=60)
     seats: list[SeatDefinition] = Field(default_factory=list, max_length=60)
+    geometry: SeatLayoutGeometry = Field(default_factory=SeatLayoutGeometry)
 
 
 class VehicleReview(BaseModel):
@@ -590,12 +606,13 @@ def create_seat_layout(
         raise HTTPException(status_code=409, detail="Vehicle must be approved before creating a seat layout.")
     if bool(payload.seat_codes) == bool(payload.seats):
         raise HTTPException(status_code=422, detail="Provide either seat_codes or structured seats.")
+    layout.geometry_metadata = payload.geometry.model_dump()
     if payload.seats:
         seat_rows = [{
             "seat_code": item.seat_code.strip().upper(),
             "row_label": item.row_label.strip().upper() if item.row_label else None,
-            "column_index": item.column_index, "seat_type": item.seat_type.strip().lower(),
-            "is_sellable": item.is_sellable,
+            "column_index": item.column_index, "x": item.x, "y": item.y,
+            "seat_type": item.seat_type.strip().lower(), "is_sellable": item.is_sellable,
         } for item in payload.seats]
     else:
         seat_rows = [{
@@ -611,13 +628,21 @@ def create_seat_layout(
     latest = db.scalar(select(func.max(SeatLayoutVersion.version_number)).where(
         SeatLayoutVersion.vehicle_id == vehicle.id
     )) or 0
-    layout = SeatLayoutVersion(vehicle_id=vehicle.id, version_number=latest + 1, status="draft")
+    layout = SeatLayoutVersion(
+        vehicle_id=vehicle.id, version_number=latest + 1, status="draft",
+        geometry_metadata=payload.geometry.model_dump(),
+    )
     db.add(layout)
     db.flush()
     db.add_all([
         VehicleSeat(
             seat_layout_version_id=layout.id, seat_code=item["seat_code"],
-            row_label=item["row_label"], position_metadata={"column_index": item["column_index"]},
+            row_label=item["row_label"],
+            position_metadata={
+                "column_index": item["column_index"],
+                "x": item["x"] if item["x"] is not None else min(100, item["column_index"] * 5),
+                "y": item["y"] if item["y"] is not None else min(100, (ord(item["row_label"][0]) - 65) * 5) if item["row_label"] else 0,
+            },
             seat_type=item["seat_type"], is_sellable=item["is_sellable"],
         )
         for item in seat_rows
@@ -1775,11 +1800,14 @@ def list_vehicle_seat_layouts(
         ).order_by(VehicleSeat.row_label, VehicleSeat.seat_code)).all()
         results.append({
             "id": str(layout.id), "version_number": layout.version_number, "status": layout.status,
+            "geometry": layout.geometry_metadata or {"width": 100, "height": 100, "markers": []},
             "effective_from": layout.effective_from.isoformat() if layout.effective_from else None,
             "effective_to": layout.effective_to.isoformat() if layout.effective_to else None,
             "seats": [{
                 "id": str(seat.id), "seat_code": seat.seat_code, "row_label": seat.row_label,
                 "column_index": (seat.position_metadata or {}).get("column_index", 0),
+                "x": (seat.position_metadata or {}).get("x", 0),
+                "y": (seat.position_metadata or {}).get("y", 0),
                 "seat_type": seat.seat_type, "is_sellable": seat.is_sellable,
             } for seat in seats],
         })
@@ -1838,8 +1866,8 @@ def update_draft_seat_layout(
         seat_rows = [{
             "seat_code": item.seat_code.strip().upper(),
             "row_label": item.row_label.strip().upper() if item.row_label else None,
-            "column_index": item.column_index, "seat_type": item.seat_type,
-            "is_sellable": item.is_sellable,
+            "column_index": item.column_index, "x": item.x, "y": item.y,
+            "seat_type": item.seat_type, "is_sellable": item.is_sellable,
         } for item in payload.seats]
     else:
         seat_rows = [{
@@ -1860,7 +1888,12 @@ def update_draft_seat_layout(
     db.add_all([
         VehicleSeat(
             seat_layout_version_id=layout.id, seat_code=item["seat_code"],
-            row_label=item["row_label"], position_metadata={"column_index": item["column_index"]},
+            row_label=item["row_label"],
+            position_metadata={
+                "column_index": item["column_index"],
+                "x": item["x"] if item["x"] is not None else min(100, item["column_index"] * 5),
+                "y": item["y"] if item["y"] is not None else min(100, (ord(item["row_label"][0]) - 65) * 5) if item["row_label"] else 0,
+            },
             seat_type=item["seat_type"], is_sellable=item["is_sellable"],
         ) for item in seat_rows
     ])
