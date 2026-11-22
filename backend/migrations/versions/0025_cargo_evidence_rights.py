@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "0025_cargo_evidence_rights"
-down_revision = "0024_cargo_evidence_legal_retention"
+down_revision = "0024_cargo_legal_retention"
 branch_labels = None
 depends_on = None
 
