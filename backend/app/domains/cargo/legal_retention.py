@@ -70,6 +70,8 @@ def deletion_block_reason(evidence, *, now: datetime) -> str | None:
         return "legal_classification_incomplete"
     if getattr(evidence, "retention_dpo_reviewed_at", None) is None:
         return "independent_dpo_review_missing"
+    if getattr(evidence, "deletion_suspended", False):
+        return "deletion_suspended_by_dpo"
     if getattr(evidence, "contains_sensitive_personal_data", False):
         if not getattr(evidence, "sensitive_data_handling_review_reference", None):
             return "sensitive_data_review_missing"
