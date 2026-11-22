@@ -483,6 +483,19 @@ def test_cross_tenant_resource_integrity_and_fare_ownership(operations_client):
     # Operator A cannot inspect or mutate Operator B's vehicle or layout by ID.
     selected["value"] = users["operator"]
     assert client.get(f"/api/v1/vehicles/{ids['vehicle_b']}/seat-layouts").status_code == 403
+    assert client.get(f"/api/v1/vehicles/{ids['vehicle_b']}/history").status_code == 403
+    assert client.post(
+        f"/api/v1/vehicles/{ids['vehicle_b']}/compliance-documents",
+        json={
+            "document_type": "insurance",
+            "evidence_reference": f"fleet-compliance/operator-a/cross-{uuid4().hex}",
+        },
+    ).status_code == 403
+    assert client.post(
+        f"/api/v1/trips/{ids['trip_b']}/exceptions",
+        json={"category": "late_departure", "severity": "normal", "description": "Cross-tenant test"},
+    ).status_code == 403
+    assert client.get(f"/api/v1/trips/{ids['trip_b']}/exceptions").status_code == 403
     assert client.patch(
         f"/api/v1/vehicles/{ids['vehicle_b']}",
         json={"vehicle_reference": "CROSS-TENANT-EDIT"},
