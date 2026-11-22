@@ -305,3 +305,155 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
             "trip.approved", "fare.version.proposed", "fare.version.submitted",
             "fare.version.reviewed", "fare.version.published", "trip.published",
         }.issubset(event_types)
+
+def test_cross_tenant_resource_integrity_and_fare_ownership(operations_client):
+    client, selected, users, organizations, engine = operations_client
+    operator_a = organizations["a"]
+    operator_b = organizations["b"]
+    now = datetime.now(UTC)
+
+    # Seed a shared published route, but keep fleet, trip and fare ownership
+    # explicitly split between two approved operator organizations.
+    with Session(engine) as db:
+        origin = Location(name="Ownership Origin", location_type="town", status="published")
+        destination = Location(name="Ownership Destination", location_type="town", status="published")
+        db.add_all([origin, destination])
+        db.flush()
+        route = Route(
+            code=f"OWN-{uuid4().hex[:8].upper()}",
+            origin_location_id=origin.id,
+            destination_location_id=destination.id,
+            status="published",
+        )
+        terminal = Terminal(location_id=origin.id, name="Ownership Terminal", status="published")
+        db.add_all([route, terminal])
+        db.flush()
+
+        vehicle_a = Vehicle(
+            organization_id=operator_a, vehicle_reference="OWN-A-001",
+            status="active", review_status="approved",
+        )
+        vehicle_b = Vehicle(
+            organization_id=operator_b, vehicle_reference="OWN-B-001",
+            status="active", review_status="approved",
+        )
+        db.add_all([vehicle_a, vehicle_b])
+        db.flush()
+        layout_a = SeatLayoutVersion(vehicle_id=vehicle_a.id, version_number=1, status="approved")
+        layout_b = SeatLayoutVersion(vehicle_id=vehicle_b.id, version_number=1, status="approved")
+        db.add_all([layout_a, layout_b])
+        db.flush()
+        db.add_all([
+            VehicleSeat(
+                seat_layout_version_id=layout_a.id, seat_code="A1",
+                row_label="A", position_metadata={"column_index": 0},
+                seat_type="standard", is_sellable=True,
+            ),
+            VehicleSeat(
+                seat_layout_version_id=layout_b.id, seat_code="B1",
+                row_label="B", position_metadata={"column_index": 0},
+                seat_type="standard", is_sellable=True,
+            ),
+        ])
+        trip_a = Trip(
+            organization_id=operator_a, route_id=route.id,
+            boarding_terminal_id=terminal.id, vehicle_id=vehicle_a.id,
+            seat_layout_version_id=layout_a.id, departure_at=now + timedelta(days=2),
+            status="approved",
+        )
+        trip_b = Trip(
+            organization_id=operator_b, route_id=route.id,
+            boarding_terminal_id=terminal.id, vehicle_id=vehicle_b.id,
+            seat_layout_version_id=layout_b.id, departure_at=now + timedelta(days=2),
+            status="approved",
+        )
+        db.add_all([trip_a, trip_b])
+        db.flush()
+
+        fare_a = Fare(organization_id=operator_a, route_id=route.id, trip_id=None, status="draft")
+        fare_b = Fare(organization_id=operator_b, route_id=route.id, trip_id=trip_b.id, status="published")
+        db.add_all([fare_a, fare_b])
+        db.flush()
+        version_b = FareVersion(
+            fare_id=fare_b.id, version_number=1, amount_minor_units=15000,
+            currency_code="ETB", effective_from=now - timedelta(minutes=1),
+            effective_to=None, status="published", proposed_by=users["operator"],
+            approved_by=users["fare_reviewer"], published_by=users["fare_publisher"],
+        )
+        db.add(version_b)
+        db.commit()
+
+        ids = {
+            "route": str(route.id), "terminal": str(terminal.id),
+            "vehicle_a": str(vehicle_a.id), "vehicle_b": str(vehicle_b.id),
+            "layout_a": str(layout_a.id), "layout_b": str(layout_b.id),
+            "trip_a": str(trip_a.id), "trip_b": str(trip_b.id),
+            "fare_a": str(fare_a.id), "fare_b": str(fare_b.id),
+            "version_b": str(version_b.id),
+        }
+
+    # Operator A cannot inspect or mutate Operator B's vehicle or layout by ID.
+    selected["value"] = users["operator"]
+    assert client.get(f"/api/v1/vehicles/{ids['vehicle_b']}/seat-layouts").status_code == 403
+    assert client.post(
+        f"/api/v1/vehicles/{ids['vehicle_b']}/seat-layouts",
+        json={"seats": [{"seat_code": "X1", "row_label": "X", "column_index": 0}]},
+    ).status_code == 403
+    assert client.put(
+        f"/api/v1/seat-layouts/{ids['layout_b']}",
+        json={"seats": [{"seat_code": "X1", "row_label": "X", "column_index": 0}]},
+    ).status_code == 403
+    assert client.get(f"/api/v1/operators/{operator_b}/fares").status_code == 403
+    assert client.post(f"/api/v1/trips/{ids['trip_b']}/submit").status_code == 403
+
+    # A trip cannot combine Operator A with Operator B's vehicle or layout.
+    departure = (now + timedelta(days=3)).isoformat()
+    cross_vehicle = client.post(
+        f"/api/v1/operators/{operator_a}/trips",
+        json={
+            "route_id": ids["route"], "boarding_terminal_id": ids["terminal"],
+            "vehicle_id": ids["vehicle_b"], "seat_layout_version_id": ids["layout_b"],
+            "departure_at": departure,
+        },
+    )
+    assert cross_vehicle.status_code == 409
+    cross_layout = client.post(
+        f"/api/v1/operators/{operator_a}/trips",
+        json={
+            "route_id": ids["route"], "boarding_terminal_id": ids["terminal"],
+            "vehicle_id": ids["vehicle_a"], "seat_layout_version_id": ids["layout_b"],
+            "departure_at": departure,
+        },
+    )
+    assert cross_layout.status_code == 409
+
+    # An Operator A fare cannot be attached to Operator B's trip.
+    cross_tenant_fare = client.post(
+        f"/api/v1/operators/{operator_a}/fares",
+        json={
+            "route_id": ids["route"], "trip_id": ids["trip_b"],
+            "amount_minor_units": 9900, "effective_from": (now - timedelta(minutes=1)).isoformat(),
+        },
+    )
+    assert cross_tenant_fare.status_code == 409
+
+    # URL fare/version pairs must resolve to the same parent fare.
+    selected["value"] = users["fare_reviewer"]
+    mismatched_review = client.post(
+        f"/api/v1/fares/{ids['fare_a']}/versions/{ids['version_b']}/review",
+        json={"decision": "approved", "reason": "Cross-owner mismatch must fail"},
+    )
+    assert mismatched_review.status_code == 404
+    selected["value"] = users["fare_publisher"]
+    mismatched_publish = client.post(
+        f"/api/v1/fares/{ids['fare_a']}/versions/{ids['version_b']}/publish",
+    )
+    assert mismatched_publish.status_code == 404
+
+    # A published fare belonging to Operator B must never satisfy Operator A's
+    # trip-publication prerequisite, even when route and effective window match.
+    selected["value"] = users["trip_manager"]
+    wrong_tenant_fare = client.post(f"/api/v1/trips/{ids['trip_a']}/publish")
+    assert wrong_tenant_fare.status_code == 409
+    assert "ETB fare" in wrong_tenant_fare.json()["detail"]
+
