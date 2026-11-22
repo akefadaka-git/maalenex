@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, aliased
 
 from app.db.session import get_db
 from app.domains.bookings.models import Booking, SeatAllocation, SeatHold
-from app.domains.catalog.models import Location, Route, Terminal
+from app.domains.catalog.models import Location, Route, RouteStop, Terminal
 from app.domains.fares.models import Fare, FareVersion
 from app.domains.organizations.models import Organization
 from app.domains.trips.models import Trip, TripSeat
@@ -15,10 +15,22 @@ from app.domains.trips.models import Trip, TripSeat
 router = APIRouter(tags=["passenger-catalog"])
 
 
+def _location_payload(row: Location) -> dict:
+    return {
+        "id": str(row.id),
+        "name": row.name,
+        "type": row.location_type,
+        "coordinates": (
+            {"latitude": row.latitude, "longitude": row.longitude, "source": row.coordinate_source}
+            if row.latitude is not None and row.longitude is not None else None
+        ),
+    }
+
+
 @router.get("/catalog/locations")
 def list_public_locations(db: Session = Depends(get_db)) -> list[dict]:
     rows = db.scalars(select(Location).where(Location.status == "published").order_by(Location.name))
-    return [{"id": str(row.id), "name": row.name, "type": row.location_type} for row in rows]
+    return [_location_payload(row) for row in rows]
 
 
 @router.get("/catalog/routes")
@@ -29,15 +41,43 @@ def list_public_routes(db: Session = Depends(get_db)) -> list[dict]:
         select(Route, origin, destination)
         .join(origin, Route.origin_location_id == origin.id)
         .join(destination, Route.destination_location_id == destination.id)
-        .where(Route.status == "published")
+        .where(
+            Route.status == "published",
+            origin.status == "published",
+            destination.status == "published",
+        )
         .order_by(Route.code)
     ).all()
-    return [
-        {"id": str(route.id), "code": route.code,
-         "origin": {"id": str(origin.id), "name": origin.name},
-         "destination": {"id": str(destination.id), "name": destination.name}}
-        for route, origin, destination in rows
-    ]
+    results = []
+    for route, start, end in rows:
+        stop_rows = db.execute(
+            select(RouteStop, Location)
+            .join(Location, Location.id == RouteStop.location_id)
+            .where(
+                RouteStop.route_id == route.id,
+                RouteStop.status == "published",
+                Location.status == "published",
+            )
+            .order_by(RouteStop.sequence_number)
+        ).all()
+        results.append({
+            "id": str(route.id),
+            "code": route.code,
+            "origin": _location_payload(start),
+            "destination": _location_payload(end),
+            "stops": [
+                {
+                    **_location_payload(location),
+                    "sequence": stop.sequence_number,
+                    "boarding_allowed": stop.boarding_allowed,
+                    "alighting_allowed": stop.alighting_allowed,
+                }
+                for stop, location in stop_rows
+            ],
+            "geometry": route.geometry,
+            "geometry_status": "published" if route.geometry else "not_published",
+        })
+    return results
 
 
 @router.get("/trips/search")
@@ -164,7 +204,7 @@ def list_trip_seats(trip_id: UUID, db: Session = Depends(get_db)) -> list[dict]:
                     and_(
                         Booking.status == "held",
                         exists(select(1).where(
-                            SeatHold.booking_id == SeatAllocation.booking_id,
+                            SeatHold.booking_id == Booking.id,
                             SeatHold.trip_seat_id == seat.id,
                             SeatHold.status == "active",
                             SeatHold.expires_at > now,
