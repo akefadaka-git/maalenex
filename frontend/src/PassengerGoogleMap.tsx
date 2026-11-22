@@ -18,7 +18,7 @@ function loadGoogleMaps(key:string):Promise<MapsApi>{
   const finish=()=>{if(window.google?.maps)resolve(window.google.maps);else reject(new Error("Google Maps loaded without its JavaScript API."));};
   script.addEventListener("load",finish,{once:true});script.addEventListener("error",()=>reject(new Error("Google Maps could not be loaded. Check network access, API key restrictions and billing.")),{once:true});
   if(!existing){script.id="maalenex-google-maps";script.async=true;script.defer=true;script.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;document.head.appendChild(script);}
- });
+ }).catch(error=>{mapsLoader=null;throw error;});
  return mapsLoader;
 }
 function validPoint(value:unknown):LatLng|null{if(!value||typeof value!=="object")return null;const p=value as {latitude?:unknown;longitude?:unknown};if(typeof p.latitude!=="number"||typeof p.longitude!=="number"||!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude)||Math.abs(p.latitude)>90||Math.abs(p.longitude)>180)return null;return{lat:p.latitude,lng:p.longitude};}

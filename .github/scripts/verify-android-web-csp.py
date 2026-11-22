@@ -90,4 +90,4 @@ for name, sources in directives.items():
 print("PASS: exactly one CSP policy is present in packaged index.html")
 for name, sources in directives.items():
     print(f"PASS: CSP {name} = {' '.join(sources)}")
-print("PASS: no wildcard, unsafe-inline, or unsafe-eval source")
+print("PASS: no unrestricted wildcard or unsafe-eval; Google Maps inline styles are the only inline-style exception")
