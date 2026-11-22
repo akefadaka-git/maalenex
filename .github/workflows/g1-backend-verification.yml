@@ -82,6 +82,9 @@ jobs:
           app/domains/support/report_models.py
           app/routers/passenger_reports.py
           app/routers/admin.py
+          app/domains/fleet/models.py
+          app/domains/trips/models.py
+          migrations/versions/0016_fleet_compliance_and_geometry.py
           app/main.py
           tests/test_passenger_reports.py
           migrations/versions/0011_passenger_reports_complaints.py
