@@ -88,7 +88,7 @@ def upgrade() -> None:
                                {"id": permission_id, "code": code, "description": description})
         permission_ids[code] = permission_id
     grants = {
-        "platform_operations_manager": list(permissions),
+        "platform_operations_manager": ["platform.carrier.operations.manage", "platform.cargo.delivery_proof.review"],
         "synthetic_platform_admin": list(permissions),
         "operator_manager": ["operator.cargo.delivery_proof.submit", "operator.cargo.exception.manage"],
         "operator_dispatcher": ["operator.cargo.delivery_proof.submit", "operator.cargo.exception.manage"],
@@ -109,8 +109,31 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("DELETE FROM access_role_permissions WHERE permission_id IN (SELECT id FROM access_permissions WHERE code IN ('platform.carrier.operations.manage','platform.cargo.delivery_proof.review','operator.cargo.delivery_proof.submit','operator.cargo.exception.manage'))")
-    op.execute("DELETE FROM access_permissions WHERE code IN ('platform.carrier.operations.manage','platform.cargo.delivery_proof.review','operator.cargo.delivery_proof.submit','operator.cargo.exception.manage')")
+    from uuid import NAMESPACE_URL, uuid5
+    connection = op.get_bind()
+    grants = {
+        "platform_operations_manager": ["platform.carrier.operations.manage", "platform.cargo.delivery_proof.review"],
+        "synthetic_platform_admin": [
+            "platform.carrier.operations.manage", "platform.cargo.delivery_proof.review",
+            "operator.cargo.delivery_proof.submit", "operator.cargo.exception.manage",
+        ],
+        "operator_manager": ["operator.cargo.delivery_proof.submit", "operator.cargo.exception.manage"],
+        "operator_dispatcher": ["operator.cargo.delivery_proof.submit", "operator.cargo.exception.manage"],
+        "synthetic_operator_manager": ["operator.cargo.delivery_proof.submit", "operator.cargo.exception.manage"],
+    }
+    for role_code, codes in grants.items():
+        role_id = connection.execute(sa.text("SELECT id FROM access_roles WHERE code=:code"), {"code": role_code}).scalar_one_or_none()
+        if role_id is None:
+            continue
+        for code in codes:
+            grant_id = uuid5(NAMESPACE_URL, f"maalenex:role-permission:{role_code}:{code}")
+            connection.execute(sa.text("DELETE FROM access_role_permissions WHERE id=:id"), {"id": grant_id})
+    for code in (
+        "platform.carrier.operations.manage", "platform.cargo.delivery_proof.review",
+        "operator.cargo.delivery_proof.submit", "operator.cargo.exception.manage",
+    ):
+        generated_id = uuid5(NAMESPACE_URL, f"maalenex:permission:{code}")
+        connection.execute(sa.text("DELETE FROM access_permissions WHERE id=:id"), {"id": generated_id})
     op.drop_index("ix_cargo_exception_carrier_status", table_name="cargo_exception_cases")
     op.drop_table("cargo_exception_cases")
     op.drop_table("cargo_delivery_proofs")
