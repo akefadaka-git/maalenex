@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
-  approveFleetSeatLayout, createFleetSeatLayout, createFleetVehicle, getFleetVehicles,
-  getVehicleSeatLayouts, reviewFleetVehicle, updateDraftFleetSeatLayout, updateFleetVehicle,
-  type FleetSeatLayout, type FleetVehicle,
+  approveFleetSeatLayout, createFleetSeatLayout, createFleetVehicle, getFleetReviewHistory, getFleetVehicles,
+  getVehicleSeatLayouts, reviewFleetComplianceEvidence, reviewFleetVehicle, submitFleetComplianceEvidence,
+  updateDraftFleetSeatLayout, updateFleetVehicle,
+  type FleetReviewHistory, type FleetSeatLayout, type FleetVehicle, SeatLayoutGeometry,
 } from "./staff-api";
 
 type Props = { language: "am" | "en"; organizationIds: string[]; canManage: boolean; canReview: boolean };
@@ -61,6 +62,13 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
   const [editingSeatRows, setEditingSeatRows] = useState("");
   const [editingSeatType, setEditingSeatType] = useState("standard");
   const [editingSeatSellable, setEditingSeatSellable] = useState(true);
+  const [geometryText, setGeometryText] = useState('{"width":100,"height":100,"markers":[]}');
+  const [editingGeometryText, setEditingGeometryText] = useState('{"width":100,"height":100,"markers":[]}');
+  const [reviewHistory, setReviewHistory] = useState<FleetReviewHistory | null>(null);
+  const [documentType, setDocumentType] = useState("registration");
+  const [evidenceReference, setEvidenceReference] = useState("");
+  const [issuedAt, setIssuedAt] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -91,6 +99,8 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
     if (!selectedVehicleId) { setLayouts([]); return () => { active = false; }; }
     void getVehicleSeatLayouts(selectedVehicleId).then(result => { if (active) setLayouts(result); })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : "Seat layouts could not be loaded."); });
+    void getFleetReviewHistory(selectedVehicleId).then(result => { if (active) setReviewHistory(result); })
+      .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : "Fleet review history could not be loaded."); });
     return () => { active = false; };
   }, [selectedVehicleId]);
   const run = async (action: () => Promise<unknown>, success: string) => {
@@ -113,14 +123,20 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
       setError(am ? "ከ1 እስከ 60 መቀመጫዎች፣ ከ26 ያልበለጡ ረድፎች እና በአንድ ረድፍ ከ21 ያልበለጡ መቀመጫዎች ያስገቡ።" : "Enter 1–60 seats, no more than 26 rows and no more than 21 seats per row.");
       return;
     }
-    await run(() => createFleetSeatLayout(selectedVehicle.id, seats), am ? "አዲስ የመቀመጫ አቀማመጥ እንደ ረቂቅ ተፈጥሯል።" : "New seat layout version created as a draft.");
+    let geometry: SeatLayoutGeometry;
+    try { geometry = JSON.parse(geometryText) as SeatLayoutGeometry; }
+    catch { setError(am ? "የአቀማመጥ ጂኦሜትሪ JSON ትክክል አይደለም።" : "Layout geometry must be valid JSON."); return; }
+    await run(() => createFleetSeatLayout(selectedVehicle.id, seats, geometry), am ? "አዲስ የመቀመጫ አቀማመጥ እንደ ረቂቅ ተፈጥሯል።" : "New seat layout version created as a draft.");
   };
   const saveVehicle = (vehicleId: string) => void run(() => updateFleetVehicle(vehicleId, editingVehicleReference.trim()),
     am ? "የተሽከርካሪ ረቂቅ ተሻሽሏል።" : "Vehicle draft updated.");
   const saveLayout = (layoutId: string) => {
     const seats = parseSeatRows(editingSeatRows, editingSeatType, editingSeatSellable);
     if (!seats) { setError(am ? "የመቀመጫ ረድፎችን ያስተካክሉ።" : "Correct the seat rows before saving."); return; }
-    void run(() => updateDraftFleetSeatLayout(layoutId, seats), am ? "የመቀመጫ ረቂቅ ተሻሽሏል።" : "Seat layout draft updated.");
+    let geometry: SeatLayoutGeometry;
+    try { geometry = JSON.parse(editingGeometryText) as SeatLayoutGeometry; }
+    catch { setError(am ? "የአቀማመጥ ጂኦሜትሪ JSON ትክክል አይደለም።" : "Layout geometry must be valid JSON."); return; }
+    void run(() => updateDraftFleetSeatLayout(layoutId, seats, geometry), am ? "የመቀመጫ ረቂቅ ተሻሽሏል።" : "Seat layout draft updated.");
     setEditingLayoutId("");
   };
   const status = (value: string) => <span className={"support-status status-" + value}>{value.replaceAll("_", " ")}</span>;
@@ -183,18 +199,61 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
             <textarea rows={4} value={seatRows} onChange={event => setSeatRows(event.target.value)} /><small>Example: A1:standard:sellable A2:accessible:blocked. Plain seat codes use the defaults below.</small></label>
           <label>{am ? "የመቀመጫ አይነት" : "Seat type"}<select value={seatType} onChange={event => setSeatType(event.target.value)}><option value="standard">Standard</option><option value="premium">Premium</option><option value="accessible">Accessible</option></select></label>
           <label><input type="checkbox" checked={seatSellable} onChange={event => setSeatSellable(event.target.checked)} /> {am ? "ለሽያጭ የሚቀርብ" : "Sellable seats"}</label>
+          <label>{am ? "የበር እና መተላለፊያ አቀማመጥ (JSON)" : "Aisle and door geometry (JSON)"}
+            <textarea rows={3} value={geometryText} onChange={event => setGeometryText(event.target.value)} />
+            <small>{"Use normalized 0–100 coordinates. Example: " + '{"width":100,"height":100,"markers":[{"kind":"door","x":0,"y":10},{"kind":"aisle","x":50,"y":50}]}'}</small>
+          </label>
 
           <button className="primary-action" disabled={busy || selectedVehicle.review_status !== "approved"}>{am ? "አዲስ ረቂቅ አቀማመጥ ፍጠር" : "Create draft layout version"}</button>
           {selectedVehicle.review_status !== "approved" && <small>{am ? "የመቀመጫ አቀማመጥ ለመፍጠር ተሽከርካሪው መጽደቅ አለበት።" : "Vehicle must be approved before creating a seat layout."}</small>}
         </form>}
+        {canManageSelected && <section className="staff-module">
+          <h4>{am ? "የሕጋዊ ሰነድ ማስረጃ ያስገቡ" : "Register compliance evidence"}</h4>
+          <p className="compliance-note">{am ? "የተፈቀደ የሰነድ ማከማቻ ቁልፍ ያስገቡ። ይህ ቅጽ ፋይሉን አይጭንም።" : "Enter an opaque object key issued by the approved document store. This form registers evidence metadata; it does not upload file bytes."}</p>
+          <form className="role-assignment-form" onSubmit={event => {
+            event.preventDefault();
+            void run(() => submitFleetComplianceEvidence(selectedVehicle.id, {
+              document_type: documentType, evidence_reference: evidenceReference.trim(),
+              issued_at: issuedAt ? new Date(issuedAt).toISOString() : null,
+              expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+            }), am ? "ማስረጃው ለግምገማ ተልኳል።" : "Compliance evidence submitted for review.");
+            setEvidenceReference("");
+          }}>
+            <label>{am ? "የሰነድ አይነት" : "Document type"}<select value={documentType} onChange={event => setDocumentType(event.target.value)}>
+              <option value="registration">Registration</option><option value="insurance">Insurance</option>
+              <option value="roadworthiness">Roadworthiness</option><option value="operating_permit">Operating permit</option><option value="other">Other</option>
+            </select></label>
+            <label>{am ? "የማከማቻ ቁልፍ" : "Evidence object key"}<input required minLength={8} maxLength={255} value={evidenceReference} onChange={event => setEvidenceReference(event.target.value)} placeholder="fleet-compliance/operator/vehicle/document-id" /></label>
+            <label>{am ? "የተሰጠበት ቀን" : "Issue date"}<input type="date" value={issuedAt} onChange={event => setIssuedAt(event.target.value)} /></label>
+            <label>{am ? "የሚያበቃበት ቀን" : "Expiry date"}<input type="date" value={expiresAt} onChange={event => setExpiresAt(event.target.value)} /></label>
+            <button className="primary-action" disabled={busy || !evidenceReference.trim()}>{am ? "ማስረጃ ላክ" : "Submit evidence"}</button>
+          </form>
+        </section>}
+        {reviewHistory && <section className="staff-module">
+          <h4>{am ? "የተሽከርካሪ የግምገማ ታሪክ" : "Fleet review history"}</h4>
+          {reviewHistory.documents.map(document => <div className="staff-user-row" key={document.id}>
+            <div><strong>{document.document_type.replaceAll("_", " ")}</strong><small>{document.evidence_reference}</small>
+              <small>{document.issued_at ? new Date(document.issued_at).toLocaleDateString() : "—"} → {document.expires_at ? new Date(document.expires_at).toLocaleDateString() : "No expiry"}</small>
+              {document.review_reason && <small>{document.review_reason}</small>}</div>{status(document.status)}
+            {canReview && document.status === "pending" && <>
+              <button className="text-link" disabled={busy || reviewReason.trim().length < 3} onClick={() => void run(() => reviewFleetComplianceEvidence(document.id, "approved", reviewReason.trim()), am ? "ማስረጃው ጸድቋል።" : "Evidence approved.")}>{am ? "አጽድቅ" : "Approve"}</button>
+              <button className="text-link" disabled={busy || reviewReason.trim().length < 3} onClick={() => void run(() => reviewFleetComplianceEvidence(document.id, "rejected", reviewReason.trim()), am ? "ማስረጃው ውድቅ ተደርጓል።" : "Evidence rejected.")}>{am ? "ውድቅ አድርግ" : "Reject"}</button>
+            </>}
+          </div>)}
+          {reviewHistory.events.map((item, index) => <div className="staff-user-row" key={item.event_type + item.occurred_at + index}>
+            <div><strong>{item.event_type}</strong><small>{new Date(item.occurred_at).toLocaleString()}</small></div><small>{item.action} · {item.outcome}</small>
+          </div>)}
+        </section>}
         {layouts.map(layout => <article className="staff-module" key={layout.id}><div className="staff-user-row"><div><strong>Version {layout.version_number}</strong><small>{layout.seats.length} seats</small></div>{status(layout.status)}
-          {canManageSelected && layout.status === "draft" && <button className="text-link" onClick={() => { setEditingLayoutId(layout.id); setEditingSeatRows(formatSeatRows(layout)); setEditingSeatType(layout.seats[0]?.seat_type ?? "standard"); setEditingSeatSellable(layout.seats.every(seat => seat.is_sellable)); }}>{am ? "ረቂቅ አስተካክል" : "Edit draft"}</button>}
+          {canManageSelected && layout.status === "draft" && <button className="text-link" onClick={() => { setEditingLayoutId(layout.id); setEditingSeatRows(formatSeatRows(layout)); setEditingSeatType(layout.seats[0]?.seat_type ?? "standard"); setEditingSeatSellable(layout.seats.every(seat => seat.is_sellable)); setEditingGeometryText(JSON.stringify(layout.geometry ?? { width: 100, height: 100, markers: [] }, null, 2)); }}>{am ? "ረቂቅ አስተካክል" : "Edit draft"}</button>}
           {canReview && layout.status === "draft" && selectedVehicle.review_status === "approved" && <button className="text-link" disabled={busy} onClick={() => void run(() => approveFleetSeatLayout(layout.id), am ? "የመቀመጫ አቀማመጡ ጸድቋል።" : "Seat layout approved.")}>{am ? "አቀማመጥ አጽድቅ" : "Approve layout"}</button>}
         </div>
         {editingLayoutId === layout.id && <form className="role-assignment-form" onSubmit={event => { event.preventDefault(); saveLayout(layout.id); }}>
           <label>{am ? "የመቀመጫ ረድፎች" : "Seat rows"}<textarea rows={4} value={editingSeatRows} onChange={event => setEditingSeatRows(event.target.value)} /><small>Example: A1:standard:sellable A2:accessible:blocked. Plain seat codes use the defaults below.</small></label>
           <label>{am ? "የመቀመጫ አይነት" : "Seat type"}<select value={editingSeatType} onChange={event => setEditingSeatType(event.target.value)}><option value="standard">Standard</option><option value="premium">Premium</option><option value="accessible">Accessible</option></select></label>
           <label><input type="checkbox" checked={editingSeatSellable} onChange={event => setEditingSeatSellable(event.target.checked)} /> {am ? "ለሽያጭ የሚቀርብ" : "Sellable seats"}</label>
+          <label>{am ? "የበር እና መተላለፊያ አቀማመጥ (JSON)" : "Aisle and door geometry (JSON)"}
+            <textarea rows={3} value={editingGeometryText} onChange={event => setEditingGeometryText(event.target.value)} /></label>
 
           <div className="staff-actions"><button className="primary-action" disabled={busy}>{am ? "ለውጦችን አስቀምጥ" : "Save layout changes"}</button><button type="button" className="secondary-action" onClick={() => setEditingLayoutId("")}>{am ? "ሰርዝ" : "Cancel"}</button></div>
         </form>}</article>)}
