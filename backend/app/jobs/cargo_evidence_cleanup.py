@@ -116,7 +116,11 @@ def process_expired_retention_evidence(
             blocked += 1
             continue
         try:
-            delete_cargo_delivery_object(object_key=evidence.object_key)
+            delete_cargo_delivery_object(
+                object_key=evidence.object_key,
+                carrier_organization_id=str(evidence.carrier_organization_id),
+                dispatch_id=str(evidence.dispatch_id),
+            )
         except (StorageOperationFailed, StorageNotConfigured):
             evidence.lifecycle_state = "deletion_failed"
             evidence.deletion_failure_code = "storage_unavailable"
@@ -138,3 +142,33 @@ def process_expired_retention_evidence(
         )
     db.commit()
     return {"examined": len(candidates), "deleted": deleted, "failed": failed, "blocked": blocked}
+
+
+
+def alert_due_legal_hold_reviews(db: Session, *, now: datetime, batch_size: int = 100) -> dict[str, int]:
+    """Record one auditable escalation when a legal-hold review reaches its due time."""
+    if now.tzinfo is None or not 1 <= batch_size <= 1000:
+        raise ValueError("A timezone-aware clock and bounded batch size are required.")
+    due_holds = db.scalars(
+        select(CargoDeliveryEvidenceHold)
+        .where(
+            CargoDeliveryEvidenceHold.released_at.is_(None),
+            CargoDeliveryEvidenceHold.review_due_at <= now,
+            CargoDeliveryEvidenceHold.review_alerted_at.is_(None),
+        )
+        .order_by(CargoDeliveryEvidenceHold.review_due_at)
+        .limit(batch_size)
+        .with_for_update(skip_locked=True)
+    ).all()
+    for hold in due_holds:
+        hold.review_alerted_at = now
+        record_event(
+            db, event_type="cargo.delivery_evidence.hold_review_due",
+            actor_type="system", actor_id=None,
+            resource_type="cargo_delivery_evidence_hold", resource_id=str(hold.id),
+            action="hold_review_escalation", outcome="success",
+            metadata={"hold_id": str(hold.id), "evidence_id": str(hold.evidence_id),
+                      "review_due_at": hold.review_due_at.isoformat()},
+        )
+    db.commit()
+    return {"review_due": len(due_holds)}
