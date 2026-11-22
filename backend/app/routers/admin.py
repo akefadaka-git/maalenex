@@ -32,7 +32,7 @@ from app.domains.organizations.service import create_candidate_operator
 from app.domains.support.models import SupportCase
 from app.domains.support.passenger_models import PassengerSupportCase
 from app.domains.support.report_models import PassengerReport, PassengerReportAttachment
-from app.domains.trips.models import Trip, TripSeat
+from app.domains.trips.models import Schedule, Trip, TripSeat
 from app.routers.auth import current_staff_context, require_csrf
 
 router = APIRouter(tags=["platform-administration"])
@@ -1267,8 +1267,8 @@ def update_catalog_location(
     if item.status != "draft":
         raise HTTPException(status_code=409, detail="Only draft locations can be edited.")
     values = payload.model_dump(exclude_unset=True)
-    if not values:
-        raise HTTPException(status_code=422, detail="At least one field is required.")
+    if not values or any(value is None for value in values.values()):
+        raise HTTPException(status_code=422, detail="Provide non-null fields to update.")
     for key, value in values.items():
         setattr(item, key, value.strip() if isinstance(value, str) else value)
     _audit(db, context=context, event="catalog.location.updated", resource_type="location",
@@ -1317,8 +1317,8 @@ def update_catalog_route(
     if item.status != "draft":
         raise HTTPException(status_code=409, detail="Only draft routes can be edited.")
     values = payload.model_dump(exclude_unset=True)
-    if not values:
-        raise HTTPException(status_code=422, detail="At least one field is required.")
+    if not values or any(value is None for value in values.values()):
+        raise HTTPException(status_code=422, detail="Provide non-null fields to update.")
     origin = values.get("origin_location_id", item.origin_location_id)
     destination = values.get("destination_location_id", item.destination_location_id)
     if origin == destination:
