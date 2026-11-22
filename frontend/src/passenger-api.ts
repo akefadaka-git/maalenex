@@ -67,11 +67,28 @@ export function logoutPassenger(): Promise<void> {
   return request("/passenger/auth/sessions/current", { method: "DELETE" });
 }
 
+
+export type MapCoordinates = { latitude: number; longitude: number; source: string | null };
 export type PassengerLocation = {
   id: string;
   name: string;
   type: string;
+  coordinates?: MapCoordinates | null;
 };
+export type PassengerRouteStop = PassengerLocation & { sequence: number; boarding_allowed: boolean; alighting_allowed: boolean };
+export type PassengerRoute = {
+  id: string;
+  code: string;
+  origin: PassengerLocation;
+  destination: PassengerLocation;
+  stops: PassengerRouteStop[];
+  geometry: { type: "LineString"; coordinates: [number, number][] } | null;
+  geometry_status: "published" | "not_published";
+};
+
+export function listPassengerRoutes(): Promise<PassengerRoute[]> {
+  return request("/catalog/routes");
+}
 
 export type PassengerTrip = {
   id: string;

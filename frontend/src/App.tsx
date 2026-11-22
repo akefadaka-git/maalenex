@@ -7,8 +7,10 @@ import {
   updatePassengerProfile,
   type PassengerSession,
   listPassengerLocations,
+  listPassengerRoutes,
   searchPassengerTrips,
   type PassengerLocation,
+  type PassengerRoute,
   type PassengerTrip,
   listPassengerSupportFaqs,
   listPassengerSupportCases,
@@ -31,6 +33,7 @@ import {
   type PassengerNotification,
 } from "./passenger-api";
 import { BookingFlow } from "./BookingFlow";
+import { PassengerGoogleMap } from "./PassengerGoogleMap";
 import { MyBookings } from "./MyBookings";
 import { StaffConsole } from "./StaffConsole";
 import { Icon } from "./components/nexus-icons";
@@ -98,6 +101,8 @@ export default function App() {
  const [authConfirmPassword,setAuthConfirmPassword]=useState("");
  const [authBusy,setAuthBusy]=useState(false);
  const [locations,setLocations]=useState<PassengerLocation[]>([]);
+ const [routes,setRoutes]=useState<PassengerRoute[]>([]);
+ const [mapPickTarget,setMapPickTarget]=useState<"origin"|"destination">("origin");
  const [originId,setOriginId]=useState("");
  const [destinationId,setDestinationId]=useState("");
  const [travelDate,setTravelDate]=useState(()=>{const now=new Date();return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);});
@@ -148,12 +153,12 @@ export default function App() {
  useEffect(()=>{
   if(page!=="map")return;
   let active=true;
-  listPassengerLocations().then(items=>{
+  Promise.all([listPassengerLocations(),listPassengerRoutes()]).then(([items,routeItems])=>{
    if(!active)return;
-   setLocations(items);
+   setLocations(items);setRoutes(routeItems);
    setOriginId(current=>current||items[0]?.id||"");
    setDestinationId(current=>current||items.find(item=>item.id!==items[0]?.id)?.id||"");
-  }).catch(error=>{if(active)setTripError(error instanceof Error?error.message:"Unable to load published locations.");});
+  }).catch(error=>{if(active)setTripError(error instanceof Error?error.message:"Unable to load published locations and routes.");});
   return()=>{active=false;};
  },[page]);
  useEffect(()=>{
@@ -218,6 +223,7 @@ export default function App() {
  const submitTripSearch=async(e:FormEvent<HTMLFormElement>)=>{
   e.preventDefault();setTripError("");setTripResults([]);
   if(!originId||!destinationId||originId===destinationId){setTripError(language==="am"?"የተለያዩ መነሻ እና መድረሻ ይምረጡ።":"Choose different origin and destination locations.");return;}
+  if(!navigator.onLine){setTripError(language==="am"?"የኢንተርኔት ግንኙነት የለም። ጉዞ ለመፈለግ ግንኙነት ያስፈልጋል።":"You are offline. Reconnect to search current trips.");return;}
   setTripLoading(true);
   try{const results=await searchPassengerTrips({origin_id:originId,destination_id:destinationId,travel_date:travelDate,passenger_count:passengerCount});setTripResults(results);}
   catch(error){setTripError(error instanceof Error?error.message:"Journey search is temporarily unavailable.");}
@@ -397,18 +403,12 @@ export default function App() {
               : (language==="am" ? "ጉዞ ለማግኘት መነሻና መድረሻ ይምረጡ።" : "Choose an origin and destination to search published trips.")}
           </p>
         )}
-        <div className="map-canvas">
-          <div className="map-grid-lines"/>
-          <div className="map-waterway"/>
-          <span className="map-pin pin-one">Koybe</span>
-          <span className="map-pin pin-two">Jinka</span>
-          <div className="map-center-mark"><img src="./brand/maalenex-nexus-emblem.svg" alt=""/></div>
-          <div className="map-legend">
-            <strong>{language==="am" ? "የካርታ ቅድመ እይታ" : "Map preview"}</strong>
-            <span>{t.mapNote}</span>
-          </div>
+        <div className="map-pick-controls" role="group" aria-label={language==="am"?"ከካርታ ቦታ ይምረጡ":"Choose a location from the map"}>
+          <button type="button" className={mapPickTarget==="origin"?"map-pick active":"map-pick"} aria-pressed={mapPickTarget==="origin"} onClick={()=>setMapPickTarget("origin")}>{language==="am"?"መነሻ ምረጥ":"Pick origin"}</button>
+          <button type="button" className={mapPickTarget==="destination"?"map-pick active":"map-pick"} aria-pressed={mapPickTarget==="destination"} onClick={()=>setMapPickTarget("destination")}>{language==="am"?"መድረሻ ምረጥ":"Pick destination"}</button>
         </div>
-        <p className="muted-copy">{t.mapNote}</p>
+        <PassengerGoogleMap locations={locations} routes={routes} originId={originId} destinationId={destinationId} language={language} onSelectLocation={id=>{if(mapPickTarget==="origin"){setOriginId(id);if(id===destinationId)setDestinationId("");}else{setDestinationId(id);if(id===originId)setOriginId("");}}}/>
+        <p className="muted-copy">{language==="am"?"ካርታው የታተሙ እና የተረጋገጡ የቦታ መረጃዎችን ብቻ ያሳያል።":"The map displays only published, source-backed location and route geometry. Missing data is never fabricated."}</p>
       </section>
     )}{page==="wallet"&&<section className="content-section wallet-view">
      <article className="wallet-card">
