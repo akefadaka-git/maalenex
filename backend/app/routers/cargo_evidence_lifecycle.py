@@ -21,6 +21,7 @@ from app.domains.cargo.dispatch import CargoDispatch
 from app.domains.cargo.evidence_lifecycle import (
     CargoDeliveryEvidence, CargoDeliveryEvidenceAccessGrant,
     CargoDeliveryEvidenceDeletionRequest, CargoDeliveryEvidenceHold,
+    CargoDeliveryEvidenceRetentionPolicy,
 )
 from app.domains.fleet.object_storage import (
     InvalidStoredObject, StorageNotConfigured, StorageOperationFailed,
@@ -78,6 +79,15 @@ class EvidenceDeletionApproval(BaseModel):
     confirmation: Literal["approve"]
 
 
+class EvidenceRetentionClassify(BaseModel):
+    classification: Literal["ordinary", "accounting_document", "extended_review"]
+    legal_review_reference: str = Field(min_length=5, max_length=160)
+
+
+class EvidenceRetentionReview(BaseModel):
+    note: str = Field(min_length=5, max_length=500)
+
+
 class EvidenceAccessGrantCreate(BaseModel):
     user_id: UUID
     reason: str = Field(min_length=10, max_length=500)
@@ -88,6 +98,15 @@ def _allowed(db: Session, context: StaffContext, code: str, organization_id: UUI
     return has_permission(
         db, user_id=context.user.id, permission_code=code, organization_id=organization_id,
     )
+
+
+def _active_policy(db: Session, version: str | None) -> CargoDeliveryEvidenceRetentionPolicy | None:
+    if version is None:
+        return None
+    return db.scalar(select(CargoDeliveryEvidenceRetentionPolicy).where(
+        CargoDeliveryEvidenceRetentionPolicy.version == version,
+        CargoDeliveryEvidenceRetentionPolicy.status == "active",
+    ))
 
 
 def _active_hold(db: Session, evidence_id: UUID) -> CargoDeliveryEvidenceHold | None:
@@ -475,6 +494,60 @@ def release_evidence_hold(
     return {"hold_id": str(hold.id), "status": "released"}
 
 
+@router.post("/evidence/{evidence_id}/retention-classification")
+def classify_evidence_retention(
+    evidence_id: UUID, payload: EvidenceRetentionClassify, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.retention.manage"):
+        raise HTTPException(status_code=403, detail="Legal/Compliance retention-classification permission is required.")
+    evidence = db.scalar(select(CargoDeliveryEvidence).where(
+        CargoDeliveryEvidence.id == evidence_id,
+    ).with_for_update())
+    if evidence is None:
+        raise HTTPException(status_code=404, detail="Evidence record not found.")
+    if evidence.lifecycle_state not in {"attached", "held"} or evidence.retention_started_at is None:
+        raise HTTPException(status_code=409, detail="Evidence must be attached to a closed delivery before classification.")
+    evidence.classification_status = f"{payload.classification}_pending_dpo"
+    evidence.retention_legal_review_reference = payload.legal_review_reference
+    evidence.retention_classified_by = context.user.id
+    evidence.retention_classified_at = datetime.now(UTC)
+    evidence.retention_dpo_reviewed_by = None
+    evidence.retention_dpo_reviewed_at = None
+    _audit(db, context=context, evidence=evidence, action="retention_classification_submitted", outcome="success")
+    db.commit()
+    return {"evidence_id": str(evidence.id), "classification_status": evidence.classification_status}
+
+
+@router.post("/evidence/{evidence_id}/retention-classification/dpo-review")
+def review_evidence_retention_classification(
+    evidence_id: UUID, payload: EvidenceRetentionReview, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.retention.review"):
+        raise HTTPException(status_code=403, detail="Independent DPO retention-review permission is required.")
+    evidence = db.scalar(select(CargoDeliveryEvidence).where(
+        CargoDeliveryEvidence.id == evidence_id,
+    ).with_for_update())
+    if evidence is None:
+        raise HTTPException(status_code=404, detail="Evidence record not found.")
+    if not evidence.classification_status.endswith("_pending_dpo"):
+        raise HTTPException(status_code=409, detail="No pending Legal/Compliance classification requires DPO review.")
+    if evidence.retention_classified_by == context.user.id:
+        raise HTTPException(status_code=409, detail="The Legal/Compliance classifier cannot provide independent DPO review.")
+    classification = evidence.classification_status.removesuffix("_pending_dpo")
+    evidence.classification_status = classification
+    evidence.retention_dpo_reviewed_by = context.user.id
+    evidence.retention_dpo_reviewed_at = datetime.now(UTC)
+    _audit(db, context=context, evidence=evidence, action="retention_classification_dpo_reviewed",
+           outcome="success", reason=f"{classification}:{payload.note}")
+    db.commit()
+    return {"evidence_id": str(evidence.id), "classification_status": evidence.classification_status,
+            "dpo_reviewed": True}
+
+
 @router.post("/evidence/{evidence_id}/deletion-requests", status_code=201)
 def request_evidence_deletion(
     evidence_id: UUID, payload: EvidenceDeletionRequestCreate, request: Request,
@@ -492,8 +565,10 @@ def request_evidence_deletion(
         raise HTTPException(status_code=410, detail="Evidence has already been deleted.")
     if _active_hold(db, evidence.id):
         raise HTTPException(status_code=409, detail="Active legal hold prevents deletion.")
-    if evidence.classification_status != "ordinary" or evidence.retention_expires_at is None:
-        raise HTTPException(status_code=409, detail="Evidence classification or approved retention schedule is unresolved; deletion fails closed.")
+    policy = _active_policy(db, evidence.retention_policy_version)
+    if (evidence.classification_status != "ordinary" or evidence.retention_dpo_reviewed_at is None
+            or evidence.retention_expires_at is None or policy is None):
+        raise HTTPException(status_code=409, detail="Legal classification, independent DPO review or activated retention policy is missing; deletion fails closed.")
     if evidence.retention_expires_at > datetime.now(UTC):
         raise HTTPException(status_code=409, detail="Evidence is still within its retention period.")
     item = CargoDeliveryEvidenceDeletionRequest(
@@ -529,8 +604,11 @@ def approve_and_execute_evidence_deletion(
     ).with_for_update())
     if _active_hold(db, evidence.id):
         raise HTTPException(status_code=409, detail="Active legal hold prevents deletion.")
-    if evidence.classification_status != "ordinary" or evidence.retention_expires_at is None or evidence.retention_expires_at > datetime.now(UTC):
-        raise HTTPException(status_code=409, detail="Retention eligibility is not established; deletion fails closed.")
+    policy = _active_policy(db, evidence.retention_policy_version)
+    if (evidence.classification_status != "ordinary" or evidence.retention_dpo_reviewed_at is None
+            or policy is None or evidence.retention_expires_at is None
+            or evidence.retention_expires_at > datetime.now(UTC)):
+        raise HTTPException(status_code=409, detail="Legal classification, independent DPO review, activated policy or expiry eligibility is missing; deletion fails closed.")
     item.approved_by = context.user.id
     item.approved_at = datetime.now(UTC)
     item.executed_by = context.user.id
