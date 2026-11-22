@@ -243,6 +243,14 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
     assert any(item["event_type"] == "fleet.compliance.reviewed" for item in history.json()["events"])
 
     selected["value"] = users["operator"]
+    overlapping_layout = client.post(
+        f"/api/v1/vehicles/{vehicle_id}/seat-layouts",
+        json={"seats": [
+            {"seat_code": "X1", "row_label": "X", "column_index": 0, "x": 20, "y": 20},
+            {"seat_code": "X2", "row_label": "X", "column_index": 1, "x": 20, "y": 20},
+        ]},
+    )
+    assert overlapping_layout.status_code == 422
     layout_response = client.post(
         f"/api/v1/vehicles/{vehicle_id}/seat-layouts",
         json={
