@@ -36,8 +36,6 @@ def upgrade() -> None:
         sa.UniqueConstraint("consignment_id", "idempotency_key", name="uq_cargo_dispatch_idempotency"),
         sa.CheckConstraint("status IN ('offered','accepted','rejected','picked_up','in_transit','delivered','failed','cancelled')", name="ck_cargo_dispatch_status"),
     )
-    op.create_index("ix_cargo_dispatches_carrier_organization_id", "cargo_dispatches", ["carrier_organization_id"])
-    op.create_index("ix_cargo_dispatches_status", "cargo_dispatches", ["status"])
     op.create_index("ix_cargo_dispatch_carrier_status", "cargo_dispatches", ["carrier_organization_id", "status"])
     op.create_table(
         "cargo_tracking_events",
@@ -58,8 +56,6 @@ def upgrade() -> None:
         sa.CheckConstraint("latitude IS NULL OR (latitude >= -90 AND latitude <= 90)", name="ck_cargo_tracking_latitude"),
         sa.CheckConstraint("longitude IS NULL OR (longitude >= -180 AND longitude <= 180)", name="ck_cargo_tracking_longitude"),
     )
-    op.create_index("ix_cargo_tracking_events_consignment_id", "cargo_tracking_events", ["consignment_id"])
-    op.create_index("ix_cargo_tracking_events_occurred_at", "cargo_tracking_events", ["occurred_at"])
     op.create_index("ix_cargo_tracking_consignment_occurred", "cargo_tracking_events", ["consignment_id", "occurred_at"])
     connection = op.get_bind()
     permissions = {
@@ -100,10 +96,6 @@ def downgrade() -> None:
     connection.execute(sa.text("DELETE FROM access_role_permissions WHERE permission_id IN (SELECT id FROM access_permissions WHERE code IN ('platform.dispatch.manage','operator.cargo.dispatch.manage'))"))
     connection.execute(sa.text("DELETE FROM access_permissions WHERE code IN ('platform.dispatch.manage','operator.cargo.dispatch.manage')"))
     op.drop_index("ix_cargo_tracking_consignment_occurred", table_name="cargo_tracking_events")
-    op.drop_index("ix_cargo_tracking_events_occurred_at", table_name="cargo_tracking_events")
-    op.drop_index("ix_cargo_tracking_events_consignment_id", table_name="cargo_tracking_events")
     op.drop_table("cargo_tracking_events")
     op.drop_index("ix_cargo_dispatch_carrier_status", table_name="cargo_dispatches")
-    op.drop_index("ix_cargo_dispatches_status", table_name="cargo_dispatches")
-    op.drop_index("ix_cargo_dispatches_carrier_organization_id", table_name="cargo_dispatches")
     op.drop_table("cargo_dispatches")
