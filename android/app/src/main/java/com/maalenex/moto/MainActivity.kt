@@ -75,7 +75,7 @@ class MainActivity : Activity() {
                     origin: String?,
                     callback: GeolocationPermissions.Callback?
                 ) {
-                    if (callback == null || (origin != APP_ORIGIN && origin != "$APP_ORIGIN/")) {
+                    if (callback == null || !WebViewGeolocationPolicy.isTrustedOrigin(origin)) {
                         callback?.invoke(origin, false, false)
                         return
                     }
@@ -416,8 +416,10 @@ class MainActivity : Activity() {
     }
 
     private fun hasLocationPermission(): Boolean =
-        checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+        WebViewGeolocationPolicy.hasLocationPermission(
+            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED,
             checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        )
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -453,7 +455,6 @@ class MainActivity : Activity() {
 
     private companion object {
         const val TAG = "MaaleNexWebView"
-        const val APP_ORIGIN = "https://appassets.androidplatform.net"
         const val LOCATION_PERMISSION_REQUEST = 6402
         const val SPLASH_MIN_DURATION_MS = 5000L
         const val SPLASH_MAX_WAIT_MS = 12000L
