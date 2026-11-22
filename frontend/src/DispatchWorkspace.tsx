@@ -5,9 +5,9 @@ import {
   type DispatchOptions, type DispatchTrip, type TripManifest,
 } from "./staff-api";
 
-type Props = { language: "am" | "en"; organizationIds: string[]; canManage: boolean; canReview: boolean; canManifest: boolean };
+type Props = { language: "am" | "en"; organizationIds: string[]; canManage: boolean; canReview: boolean; canPublish: boolean; canManifest: boolean };
 
-export function DispatchWorkspace({ language, organizationIds, canManage, canReview, canManifest }: Props) {
+export function DispatchWorkspace({ language, organizationIds, canManage, canReview, canPublish, canManifest }: Props) {
   const am = language === "am";
   const [organizationId, setOrganizationId] = useState(organizationIds[0] ?? "");
   const [options, setOptions] = useState<DispatchOptions | null>(null);
@@ -116,7 +116,7 @@ export function DispatchWorkspace({ language, organizationIds, canManage, canRev
         <div className="staff-user-row"><div><strong>{trip.route_code} · {trip.vehicle_reference}</strong><small>{trip.organization_name} · {trip.boarding_terminal_name}</small><small>{formatDate(trip.departure_at)} · {trip.seat_count} seats</small></div>{status(trip.status)}
           {canManage && organizationIds.includes(trip.organization_id) && trip.status === "draft" && <button className="text-link" disabled={busy} onClick={() => void run(() => submitDispatchTrip(trip.id), am ? "ጉዞው ለግምገማ ተልኳል።" : "Trip submitted for review.")}>{am ? "ለግምገማ ላክ" : "Submit"}</button>}
           {canReview && trip.status === "submitted" && <button className="text-link" disabled={busy} onClick={() => void run(() => approveDispatchTrip(trip.id), am ? "ጉዞው ጸድቋል።" : "Trip approved.")}>{am ? "አጽድቅ" : "Approve"}</button>}
-          {canReview && trip.status === "approved" && <button className="text-link" disabled={busy} onClick={() => void run(() => publishDispatchTrip(trip.id), am ? "ጉዞው ታትሟል።" : "Trip published.")}>{am ? "አትም" : "Publish"}</button>}
+          {canPublish && trip.status === "approved" && <button className="text-link" disabled={busy} onClick={() => void run(() => publishDispatchTrip(trip.id), am ? "ጉዞው ታትሟል።" : "Trip published.")}>{am ? "አትም" : "Publish"}</button>}
           {canManifest && organizationIds.includes(trip.organization_id) && <button className="text-link" disabled={busy} onClick={() => void getTripManifest(trip.id).then(setManifest).catch(reason => setError(reason instanceof Error ? reason.message : "Manifest unavailable."))}>{am ? "የተሳፋሪ ዝርዝር" : "Manifest"}</button>}
         </div>
         {manifest?.trip_id === trip.id && <div className="notice-panel"><strong>{am ? "የተያዙ ቦታዎች" : "Reserved passenger manifest"} · {manifest.passenger_count}</strong>
