@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Uuid, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Uuid, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -23,7 +23,7 @@ class SeatLayoutVersion(Base):
     status: Mapped[str] = mapped_column(String(24), default="draft")
     effective_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     effective_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    geometry_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    geometry_metadata: Mapped[dict] = mapped_column(JSON, default=dict, server_default=text("'{}'"))
 class VehicleSeat(Base):
     __tablename__ = "vehicle_seats"
     __table_args__ = (UniqueConstraint("seat_layout_version_id", "seat_code", name="uq_layout_seat_code"),)
