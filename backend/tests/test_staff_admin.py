@@ -12,6 +12,9 @@ def test_staff_admin_routes_are_registered():
         "/api/v1/admin/access/users/{user_id}/roles",
         "/api/v1/admin/access/role-assignments/{assignment_id}",
         "/api/v1/admin/operations/scheduler",
+        "/api/v1/catalog/locations",
+        "/api/v1/catalog/terminals",
+        "/api/v1/catalog/routes",
     }.issubset(paths)
 
 
@@ -25,3 +28,14 @@ def test_staff_role_catalog_requires_staff_session():
     client = TestClient(app)
     response = client.get("/api/v1/admin/access/roles")
     assert response.status_code == 401
+
+
+def test_catalog_lists_require_staff_session():
+    client = TestClient(app)
+    for path in (
+        "/api/v1/catalog/locations",
+        "/api/v1/catalog/terminals",
+        "/api/v1/catalog/routes",
+    ):
+        response = client.get(path)
+        assert response.status_code == 401
