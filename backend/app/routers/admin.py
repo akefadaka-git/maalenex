@@ -23,6 +23,10 @@ from app.domains.catalog.models import Location, Route, RouteStop, Terminal
 from app.domains.fares.models import Fare, FareApproval, FareVersion
 from app.domains.fares.service import FareConflict, decide_fare, propose_fare, publish_fare, submit_fare
 from app.domains.fleet.models import SeatLayoutVersion, Vehicle, VehicleComplianceDocument, VehicleSeat
+from app.domains.fleet.object_storage import (
+    InvalidStoredObject, StorageNotConfigured,
+    create_compliance_upload_intent, verify_compliance_object,
+)
 from app.domains.identity.authorization import has_permission
 from app.domains.identity.models import Role, RoleAssignment, User
 from app.domains.identity.security import issue_opaque_token, token_digest
@@ -153,6 +157,11 @@ class SeatLayoutCreate(BaseModel):
 class VehicleReview(BaseModel):
     decision: Literal["approved", "rejected"]
     reason: str = Field(min_length=3, max_length=500)
+
+
+class ComplianceUploadIntentCreate(BaseModel):
+    content_type: Literal["application/pdf", "image/jpeg", "image/png"]
+    content_length: int = Field(ge=1, le=10 * 1024 * 1024)
 
 
 class ComplianceEvidenceCreate(BaseModel):
