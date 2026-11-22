@@ -183,6 +183,9 @@ def test_cargo_evidence_scheduler_is_visible_in_operations_snapshot():
     assert "/api/v1/cargo/evidence/{evidence_id}/download" in paths
     assert "/api/v1/cargo/evidence/{evidence_id}/holds" in paths
     assert "/api/v1/cargo/evidence/{evidence_id}/deletion-requests" in paths
+    assert "/api/v1/cargo/evidence/{evidence_id}/rights-requests" in paths
+    assert "/api/v1/cargo/evidence/rights-requests/{request_id}/assessment" in paths
+    assert "/api/v1/cargo/evidence/holds/{hold_id}/release-review" in paths
 
 
 def test_cargo_evidence_scheduler_cycle_records_lease_and_keeps_orphans_disabled(monkeypatch):
