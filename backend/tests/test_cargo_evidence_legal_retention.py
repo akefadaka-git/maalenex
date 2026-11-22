@@ -84,3 +84,35 @@ def test_sensitive_data_requires_specific_handling_review():
         rights_request_status="none",
     )
     assert deletion_block_reason(evidence, now=datetime(2027, 1, 1, tzinfo=UTC)) == "sensitive_data_review_missing"
+
+
+
+def test_early_erasure_can_override_only_residual_operational_retention():
+    evidence = SimpleNamespace(
+        classification_complete=True, is_accounting_document=False,
+        is_commercial_correspondence=False, is_ordinary_operational_evidence=True,
+        operational_retention_started_at=datetime(2025, 1, 1, tzinfo=UTC),
+        operational_legal_basis="contract",
+        operational_retention_justification="Documented purpose and necessity",
+        operational_dpia_reference="DPIA-ERASURE-001",
+        retention_dpo_reviewed_at=datetime(2026, 1, 1, tzinfo=UTC),
+        rights_request_status="eligible_for_erasure",
+        contains_sensitive_personal_data=False,
+    )
+    assert deletion_block_reason(evidence, now=datetime(2026, 2, 1, tzinfo=UTC)) is None
+
+
+def test_erasure_cannot_override_ten_year_accounting_retention():
+    evidence = SimpleNamespace(
+        classification_complete=True, is_accounting_document=True,
+        is_commercial_correspondence=False, is_ordinary_operational_evidence=True,
+        accounting_document_date=datetime(2023, 1, 1, tzinfo=UTC),
+        operational_retention_started_at=datetime(2023, 1, 1, tzinfo=UTC),
+        operational_legal_basis="contract",
+        operational_retention_justification="Documented",
+        operational_dpia_reference="DPIA-ERASURE-002",
+        retention_dpo_reviewed_at=datetime(2026, 1, 1, tzinfo=UTC),
+        rights_request_status="eligible_for_erasure",
+        contains_sensitive_personal_data=False,
+    )
+    assert deletion_block_reason(evidence, now=datetime(2026, 2, 1, tzinfo=UTC)) == "statutory_retention_overrides_erasure_request"
