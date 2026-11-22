@@ -21,7 +21,7 @@ function RouteStopEditor({ route, locations, busy, language, onSave }: {
   })));
   useEffect(() => {
     setStops(route.stops.map(stop => ({ location_id: stop.location_id,
-      boarding_allowed: stop.boarding_allowed, alighting_allowed: stop.alighting_allowed }));
+      boarding_allowed: stop.boarding_allowed, alighting_allowed: stop.alighting_allowed })));
   }, [route.id, route.stops]);
   const update = (index: number, patch: Partial<StopDraft>) =>
     setStops(current => current.map((stop, i) => i === index ? { ...stop, ...patch } : stop));
