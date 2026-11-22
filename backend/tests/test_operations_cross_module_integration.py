@@ -234,6 +234,18 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
     assert trip_response.status_code == 201, trip_response.text
     trip_id = trip_response.json()["id"]
     assert trip_response.json()["seat_count"] == 2
+    edited_departure = datetime.now(UTC) + timedelta(days=3)
+    edited = client.patch(
+        f"/api/v1/trips/{trip_id}",
+        json={
+            "route_id": route_id, "boarding_terminal_id": terminal_id,
+            "vehicle_id": vehicle_id, "seat_layout_version_id": layout_id,
+            "departure_at": edited_departure.isoformat(),
+            "arrival_estimate_at": (edited_departure + timedelta(hours=5)).isoformat(),
+        },
+    )
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["seat_count"] == 2
     submitted = client.post(f"/api/v1/trips/{trip_id}/submit")
     assert submitted.status_code == 200, submitted.text
 
@@ -422,6 +434,15 @@ def test_cross_tenant_resource_integrity_and_fare_ownership(operations_client):
         f"/api/v1/fares/{ids['fare_b']}/versions/{ids['version_b']}/submit",
     ).status_code == 403
     assert client.post(f"/api/v1/trips/{ids['trip_b']}/submit").status_code == 403
+    assert client.patch(
+        f"/api/v1/trips/{ids['trip_b']}",
+        json={
+            "route_id": ids["route"], "boarding_terminal_id": ids["terminal"],
+            "vehicle_id": ids["vehicle_b"], "seat_layout_version_id": ids["layout_b"],
+            "departure_at": (now + timedelta(days=4)).isoformat(),
+            "arrival_estimate_at": (now + timedelta(days=4, hours=5)).isoformat(),
+        },
+    ).status_code == 403
 
     # A trip cannot combine Operator A with Operator B's vehicle or layout.
     departure = (now + timedelta(days=3)).isoformat()
