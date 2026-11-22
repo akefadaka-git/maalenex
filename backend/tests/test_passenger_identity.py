@@ -81,3 +81,18 @@ def test_revoked_session_is_rejected(db):
     db.commit()
     with pytest.raises(PassengerAuthenticationError):
         resolve_passenger_session(db, raw_token=issued.session_token)
+
+
+def test_passenger_registration_password_minimum_is_six_characters():
+    from pydantic import ValidationError
+    from app.routers.passenger_auth import PassengerRegistration
+
+    valid = PassengerRegistration(login_identifier="test@example.test", display_name="Test Passenger", password="abc123")
+    assert valid.password.get_secret_value() == "abc123"
+    try:
+        PassengerRegistration(login_identifier="test@example.test", display_name="Test Passenger", password="abc12")
+    except ValidationError:
+        pass
+    else:
+        raise AssertionError("Passwords shorter than six characters must be rejected")
+
