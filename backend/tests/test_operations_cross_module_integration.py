@@ -232,6 +232,7 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
         },
     )
     assert expired_evidence.status_code == 201, expired_evidence.text
+    selected["value"] = users["fleet_reviewer"]
     expired_review = client.post(
         f"/api/v1/compliance-documents/{expired_evidence.json()['id']}/review",
         json={"decision": "approved", "reason": "Expired document must fail closed"},
