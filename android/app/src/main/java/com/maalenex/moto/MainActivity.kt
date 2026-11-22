@@ -14,6 +14,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.graphics.Typeface
 import android.webkit.ConsoleMessage
+import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -161,6 +162,12 @@ class MainActivity : Activity() {
                     return !trusted
                 }
             }
+        }
+        // Passenger authentication uses secure, cross-origin API cookies when the
+        // API is hosted separately from the packaged WebView origin.
+        CookieManager.getInstance().apply {
+            setAcceptCookie(true)
+            setAcceptThirdPartyCookies(webView, true)
         }
         ViewCompat.setOnApplyWindowInsetsListener(webView) { view, windowInsets ->
             val safeInsets = windowInsets.getInsets(
