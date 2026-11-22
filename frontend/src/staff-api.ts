@@ -206,3 +206,50 @@ export function archiveCatalogRecord(kind: "location" | "terminal" | "route", id
     method: "POST",
   });
 }
+
+
+export type FleetVehicle = {
+  id: string; organization_id: string; organization_name: string; vehicle_reference: string;
+  status: string; review_status: string; created_at: string | null;
+  seat_layouts: Array<{ id: string; version_number: number; status: string; seat_count: number }>;
+};
+export type FleetSeat = {
+  id: string; seat_code: string; row_label: string | null; column_index: number;
+  seat_type: string; is_sellable: boolean;
+};
+export type FleetSeatLayout = {
+  id: string; version_number: number; status: string; effective_from: string | null;
+  effective_to: string | null; seats: FleetSeat[];
+};
+export function getFleetVehicles(organizationId?: string): Promise<FleetVehicle[]> {
+  return request(organizationId
+    ? `/operators/${encodeURIComponent(organizationId)}/fleet`
+    : "/admin/fleet/vehicles");
+}
+export function getVehicleSeatLayouts(vehicleId: string): Promise<FleetSeatLayout[]> {
+  return request(`/vehicles/${encodeURIComponent(vehicleId)}/seat-layouts`);
+}
+export function createFleetVehicle(organizationId: string, vehicle_reference: string): Promise<{
+  id: string; status: string; review_status: string;
+}> {
+  return request(`/operators/${encodeURIComponent(organizationId)}/vehicles`, {
+    method: "POST", body: JSON.stringify({ vehicle_reference }),
+  });
+}
+export function createFleetSeatLayout(vehicleId: string, seats: Array<{
+  seat_code: string; row_label: string; column_index: number; seat_type: string; is_sellable: boolean;
+}>): Promise<{ id: string; version_number: number; seat_count: number; status: string }> {
+  return request(`/vehicles/${encodeURIComponent(vehicleId)}/seat-layouts`, {
+    method: "POST", body: JSON.stringify({ seats }),
+  });
+}
+export function reviewFleetVehicle(vehicleId: string, decision: "approved" | "rejected", reason: string): Promise<{
+  id: string; status: string; review_status: string;
+}> {
+  return request(`/vehicles/${encodeURIComponent(vehicleId)}/review`, {
+    method: "POST", body: JSON.stringify({ decision, reason }),
+  });
+}
+export function approveFleetSeatLayout(layoutId: string): Promise<{ id: string; status: string }> {
+  return request(`/seat-layouts/${encodeURIComponent(layoutId)}/approve`, { method: "POST" });
+}
