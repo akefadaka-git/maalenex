@@ -42,6 +42,14 @@ class EvidenceUploadIntentCreate(BaseModel):
     content_length: int = Field(ge=1, le=10 * 1024 * 1024)
 
 
+class LifecycleDeliveryProofCreate(BaseModel):
+    evidence_id: UUID
+    idempotency_key: str = Field(min_length=16, max_length=128)
+    received_by_name: str = Field(min_length=1, max_length=160)
+    delivery_notes: str | None = Field(default=None, max_length=500)
+    occurred_at: datetime
+
+
 class EvidenceAttach(BaseModel):
     delivery_proof_id: UUID
 
@@ -137,6 +145,85 @@ def create_lifecycle_upload_intent(
         "evidence_id": str(evidence.id), "upload_url": intent["upload_url"],
         "method": intent["method"], "content_type": intent["content_type"],
         "max_bytes": intent["max_bytes"], "expires_in_seconds": intent["expires_in_seconds"],
+    }
+
+
+@router.post("/dispatches/{dispatch_id}/delivery-proof/lifecycle", status_code=201)
+def submit_lifecycle_delivery_proof(
+    dispatch_id: UUID, payload: LifecycleDeliveryProofCreate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    dispatch = db.scalar(select(CargoDispatch).where(
+        CargoDispatch.id == dispatch_id,
+    ).with_for_update())
+    if dispatch is None:
+        raise HTTPException(status_code=404, detail="Dispatch not found.")
+    if dispatch.status != "in_transit" or not _allowed(
+        db, context, "operator.cargo.delivery_proof.submit", dispatch.carrier_organization_id,
+    ):
+        raise HTTPException(status_code=403, detail="Assigned carrier delivery-proof permission is required.")
+    evidence = db.scalar(select(CargoDeliveryEvidence).where(
+        CargoDeliveryEvidence.id == payload.evidence_id,
+        CargoDeliveryEvidence.dispatch_id == dispatch.id,
+        CargoDeliveryEvidence.carrier_organization_id == dispatch.carrier_organization_id,
+    ).with_for_update())
+    if evidence is None:
+        raise HTTPException(status_code=404, detail="Dispatch-scoped evidence record not found.")
+    if evidence.lifecycle_state != "pending" or datetime.now(UTC) > evidence.upload_intent_expires_at:
+        raise HTTPException(status_code=409, detail="Upload intent is expired or no longer attachable.")
+    if payload.occurred_at.tzinfo is None or payload.occurred_at.utcoffset() is None:
+        raise HTTPException(status_code=422, detail="occurred_at must include an explicit timezone offset.")
+    existing = db.scalar(select(CargoDeliveryProof).where(
+        CargoDeliveryProof.dispatch_id == dispatch.id,
+    ))
+    if existing is not None:
+        if existing.idempotency_key != payload.idempotency_key:
+            raise HTTPException(status_code=409, detail="A delivery proof already exists for this dispatch.")
+        return {
+            "id": str(existing.id), "dispatch_id": str(existing.dispatch_id),
+            "consignment_id": str(existing.consignment_id), "status": existing.status,
+            "evidence_id": str(evidence.id),
+        }
+    try:
+        verified = verify_cargo_delivery_object(
+            object_key=evidence.object_key,
+            carrier_organization_id=str(dispatch.carrier_organization_id),
+            dispatch_id=str(dispatch.id),
+        )
+    except StorageNotConfigured as exc:
+        raise HTTPException(status_code=503, detail="Private evidence storage is not configured.") from exc
+    except StorageOperationFailed as exc:
+        raise HTTPException(status_code=503, detail="Evidence storage is temporarily unavailable; retry safely.") from exc
+    except InvalidStoredObject as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    proof = CargoDeliveryProof(
+        dispatch_id=dispatch.id, consignment_id=dispatch.consignment_id,
+        idempotency_key=payload.idempotency_key, received_by_name=payload.received_by_name,
+        evidence_reference=evidence.object_key, delivery_notes=payload.delivery_notes,
+        occurred_at=payload.occurred_at, submitted_by=context.user.id,
+    )
+    db.add(proof)
+    db.flush()
+    evidence.delivery_proof_id = proof.id
+    evidence.verified_at = datetime.now(UTC)
+    evidence.attached_at = evidence.verified_at
+    evidence.content_type = verified["content_type"]
+    evidence.content_length = verified["content_length"]
+    evidence.lifecycle_state = "attached"
+    record_event(
+        db, event_type="cargo.delivery_proof.submitted", actor_type="staff",
+        actor_id=str(context.user.id), resource_type="cargo_delivery_proof",
+        resource_id=str(proof.id), action="submit", outcome="success",
+        organization_id=dispatch.carrier_organization_id,
+        metadata={"dispatch_id": str(dispatch.id), "evidence_id": str(evidence.id)},
+    )
+    _audit(db, context=context, evidence=evidence, action="attached", outcome="success")
+    db.commit()
+    return {
+        "id": str(proof.id), "dispatch_id": str(proof.dispatch_id),
+        "consignment_id": str(proof.consignment_id), "status": proof.status,
+        "evidence_id": str(evidence.id),
     }
 
 
