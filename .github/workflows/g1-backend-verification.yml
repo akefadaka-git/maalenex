@@ -106,6 +106,7 @@ jobs:
           app/routers/auth.py
           app/core/config.py
           tests/test_scheduler_operations.py
+          tests/test_operations_cross_module_integration.py
           migrations/versions/0015_scheduler_operations_rbac.py
           scripts/seed_synthetic_admin.py
       - name: Backend tests
