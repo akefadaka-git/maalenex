@@ -1851,13 +1851,14 @@ def get_operator_fare_options(
     if operator is None or operator.organization_type != "operator" or operator.status != "approved":
         raise HTTPException(status_code=409, detail="An approved operator organization is required.")
     routes = db.scalars(select(Route).where(Route.status == "published").order_by(Route.code).limit(300)).all()
+    routes_by_id = {item.id: item for item in routes}
     trips = db.scalars(select(Trip).where(
         Trip.organization_id == organization_id, Trip.status.in_(["approved", "published"])
     ).order_by(Trip.departure_at.desc()).limit(300)).all()
     return {
         "routes": [{"id": str(item.id), "code": item.code} for item in routes],
         "trips": [{"id": str(item.id), "route_id": str(item.route_id),
-                   "route_code": db.get(Route, item.route_id).code if db.get(Route, item.route_id) else "Unknown route",
+                   "route_code": routes_by_id[item.route_id].code if item.route_id in routes_by_id else "Unknown route",
                    "departure_at": item.departure_at.isoformat(), "status": item.status}
                   for item in trips],
     }
