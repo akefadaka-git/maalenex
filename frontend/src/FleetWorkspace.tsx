@@ -37,6 +37,8 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
   const [layouts, setLayouts] = useState<FleetSeatLayout[]>([]);
   const [vehicleReference, setVehicleReference] = useState("");
   const [seatRows, setSeatRows] = useState("A1 A2 A3 A4\nB1 B2 B3 B4\nC1 C2 C3 C4");
+  const [seatType, setSeatType] = useState("standard");
+  const [seatSellable, setSeatSellable] = useState(true);
   const [reviewReason, setReviewReason] = useState("");
   const [editingVehicleId, setEditingVehicleId] = useState("");
   const [editingVehicleReference, setEditingVehicleReference] = useState("");
