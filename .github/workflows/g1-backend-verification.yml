@@ -11,6 +11,7 @@ on:
     branches: [feat/passenger-identity-service, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards, fix/passenger-password-minimum-six, feat/passenger-backend-connectivity-foundation]
     paths:
       - "backend/**"
+      - "docs/deployment/**"
       - ".github/workflows/g1-backend-verification.yml"
   pull_request:
     branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/acceptance-remediation, feat/passenger-identity-service, feat/passenger-journey-search, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards, feat/passenger-backend-connectivity-foundation, fix/passenger-password-minimum-six]
@@ -70,6 +71,8 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
       - name: Install backend and test dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+      - name: Build production API container
+        run: docker build --tag maalenex-moto-api:ci --file Dockerfile .
       - name: Start local S3-compatible storage service
         run: |
           docker run -d --name maalenex-silo -p 9000:9000 \
@@ -138,6 +141,9 @@ jobs:
           app/core/config.py
           tests/test_scheduler_operations.py
           tests/test_operations_cross_module_integration.py
+          tests/test_health.py
+          app/routers/health.py
+          app/jobs/scheduler_worker.py
           migrations/versions/0015_scheduler_operations_rbac.py
           scripts/seed_synthetic_admin.py
       - name: Backend tests
