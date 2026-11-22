@@ -648,8 +648,10 @@ def review_evidence_retention_classification(
     evidence.tombstone_retention_until = payload.tombstone_retention_until
     evidence.audit_retention_until = payload.audit_retention_until
     evidence.retention_metadata_justification = payload.metadata_retention_justification
+    evidence.classification_complete = True
     deadline = effective_retention_deadline(evidence)
     if deadline is None:
+        evidence.classification_complete = False
         raise HTTPException(status_code=409, detail="A complete category-specific retention deadline could not be established.")
     evidence.legal_retention_until = deadline
     evidence.retention_expires_at = deadline
