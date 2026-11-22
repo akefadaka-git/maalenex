@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.domains.audit.service import record_event
 from app.domains.cargo.carrier_operations import CarrierOperationalProfile, CargoDeliveryProof, CargoExceptionCase
+from app.domains.cargo.evidence_lifecycle import CargoDeliveryEvidence, PROVISIONAL_POLICY_VERSION, PROVISIONAL_RETENTION_MONTHS, add_calendar_months
 from app.domains.cargo.carrier_service import (
     validate_carrier_status, validate_exception_code, validate_exception_transition, validate_resolution,
 )
@@ -272,6 +273,17 @@ def review_delivery_proof(
     ).with_for_update())
     proof.status = payload.decision
     proof.review_reason = payload.reason
+    if payload.decision == "accepted":
+        evidence = db.scalar(select(CargoDeliveryEvidence).where(
+            CargoDeliveryEvidence.delivery_proof_id == proof.id
+        ).with_for_update())
+        if evidence is not None and evidence.retention_started_at is None:
+            retention_start = datetime.now(UTC)
+            evidence.retention_policy_version = PROVISIONAL_POLICY_VERSION
+            evidence.retention_started_at = retention_start
+            evidence.retention_expires_at = add_calendar_months(
+                retention_start, PROVISIONAL_RETENTION_MONTHS,
+            )
     proof.reviewed_by = context.user.id
     proof.reviewed_at = datetime.now(UTC)
     if payload.decision == "accepted":
