@@ -1,13 +1,13 @@
 # ruff: noqa: I001
 """Track one-time due-date escalation for legal-hold reviews.
 
-Revision ID: 0023_cargo_evidence_hold_review_alert
+Revision ID: 0023_evidence_hold_review
 Revises: 0022_cargo_evidence_lifecycle
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0023_cargo_evidence_hold_review_alert"
+revision = "0023_evidence_hold_review"
 down_revision = "0022_cargo_evidence_lifecycle"
 branch_labels = None
 depends_on = None
