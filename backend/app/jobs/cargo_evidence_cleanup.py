@@ -51,7 +51,11 @@ def cleanup_expired_unattached_evidence(
             held += 1
             continue
         try:
-            delete_cargo_delivery_object(object_key=evidence.object_key)
+            delete_cargo_delivery_object(
+                object_key=evidence.object_key,
+                carrier_organization_id=str(evidence.carrier_organization_id),
+                dispatch_id=str(evidence.dispatch_id),
+            )
         except (StorageOperationFailed, StorageNotConfigured):
             evidence.lifecycle_state = "deletion_failed"
             evidence.deletion_failure_code = "storage_unavailable"
