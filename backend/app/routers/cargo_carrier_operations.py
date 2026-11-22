@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -223,7 +223,7 @@ def review_delivery_proof(
         cargo.delivered_at = datetime.now(UTC)
         db.add(CargoTrackingEvent(
             dispatch_id=dispatch.id, consignment_id=cargo.id,
-            sequence_number=(db.scalar(select(__import__("sqlalchemy").func.max(CargoTrackingEvent.sequence_number)).where(
+            sequence_number=(db.scalar(select(func.max(CargoTrackingEvent.sequence_number)).where(
                 CargoTrackingEvent.dispatch_id == dispatch.id
             )) or 0) + 1,
             idempotency_key=f"delivery-proof-accepted:{proof.id}",
