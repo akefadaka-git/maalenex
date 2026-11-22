@@ -749,7 +749,9 @@ def create_evidence_rights_request(
     require_csrf(request, context)
     if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.retention.manage"):
         raise HTTPException(status_code=403, detail="Data-rights case-management permission is required.")
-    evidence = db.get(CargoDeliveryEvidence, evidence_id)
+    evidence = db.scalar(select(CargoDeliveryEvidence).where(
+        CargoDeliveryEvidence.id == evidence_id,
+    ).with_for_update())
     if evidence is None:
         raise HTTPException(status_code=404, detail="Evidence record not found.")
     item = CargoDeliveryEvidenceRightsRequest(
