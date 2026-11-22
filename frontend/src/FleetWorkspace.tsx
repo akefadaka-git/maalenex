@@ -3,7 +3,7 @@ import {
   approveFleetSeatLayout, createFleetSeatLayout, createFleetVehicle, getFleetReviewHistory, getFleetVehicles,
   getVehicleSeatLayouts, reviewFleetComplianceEvidence, reviewFleetVehicle, submitFleetComplianceEvidence,
   updateDraftFleetSeatLayout, updateFleetVehicle,
-  type FleetReviewHistory, type FleetSeatLayout, type FleetVehicle, SeatLayoutGeometry,
+  type FleetReviewHistory, type FleetSeatLayout, type FleetVehicle, type SeatLayoutGeometry,
 } from "./staff-api";
 
 type Props = { language: "am" | "en"; organizationIds: string[]; canManage: boolean; canReview: boolean };
@@ -105,7 +105,14 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
   }, [selectedVehicleId]);
   const run = async (action: () => Promise<unknown>, success: string) => {
     setBusy(true); setError(""); setMessage("");
-    try { await action(); await refresh(); if (selectedVehicleId) setLayouts(await getVehicleSeatLayouts(selectedVehicleId)); setMessage(success); }
+    try {
+      await action(); await refresh();
+      if (selectedVehicleId) {
+        setLayouts(await getVehicleSeatLayouts(selectedVehicleId));
+        setReviewHistory(await getFleetReviewHistory(selectedVehicleId));
+      }
+      setMessage(success);
+    }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Fleet action failed."); }
     finally { setBusy(false); }
   };
@@ -257,7 +264,11 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
 
           <div className="staff-actions"><button className="primary-action" disabled={busy}>{am ? "ለውጦችን አስቀምጥ" : "Save layout changes"}</button><button type="button" className="secondary-action" onClick={() => setEditingLayoutId("")}>{am ? "ሰርዝ" : "Cancel"}</button></div>
         </form>}</article>)}
-        <div className="seat-layout-preview">{seatRowsGrouped.map(([row, seats]) => <div className="seat-layout-row" key={row}><strong>{row}</strong>{seats.sort((a,b)=>a.column_index-b.column_index).map(seat=><span className="seat-layout-seat" key={seat.id}>{seat.seat_code}</span>)}</div>)}</div>
+        <div className="seat-layout-preview">
+          {seatRowsGrouped.map(([row, seats]) => <div className="seat-layout-row" key={row}><strong>{row}</strong>{seats.sort((a,b)=>a.column_index-b.column_index).map(seat=><span className="seat-layout-seat" key={seat.id} title={`x:${seat.x}, y:${seat.y} · ${seat.seat_type} · ${seat.is_sellable ? "sellable" : "blocked"}`}>{seat.seat_code}</span>)}</div>)}
+          {(layouts.find(item => item.status === "approved") ?? layouts[0])?.geometry?.markers?.map((marker, index) =>
+            <small key={marker.kind + marker.x + marker.y + index}>{marker.kind.toUpperCase()} · {marker.label || "—"} · x:{marker.x}, y:{marker.y}</small>)}
+        </div>
       </section>}
     </>}
     <p className="compliance-note">{am ? "ተሽከርካሪዎችና መቀመጫዎች በኦፕሬተር ድርጅት ይገደባሉ። የመቀመጫ አቀማመጥ መጽደቅ ብቻውን ጉዞ ወይም ትኬት አያነቃም።" : "Fleet records and seat layouts are organization-scoped. Layout approval alone does not create trips, enable ticketing or authorize commercial operation."}</p>
