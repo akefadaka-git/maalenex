@@ -274,6 +274,8 @@ def attach_evidence_to_proof(
     proof = db.get(CargoDeliveryProof, payload.delivery_proof_id)
     if proof is None or proof.dispatch_id != evidence.dispatch_id or proof.evidence_reference != evidence.object_key:
         raise HTTPException(status_code=422, detail="Delivery proof does not reference this dispatch evidence.")
+    if evidence.delivery_proof_id not in {None, proof.id}:
+        raise HTTPException(status_code=409, detail="Evidence is already attached to another delivery proof.")
     if evidence.lifecycle_state == "deleted":
         raise HTTPException(status_code=409, detail="Deleted evidence cannot be attached.")
     try:
@@ -430,6 +432,8 @@ def create_evidence_hold(
     ).with_for_update())
     if evidence is None:
         raise HTTPException(status_code=404, detail="Evidence record not found.")
+    if evidence.storage_deleted_at is not None or evidence.lifecycle_state == "deleted":
+        raise HTTPException(status_code=410, detail="Deleted evidence cannot be placed on legal hold.")
     if payload.review_due_at.tzinfo is None or payload.review_due_at <= datetime.now(UTC):
         raise HTTPException(status_code=422, detail="A future timezone-aware hold review date is required.")
     if _active_hold(db, evidence.id):
