@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Track one-time due-date escalation for legal-hold reviews.
 
 Revision ID: 0023_cargo_evidence_hold_review_alert
