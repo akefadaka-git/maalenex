@@ -30,6 +30,7 @@ from app.domains.fleet.object_storage import (
     delete_cargo_delivery_object, verify_cargo_delivery_object,
 )
 from app.domains.identity.authorization import has_permission
+from app.domains.identity.models import User
 from app.domains.identity.service import StaffContext
 from app.routers.auth import current_staff_context, require_csrf
 
@@ -378,6 +379,9 @@ def grant_case_scoped_evidence_access(
     evidence = db.get(CargoDeliveryEvidence, evidence_id)
     if evidence is None:
         raise HTTPException(status_code=404, detail="Evidence record not found.")
+    grantee = db.get(User, payload.user_id)
+    if grantee is None or grantee.status != "active":
+        raise HTTPException(status_code=404, detail="Active evidence-access grantee was not found.")
     if payload.expires_at.tzinfo is None or payload.expires_at <= datetime.now(UTC):
         raise HTTPException(status_code=422, detail="Access grant expiry must be timezone-aware and in the future.")
     grant = CargoDeliveryEvidenceAccessGrant(
@@ -497,7 +501,11 @@ def release_evidence_hold(
     hold.released_at = datetime.now(UTC)
     hold.release_note = payload.note
     evidence = db.get(CargoDeliveryEvidence, hold.evidence_id)
-    evidence.lifecycle_state = "attached" if evidence.delivery_proof_id else "verified"
+    evidence.lifecycle_state = (
+        "attached" if evidence.delivery_proof_id
+        else "verified" if evidence.verified_at is not None
+        else "pending"
+    )
     _audit(db, context=context, evidence=evidence, action="hold_released", outcome="success", reason=payload.note)
     db.commit()
     return {"hold_id": str(hold.id), "status": "released"}
