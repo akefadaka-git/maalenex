@@ -3,8 +3,9 @@
 Revision ID: 0016_fleet_compliance_and_geometry
 Revises: 0015_scheduler_operations_rbac
 """
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "0016_fleet_compliance_and_geometry"
