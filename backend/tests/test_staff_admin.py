@@ -106,6 +106,8 @@ def test_catalog_manager_seed_grants_manage_and_publish():
     grants = set(migration.ROLE_GRANTS["platform_catalog_manager"])
     assert {"platform.catalog.manage", "platform.catalog.publish"}.issubset(grants)
     assert "platform.catalog.manage" in migration.ROLE_GRANTS["platform_operations_manager"]
+    assert "operator.fleet.manage" in migration.ROLE_GRANTS["operator_fleet_manager"]
+    assert "platform.fleet.review" in migration.ROLE_GRANTS["platform_fleet_reviewer"]
 
 
 def test_fleet_read_routes_require_staff_session():
