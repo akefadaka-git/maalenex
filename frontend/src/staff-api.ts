@@ -222,12 +222,12 @@ export type FleetSeatLayout = {
   effective_to: string | null; seats: FleetSeat[];
 };
 export function getFleetVehicles(organizationId?: string): Promise<FleetVehicle[]> {
-  return request(organizationId
+  return request<FleetVehicle[]>(organizationId
     ? `/operators/${encodeURIComponent(organizationId)}/fleet`
     : "/admin/fleet/vehicles");
 }
 export function getVehicleSeatLayouts(vehicleId: string): Promise<FleetSeatLayout[]> {
-  return request(`/vehicles/${encodeURIComponent(vehicleId)}/seat-layouts`);
+  return request<FleetSeatLayout[]>(`/vehicles/${encodeURIComponent(vehicleId)}/seat-layouts`);
 }
 export function createFleetVehicle(organizationId: string, vehicle_reference: string): Promise<{
   id: string; status: string; review_status: string;
