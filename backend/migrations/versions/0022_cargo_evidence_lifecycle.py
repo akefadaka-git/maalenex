@@ -78,6 +78,7 @@ def upgrade() -> None:
         "operator.cargo.delivery_proof.evidence.read": "Read private delivery evidence for own carrier dispatches",
         "platform.cargo.delivery_proof.evidence.read": "Read private delivery evidence for explicitly authorized cases",
         "platform.cargo.delivery_proof.evidence.hold.manage": "Initiate and release legal holds on cargo delivery evidence",
+        "platform.cargo.delivery_proof.evidence.hold.review": "Provide independent DPO oversight of cargo evidence legal holds",
         "platform.cargo.delivery_proof.evidence.delete": "Approve and execute controlled cargo delivery evidence deletion",
     }
     from uuid import NAMESPACE_URL, uuid5
