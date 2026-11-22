@@ -73,6 +73,7 @@ def create_compliance_upload_intent(
             "Bucket": settings.object_storage_bucket,
             "Key": key,
             "ContentType": content_type,
+            "ContentLength": content_length,
         },
         ExpiresIn=PRESIGN_TTL_SECONDS,
     )
