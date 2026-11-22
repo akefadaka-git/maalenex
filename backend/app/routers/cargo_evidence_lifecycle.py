@@ -559,11 +559,12 @@ def classify_evidence_retention(
     ).with_for_update())
     if evidence is None:
         raise HTTPException(status_code=404, detail="Evidence record not found.")
-    if evidence.lifecycle_state not in {"attached", "held"} or evidence.retention_started_at is None:
-        raise HTTPException(status_code=409, detail="Evidence must be attached to a closed delivery before classification.")
+    retention_start = evidence.retention_started_at or evidence.upload_intent_expires_at
+    if evidence.lifecycle_state not in {"attached", "held", "pending"} or retention_start is None:
+        raise HTTPException(status_code=409, detail="Evidence must have a delivery-closure or expired upload-intent timestamp before classification.")
     try:
         schedule_code, expiry = calculate_retention_expiry(
-            delivery_closed_at=evidence.retention_started_at,
+            delivery_closed_at=retention_start,
             accounting_document=payload.accounting_document,
             commercial_correspondence=payload.commercial_correspondence,
             accounting_record_date=payload.accounting_record_date,
@@ -583,6 +584,7 @@ def classify_evidence_retention(
     evidence.retention_justification = payload.retention_justification
     evidence.dpia_reference = payload.dpia_reference
     evidence.retention_expires_at = expiry
+    evidence.retention_started_at = retention_start
     evidence.classification_status = f"{'ordinary' if schedule_code == 'EC-3' else 'statutory'}_pending_dpo"
     evidence.retention_legal_review_reference = payload.legal_review_reference
     evidence.retention_classified_by = context.user.id
