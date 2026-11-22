@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.domains.audit.service import record_event
+from app.domains.cargo.carrier_operations import CargoDeliveryProof
 from app.domains.cargo.dispatch import CargoDispatch, CargoTrackingEvent
 from app.domains.cargo.dispatch_service import validate_dispatch_transition, validate_tracking_event
 from app.domains.cargo.models import CargoConsignment
@@ -200,6 +201,12 @@ def transition_dispatch(
     elif payload.target_status == "delivered":
         if cargo.status != "in_transit":
             raise HTTPException(status_code=409, detail="Consignment must be in transit before delivery.")
+        accepted_proof = db.scalar(select(CargoDeliveryProof).where(
+            CargoDeliveryProof.dispatch_id == item.id,
+            CargoDeliveryProof.status == "accepted",
+        ))
+        if accepted_proof is None:
+            raise HTTPException(status_code=409, detail="An accepted delivery proof is required before dispatch completion.")
         cargo.status = "delivered"
         cargo.delivered_at = datetime.now(UTC)
     elif payload.target_status in {"failed", "rejected"}:
