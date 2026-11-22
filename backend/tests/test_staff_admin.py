@@ -88,3 +88,18 @@ def test_catalog_mutations_require_staff_session():
     for path, method in paths:
         response = client.request(method, path, json={})
         assert response.status_code == 401
+
+
+def test_catalog_manager_seed_grants_manage_and_publish():
+    import importlib.util
+    from pathlib import Path
+
+    migration_path = Path(__file__).parents[1] / "migrations" / "versions" / "0015_scheduler_operations_rbac.py"
+    spec = importlib.util.spec_from_file_location("scheduler_operations_rbac", migration_path)
+    assert spec is not None and spec.loader is not None
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    grants = set(migration.ROLE_GRANTS["platform_catalog_manager"])
+    assert {"platform.catalog.manage", "platform.catalog.publish"}.issubset(grants)
+    assert "platform.catalog.manage" in migration.ROLE_GRANTS["platform_operations_manager"]
