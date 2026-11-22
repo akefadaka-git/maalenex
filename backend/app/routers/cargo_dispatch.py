@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.domains.audit.service import record_event
+from app.domains.cargo.carrier_operations import CarrierOperationalProfile, CargoDeliveryProof
 from app.domains.cargo.dispatch import CargoDispatch, CargoTrackingEvent
 from app.domains.cargo.dispatch_service import validate_dispatch_transition, validate_tracking_event
 from app.domains.cargo.models import CargoConsignment
@@ -105,6 +106,11 @@ def create_dispatch(
     carrier = db.get(Organization, payload.carrier_organization_id)
     if carrier is None or carrier.status != "approved" or carrier.organization_type != "operator":
         raise HTTPException(status_code=409, detail="Carrier must be an approved operator organization.")
+    carrier_profile = db.scalar(select(CarrierOperationalProfile).where(
+        CarrierOperationalProfile.organization_id == carrier.id
+    ))
+    if carrier_profile is None or carrier_profile.operational_status != "active":
+        raise HTTPException(status_code=409, detail="Carrier must have an active operational profile before dispatch.")
     if payload.vehicle_id is not None:
         vehicle = db.get(Vehicle, payload.vehicle_id)
         if (
@@ -200,6 +206,12 @@ def transition_dispatch(
     elif payload.target_status == "delivered":
         if cargo.status != "in_transit":
             raise HTTPException(status_code=409, detail="Consignment must be in transit before delivery.")
+        accepted_proof = db.scalar(select(CargoDeliveryProof).where(
+            CargoDeliveryProof.dispatch_id == item.id,
+            CargoDeliveryProof.status == "accepted",
+        ))
+        if accepted_proof is None:
+            raise HTTPException(status_code=409, detail="An accepted delivery proof is required before dispatch completion.")
         cargo.status = "delivered"
         cargo.delivered_at = datetime.now(UTC)
     elif payload.target_status in {"failed", "rejected"}:
