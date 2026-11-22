@@ -62,6 +62,7 @@ VITE_API_BASE_URL=https://api.YOUR-REAL-DOMAIN npm run build
 ```
 
 The value must be the HTTPS origin only, without a path, credentials, query or fragment. The Vite build injects that exact origin into the restrictive WebView Content Security Policy. The Android passenger client then sends credentialed requests to `/api/v1` and uses secure cross-origin session cookies.
+For GitHub Actions Android builds, set the repository Actions variable `VITE_API_BASE_URL` to this same deployed API origin. It is a public endpoint, not a secret. Until that variable is set to a real deployed origin, CI builds intentionally remain unconnected to a live backend.
 
 Do not use the example domain above as a live endpoint. The repository currently has no verified API hostname, DNS record, hosting service, production database credentials or deployed service. Therefore the container/runtime and client connection path can be prepared and verified in CI, but a live end-to-end connection requires an explicitly authorized A5 deployment, a real HTTPS API origin, database provisioning and provider-issued secrets.
 
