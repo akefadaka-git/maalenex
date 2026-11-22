@@ -88,6 +88,12 @@ class EvidenceRetentionClassify(BaseModel):
     is_ordinary_operational_evidence: bool = False
     contains_personal_data: bool = True
     contains_sensitive_personal_data: bool = False
+    personal_data_legal_basis: Literal["contract", "legal_obligation", "legitimate_interests", "consent", "vital_interests", "public_interest"] | None = None
+    personal_data_processing_justification: str | None = Field(default=None, min_length=10, max_length=1000)
+    privacy_notice_reference: str | None = Field(default=None, min_length=5, max_length=160)
+    international_transfer_required: bool = False
+    transfer_safeguard_reference: str | None = Field(default=None, min_length=5, max_length=160)
+    sensitive_transfer_eca_approval_reference: str | None = Field(default=None, min_length=5, max_length=160)
     accounting_document_date: datetime | None = None
     commercial_correspondence_date: datetime | None = None
     operational_legal_basis: Literal["contract", "legal_obligation", "legitimate_interests", "consent", "vital_interests", "public_interest"] | None = None
@@ -585,6 +591,15 @@ def classify_evidence_retention(
         raise HTTPException(status_code=422, detail="Commercial correspondence date is required.")
     if payload.contains_sensitive_personal_data and not payload.contains_personal_data:
         raise HTTPException(status_code=422, detail="Sensitive personal data must also be marked as personal data.")
+    if payload.contains_personal_data and (
+        not payload.personal_data_legal_basis or not payload.personal_data_processing_justification
+        or not payload.privacy_notice_reference
+    ):
+        raise HTTPException(status_code=422, detail="Personal-data processing requires a documented legal basis, necessity justification and privacy-notice reference.")
+    if payload.international_transfer_required and not payload.transfer_safeguard_reference:
+        raise HTTPException(status_code=422, detail="International transfers require documented adequacy or safeguard evidence.")
+    if payload.contains_sensitive_personal_data and payload.international_transfer_required and not payload.sensitive_transfer_eca_approval_reference:
+        raise HTTPException(status_code=422, detail="Sensitive personal-data transfers require prior ECA approval evidence.")
     if payload.is_ordinary_operational_evidence and (not payload.operational_legal_basis or not payload.operational_retention_justification):
         raise HTTPException(status_code=422, detail="Residual operational evidence requires a documented legal basis and retention justification.")
     for source_date in (payload.accounting_document_date, payload.commercial_correspondence_date):
@@ -595,6 +610,12 @@ def classify_evidence_retention(
     evidence.is_ordinary_operational_evidence = payload.is_ordinary_operational_evidence
     evidence.contains_personal_data = payload.contains_personal_data
     evidence.contains_sensitive_personal_data = payload.contains_sensitive_personal_data
+    evidence.personal_data_legal_basis = payload.personal_data_legal_basis
+    evidence.personal_data_processing_justification = payload.personal_data_processing_justification
+    evidence.privacy_notice_reference = payload.privacy_notice_reference
+    evidence.international_transfer_required = payload.international_transfer_required
+    evidence.transfer_safeguard_reference = payload.transfer_safeguard_reference
+    evidence.sensitive_transfer_eca_approval_reference = payload.sensitive_transfer_eca_approval_reference
     evidence.accounting_document_date = payload.accounting_document_date
     evidence.commercial_correspondence_date = payload.commercial_correspondence_date
     evidence.operational_retention_started_at = evidence.retention_started_at or evidence.attached_at
