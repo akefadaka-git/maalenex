@@ -19,7 +19,7 @@ from app.domains.cargo.carrier_service import (
 from app.domains.cargo.dispatch import CargoDispatch, CargoTrackingEvent
 from app.domains.cargo.models import CargoConsignment
 from app.domains.fleet.object_storage import (
-    InvalidStoredObject, StorageNotConfigured,
+    InvalidStoredObject, StorageNotConfigured, StorageOperationFailed,
     create_cargo_delivery_upload_intent, verify_cargo_delivery_object,
 )
 from app.domains.identity.authorization import has_permission
@@ -241,6 +241,8 @@ def submit_delivery_proof(
         )
     except StorageNotConfigured as exc:
         raise HTTPException(status_code=503, detail="Private evidence storage is not configured.") from exc
+    except StorageOperationFailed as exc:
+        raise HTTPException(status_code=503, detail="Evidence storage is temporarily unavailable; retry safely.") from exc
     except InvalidStoredObject as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     existing = db.scalar(select(CargoDeliveryProof).where(
