@@ -39,7 +39,11 @@ class ConsignmentTransition(BaseModel):
 
 
 def _authorize(db: Session, context: StaffContext, organization_id: UUID | None = None) -> None:
-    if not has_permission(db, user_id=context.user.id, permission_code="platform.cargo.manage", organization_id=organization_id):
+    platform_grant = has_permission(db, user_id=context.user.id, permission_code="platform.cargo.manage", organization_id=None)
+    organization_grant = organization_id is not None and has_permission(
+        db, user_id=context.user.id, permission_code="platform.cargo.manage", organization_id=organization_id
+    )
+    if not (platform_grant or organization_grant):
         raise HTTPException(status_code=403, detail="Cargo management permission is required.")
 
 
