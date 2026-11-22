@@ -4,6 +4,7 @@ This router is additive: the existing PR #48 upload and proof endpoints remain
 available. Lifecycle-aware clients use the registration and attachment endpoints
 below. No scheduled deletion or production policy activation is performed here.
 """
+# ruff: noqa: B008,I001
 from calendar import monthrange
 from datetime import UTC, datetime, timedelta
 from typing import Literal
