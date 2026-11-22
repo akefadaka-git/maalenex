@@ -30,13 +30,6 @@ jobs:
     name: Backend tests, lint and PostgreSQL migrations
     runs-on: ubuntu-latest
     services:
-      minio:
-        image: pgsty/silo:RELEASE.2026-11-12T00-00-00Z
-        env:
-          MINIO_ROOT_USER: minio-${{ github.run_id }}-ci
-          MINIO_ROOT_PASSWORD: minio-${{ github.run_id }}-ci
-        ports:
-          - 9000:9000
       postgres:
         image: postgres:16
         env:
@@ -76,6 +69,22 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
       - name: Install backend and test dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+      - name: Start local S3-compatible storage service
+        run: |
+          docker run -d --name maalenex-silo -p 9000:9000 \
+            -e MINIO_ROOT_USER="$OBJECT_STORAGE_ACCESS_KEY_ID" \
+            -e MINIO_ROOT_PASSWORD="$OBJECT_STORAGE_SECRET_ACCESS_KEY" \
+            docker.io/pgsty/silo:RELEASE.2026-11-12T00-00-00Z \
+            server /data --console-address ":9001"
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:9000/minio/health/live >/dev/null; then
+              echo "PASS: local S3-compatible storage is live"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs maalenex-silo
+          exit 1
       - name: Ruff wallet ledger implementation
         run: >-
           python -m ruff check --output-format=github
@@ -138,3 +147,6 @@ jobs:
         run: python -m alembic check
       - name: Test full migration downgrade and clean re-upgrade
         run: python -m alembic downgrade base && python -m alembic upgrade head
+      - name: Stop local S3-compatible storage service
+        if: always()
+        run: docker rm -f maalenex-silo || true
