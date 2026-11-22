@@ -117,10 +117,7 @@ def verify_compliance_object(
     except InvalidStoredObject:
         raise
     except Exception as exc:
-        error = getattr(exc, "response", {}).get("Error", {}).get("Code")
-        if error in {"404", "NoSuchKey", "NotFound"}:
-            raise InvalidStoredObject("Evidence object is missing from private storage.") from exc
-        raise StorageOperationFailed("Private evidence storage verification failed; retry is safe.") from exc
+        raise InvalidStoredObject("Evidence object could not be verified in private storage.") from exc
 
     return {"content_type": content_type, "content_length": length}
 
@@ -218,6 +215,9 @@ def verify_cargo_delivery_object(
     except InvalidStoredObject:
         raise
     except Exception as exc:
-        raise InvalidStoredObject("Evidence object could not be verified in private storage.") from exc
+        error = getattr(exc, "response", {}).get("Error", {}).get("Code")
+        if error in {"404", "NoSuchKey", "NotFound"}:
+            raise InvalidStoredObject("Evidence object is missing from private storage.") from exc
+        raise StorageOperationFailed("Private evidence storage verification failed; retry is safe.") from exc
 
     return {"content_type": content_type, "content_length": length}
