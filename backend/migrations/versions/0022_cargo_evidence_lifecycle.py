@@ -43,6 +43,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.UniqueConstraint("object_key", name="uq_cargo_delivery_evidence_object_key"),
+        sa.UniqueConstraint("delivery_proof_id", name="uq_cargo_delivery_evidence_proof"),
     )
     op.create_index("ix_cargo_delivery_evidence_dispatch_state", "cargo_delivery_evidence", ["dispatch_id", "lifecycle_state"])
     op.create_index("ix_cargo_delivery_evidence_retention", "cargo_delivery_evidence", ["retention_expires_at", "lifecycle_state"])
