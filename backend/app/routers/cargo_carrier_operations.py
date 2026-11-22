@@ -1,6 +1,7 @@
 """Authenticated carrier operations, delivery proof and exception APIs."""
 # ruff: noqa: B008,I001
 from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -16,6 +17,10 @@ from app.domains.cargo.carrier_service import (
 )
 from app.domains.cargo.dispatch import CargoDispatch, CargoTrackingEvent
 from app.domains.cargo.models import CargoConsignment
+from app.domains.fleet.object_storage import (
+    InvalidStoredObject, StorageNotConfigured,
+    create_cargo_delivery_upload_intent, verify_cargo_delivery_object,
+)
 from app.domains.identity.authorization import has_permission
 from app.domains.identity.service import StaffContext
 from app.domains.organizations.models import Organization
@@ -31,6 +36,11 @@ class CarrierOperationsUpdate(BaseModel):
 
 class CarrierStatusUpdate(BaseModel):
     operational_status: str
+
+
+class DeliveryProofUploadIntentCreate(BaseModel):
+    content_type: Literal["application/pdf", "image/jpeg", "image/png"]
+    content_length: int = Field(ge=1, le=10 * 1024 * 1024)
 
 
 class DeliveryProofCreate(BaseModel):
@@ -149,6 +159,41 @@ def set_carrier_status(
     return {"organization_id": str(organization_id), "operational_status": item.operational_status}
 
 
+@router.post("/dispatches/{dispatch_id}/delivery-proof/upload-intents", status_code=201)
+def create_delivery_proof_upload_intent(
+    dispatch_id: UUID, payload: DeliveryProofUploadIntentCreate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    dispatch = db.scalar(select(CargoDispatch).where(CargoDispatch.id == dispatch_id).with_for_update())
+    if dispatch is None:
+        raise HTTPException(status_code=404, detail="Dispatch not found.")
+    if not _allowed(db, context, "operator.cargo.delivery_proof.submit", dispatch.carrier_organization_id):
+        raise HTTPException(status_code=403, detail="Assigned carrier delivery-proof permission is required.")
+    if dispatch.status != "in_transit":
+        raise HTTPException(status_code=409, detail="Delivery evidence can only be uploaded for an in-transit dispatch.")
+    try:
+        intent = create_cargo_delivery_upload_intent(
+            carrier_organization_id=str(dispatch.carrier_organization_id),
+            dispatch_id=str(dispatch.id),
+            content_type=payload.content_type,
+            content_length=payload.content_length,
+        )
+    except StorageNotConfigured as exc:
+        raise HTTPException(status_code=503, detail="Private evidence storage is not configured.") from exc
+    except InvalidStoredObject as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    record_event(
+        db, event_type="cargo.delivery_proof.upload_intent_created", actor_type="staff",
+        actor_id=str(context.user.id), resource_type="cargo_dispatch",
+        resource_id=str(dispatch.id), action="upload_intent", outcome="success",
+        organization_id=dispatch.carrier_organization_id,
+        metadata={"content_type": payload.content_type, "content_length": payload.content_length},
+    )
+    db.commit()
+    return intent
+
+
 @router.post("/dispatches/{dispatch_id}/delivery-proof", status_code=201)
 def submit_delivery_proof(
     dispatch_id: UUID, payload: DeliveryProofCreate, request: Request,
@@ -164,6 +209,16 @@ def submit_delivery_proof(
         raise HTTPException(status_code=422, detail="occurred_at must include an explicit timezone offset.")
     if dispatch.status != "in_transit":
         raise HTTPException(status_code=409, detail="Delivery proof can only be submitted for an in-transit dispatch.")
+    try:
+        verify_cargo_delivery_object(
+            object_key=payload.evidence_reference,
+            carrier_organization_id=str(dispatch.carrier_organization_id),
+            dispatch_id=str(dispatch.id),
+        )
+    except StorageNotConfigured as exc:
+        raise HTTPException(status_code=503, detail="Private evidence storage is not configured.") from exc
+    except InvalidStoredObject as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     existing = db.scalar(select(CargoDeliveryProof).where(
         CargoDeliveryProof.dispatch_id == dispatch.id
     ))
