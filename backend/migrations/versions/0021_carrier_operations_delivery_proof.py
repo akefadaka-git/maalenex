@@ -1,14 +1,14 @@
 # ruff: noqa: I001
 """Add carrier operations, delivery proof and exception resolution.
 
-Revision ID: 0021_carrier_operations_delivery_proof
+Revision ID: 0021_carrier_ops_delivery
 Revises: 0020_cargo_dispatch_tracking
 """
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "0021_carrier_operations_delivery_proof"
+revision = "0021_carrier_ops_delivery"
 down_revision = "0020_cargo_dispatch_tracking"
 branch_labels = None
 depends_on = None
