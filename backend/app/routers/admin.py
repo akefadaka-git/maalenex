@@ -606,7 +606,6 @@ def create_seat_layout(
         raise HTTPException(status_code=409, detail="Vehicle must be approved before creating a seat layout.")
     if bool(payload.seat_codes) == bool(payload.seats):
         raise HTTPException(status_code=422, detail="Provide either seat_codes or structured seats.")
-    layout.geometry_metadata = payload.geometry.model_dump()
     if payload.seats:
         seat_rows = [{
             "seat_code": item.seat_code.strip().upper(),
@@ -1869,6 +1868,7 @@ def update_draft_seat_layout(
         raise HTTPException(status_code=409, detail="Vehicle must remain approved to edit its seat layout.")
     if bool(payload.seat_codes) == bool(payload.seats):
         raise HTTPException(status_code=422, detail="Provide either seat_codes or structured seats.")
+    layout.geometry_metadata = payload.geometry.model_dump()
     if payload.seats:
         seat_rows = [{
             "seat_code": item.seat_code.strip().upper(),
