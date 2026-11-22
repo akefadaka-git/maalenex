@@ -890,7 +890,7 @@ def approve_and_execute_evidence_deletion(
     block_reason = deletion_block_reason(evidence, now=datetime.now(UTC))
     if block_reason:
         raise HTTPException(status_code=409, detail=f"Evidence deletion fails closed: {block_reason}.")
-    if policy is None:
+    if policy is None and evidence.rights_request_status != "eligible_for_erasure":
         raise HTTPException(status_code=409, detail="An independently validated and activated retention policy is required; deletion fails closed.")
     item.approved_by = context.user.id
     item.approved_at = datetime.now(UTC)
