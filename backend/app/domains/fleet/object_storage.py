@@ -24,6 +24,10 @@ class InvalidStoredObject(ValueError):
     """Raised when an uploaded object is missing or fails validation."""
 
 
+class StorageOperationFailed(RuntimeError):
+    """Raised for retryable private object-storage failures."""
+
+
 def _client() -> Any:
     if not settings.object_storage_enabled:
         raise StorageNotConfigured("Object storage is disabled.")
@@ -113,9 +117,35 @@ def verify_compliance_object(
     except InvalidStoredObject:
         raise
     except Exception as exc:
-        raise InvalidStoredObject("Evidence object could not be verified in private storage.") from exc
+        raise StorageOperationFailed("Private evidence storage verification failed; retry is safe.") from exc
 
     return {"content_type": content_type, "content_length": length}
+
+
+def create_cargo_delivery_download_url(*, object_key: str, expires_in_seconds: int = 60) -> str:
+    """Create a bounded private GET URL; callers must authorize before invoking."""
+    if not 1 <= expires_in_seconds <= 300:
+        raise ValueError("Private evidence download URL lifetime must be 1-300 seconds.")
+    if not object_key.startswith("cargo-delivery/") or ".." in object_key or object_key.endswith("/"):
+        raise InvalidStoredObject("Evidence object key is invalid.")
+    try:
+        return _client().generate_presigned_url(
+            "get_object",
+            Params={"Bucket": settings.object_storage_bucket, "Key": object_key},
+            ExpiresIn=expires_in_seconds,
+        )
+    except Exception as exc:
+        raise StorageOperationFailed("Private evidence download authorization failed; retry is safe.") from exc
+
+
+def delete_cargo_delivery_object(*, object_key: str) -> None:
+    """Delete a private evidence object; storage errors are never reported as success."""
+    if not object_key.startswith("cargo-delivery/") or ".." in object_key or object_key.endswith("/"):
+        raise InvalidStoredObject("Evidence object key is invalid.")
+    try:
+        _client().delete_object(Bucket=settings.object_storage_bucket, Key=object_key)
+    except Exception as exc:
+        raise StorageOperationFailed("Private evidence deletion failed; retry is safe.") from exc
 
 
 def create_cargo_delivery_upload_intent(
