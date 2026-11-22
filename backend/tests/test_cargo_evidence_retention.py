@@ -115,3 +115,11 @@ def test_deletion_interlock_fails_closed(override, expected):
 
 def test_deletion_interlock_allows_only_expired_reviewed_residual_operational_evidence():
     assert _deletion_check() is None
+
+
+def test_dpo_approved_erasure_can_override_residual_retention_expiry_only():
+    assert _deletion_check(
+        retention_expires_at=datetime(2027, 1, 1, tzinfo=UTC),
+        rights_review_status="erasure_approved",
+        active_policy=False,
+    ) is None
