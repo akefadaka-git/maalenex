@@ -102,7 +102,7 @@ def cleanup_expired_unattached_evidence(
             resource_type="cargo_delivery_evidence", resource_id=str(evidence.id),
             action="orphan_cleanup", outcome=outcome,
             organization_id=evidence.carrier_organization_id,
-            metadata={"evidence_id": str(evidence.id), "dispatch_id": str(evidence.dispatch_id)},
+            metadata={"evidence_id": str(evidence.id)},
         )
     db.commit()
     return {"examined": len(candidates), "deleted": deleted, "failed": failed, "held": held}
