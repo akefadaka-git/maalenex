@@ -153,10 +153,14 @@ jobs:
           app/routers/cargo_carrier_operations.py
           app/routers/cargo_evidence_lifecycle.py
           app/jobs/cargo_evidence_cleanup.py
+          app/domains/cargo/evidence_retention.py
           tests/test_cargo_delivery_evidence_storage.py
           migrations/versions/0022_cargo_evidence_lifecycle.py
           migrations/versions/0023_cargo_evidence_hold_review_alert.py
+          migrations/versions/0024_cargo_legal_retention.py
+          migrations/versions/0025_audit_tombstone_review.py
           tests/test_cargo_evidence_lifecycle_routes.py
+          tests/test_cargo_evidence_retention.py
           app/routers/cargo.py
           tests/test_cargo_lifecycle.py
           migrations/versions/0019_cargo_consignments.py
