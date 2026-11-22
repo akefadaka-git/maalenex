@@ -253,3 +253,19 @@ export function reviewFleetVehicle(vehicleId: string, decision: "approved" | "re
 export function approveFleetSeatLayout(layoutId: string): Promise<{ id: string; status: string }> {
   return request(`/seat-layouts/${encodeURIComponent(layoutId)}/approve`, { method: "POST" });
 }
+
+
+export function updateFleetVehicle(vehicleId: string, vehicle_reference: string): Promise<{
+  id: string; vehicle_reference: string; status: string; review_status: string;
+}> {
+  return request(`/vehicles/${encodeURIComponent(vehicleId)}`, {
+    method: "PATCH", body: JSON.stringify({ vehicle_reference }),
+  });
+}
+export function updateDraftFleetSeatLayout(layoutId: string, seats: Array<{
+  seat_code: string; row_label: string; column_index: number; seat_type: string; is_sellable: boolean;
+}>): Promise<{ id: string; version_number: number; seat_count: number; status: string }> {
+  return request(`/seat-layouts/${encodeURIComponent(layoutId)}`, {
+    method: "PUT", body: JSON.stringify({ seats }),
+  });
+}
