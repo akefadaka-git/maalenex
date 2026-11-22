@@ -3,6 +3,7 @@ name: G1 backend foundation verification
 # Passenger wallet: run exact-head lint, tests and PostgreSQL migration verification.
 # Verification coverage includes My Bookings, ownership-safe cancellation, and scheduled hold expiry.
 # P1 exact-head coverage includes fleet evidence review, seat-map geometry, dispatch exceptions, fare history and PostgreSQL ownership integration.
+# Private evidence storage also runs a real presigned PUT/HEAD/ranged-GET smoke test against ephemeral local MinIO.
 
 on:
   push:
@@ -48,7 +49,7 @@ jobs:
     env:
       APP_ENV: test
       SYNTHETIC_DATA_ONLY: "true"
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/maalenex_dev
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/maalenex_dev\n      OBJECT_STORAGE_ENABLED: "true"\n      OBJECT_STORAGE_PROVIDER: r2\n      OBJECT_STORAGE_ENDPOINT_URL: http://127.0.0.1:9000\n      OBJECT_STORAGE_BUCKET: maalenex-synthetic-smoke\n      OBJECT_STORAGE_ACCESS_KEY_ID: maalenex-ci\n      OBJECT_STORAGE_SECRET_ACCESS_KEY: maalenex-ci-secret-please-change
     steps:
       - name: Checkout
         uses: actions/checkout@v4
