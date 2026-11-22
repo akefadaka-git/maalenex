@@ -105,6 +105,7 @@ def test_cargo_delivery_object_verification_rejects_mismatched_signature(monkeyp
 def test_cargo_download_url_is_private_and_bounded(fake_s3):
     url = object_storage.create_cargo_delivery_download_url(
         object_key="cargo-delivery/carrier-a/dispatch-a/object-1",
+        carrier_organization_id="carrier-a", dispatch_id="dispatch-a",
         expires_in_seconds=60,
     )
     assert url == "https://storage.invalid/presigned-put"
@@ -128,7 +129,9 @@ def test_cargo_download_url_rejects_unbounded_lifetime(fake_s3, ttl):
 
 def test_cargo_delete_targets_only_private_cargo_key(fake_s3):
     key = "cargo-delivery/carrier-a/dispatch-a/object-1"
-    object_storage.delete_cargo_delivery_object(object_key=key)
+    object_storage.delete_cargo_delivery_object(
+        object_key=key, carrier_organization_id="carrier-a", dispatch_id="dispatch-a",
+    )
     assert fake_s3.deleted == [("synthetic-private", key)]
 
 
@@ -136,6 +139,7 @@ def test_cargo_delete_rejects_path_traversal(fake_s3):
     with pytest.raises(object_storage.InvalidStoredObject):
         object_storage.delete_cargo_delivery_object(
             object_key="cargo-delivery/carrier-a/../other/object-1",
+            carrier_organization_id="carrier-a", dispatch_id="dispatch-a",
         )
 
 
