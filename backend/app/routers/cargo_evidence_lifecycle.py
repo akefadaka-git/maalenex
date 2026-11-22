@@ -208,7 +208,8 @@ def submit_lifecycle_delivery_proof(
         CargoDeliveryProof.dispatch_id == dispatch.id,
     ))
     if existing is not None:
-        if existing.idempotency_key != payload.idempotency_key:
+        if (existing.idempotency_key != payload.idempotency_key
+                or existing.evidence_reference != evidence.object_key):
             raise HTTPException(status_code=409, detail="A delivery proof already exists for this dispatch.")
         return {
             "id": str(existing.id), "dispatch_id": str(existing.dispatch_id),
