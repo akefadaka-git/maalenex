@@ -3,7 +3,7 @@ name: G1 backend foundation verification
 # Passenger wallet: run exact-head lint, tests and PostgreSQL migration verification.
 # Verification coverage includes My Bookings, ownership-safe cancellation, and scheduled hold expiry.
 # P1 exact-head coverage includes fleet evidence review, seat-map geometry, dispatch exceptions, fare history and PostgreSQL ownership integration.
-# Private evidence storage also runs a real presigned PUT/HEAD/ranged-GET smoke test against ephemeral local MinIO.
+# Private evidence storage also runs a real presigned PUT/HEAD/ranged-GET smoke test against ephemeral local S3-compatible Silo service.
 
 on:
   push:
@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       minio:
-        image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+        image: pgsty/silo:RELEASE.2026-11-12T00-00-00Z
         env:
           MINIO_ROOT_USER: minio-${{ github.run_id }}-ci
           MINIO_ROOT_PASSWORD: minio-${{ github.run_id }}-ci
