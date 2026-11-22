@@ -19,3 +19,19 @@ def test_route_geometry_requires_line_string_source_and_valid_coordinate_pairs()
     assert _published_route_geometry(SimpleNamespace(geometry_source="surveyed_gps", geometry={"type": "Point", "coordinates": [36.7, 6.9]})) is None
     assert _published_route_geometry(SimpleNamespace(geometry_source="surveyed_gps", geometry={"type": "LineString", "coordinates": [[36.7, 6.9]]})) is None
     assert _published_route_geometry(SimpleNamespace(geometry_source="surveyed_gps", geometry={"type": "LineString", "coordinates": [[36.7, 96], [36.8, 7.0]]})) is None
+
+
+def test_operator_confirmed_koybe_boarding_point_coordinates_are_preserved():
+    location = SimpleNamespace(
+        id="koybe",
+        name="Koybe",
+        location_type="town",
+        latitude=5.7678630,
+        longitude=36.7985890,
+        coordinate_source="operator_confirmed_terminal_pin",
+    )
+    assert _location_payload(location)["coordinates"] == {
+        "latitude": 5.7678630,
+        "longitude": 36.7985890,
+        "source": "operator_confirmed_terminal_pin",
+    }
