@@ -221,6 +221,20 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
         json={"decision": "approved", "reason": "Synthetic insurance evidence verified"},
     )
     assert evidence_review.status_code == 200, evidence_review.text
+    expired_evidence = client.post(
+        f"/api/v1/vehicles/{vehicle_id}/compliance-documents",
+        json={
+            "document_type": "insurance",
+            "evidence_reference": f"fleet-compliance/operator-a/expired-{uuid4().hex}",
+            "expires_at": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
+        },
+    )
+    assert expired_evidence.status_code == 201, expired_evidence.text
+    expired_review = client.post(
+        f"/api/v1/compliance-documents/{expired_evidence.json()['id']}/review",
+        json={"decision": "approved", "reason": "Expired document must fail closed"},
+    )
+    assert expired_review.status_code == 409
     history = client.get(f"/api/v1/vehicles/{vehicle_id}/history")
     assert history.status_code == 200, history.text
     assert history.json()["documents"][0]["status"] == "approved"
