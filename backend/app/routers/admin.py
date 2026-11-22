@@ -490,6 +490,15 @@ def publish_route(
     stops = list(db.scalars(select(RouteStop).where(
         RouteStop.route_id == route.id
     ).order_by(RouteStop.sequence_number).with_for_update()))
+    if not stops:
+        stops = [
+            RouteStop(route_id=route.id, location_id=route.origin_location_id, sequence_number=1,
+                      boarding_allowed=True, alighting_allowed=False, status="draft"),
+            RouteStop(route_id=route.id, location_id=route.destination_location_id, sequence_number=2,
+                      boarding_allowed=False, alighting_allowed=True, status="draft"),
+        ]
+        db.add_all(stops)
+        db.flush()
     if len(stops) < 2 or stops[0].location_id != route.origin_location_id or stops[-1].location_id != route.destination_location_id:
         raise HTTPException(status_code=409, detail="Route stops must begin at the origin and end at the destination.")
     for stop in stops:
