@@ -115,6 +115,11 @@ class EvidenceHoldReleaseReview(BaseModel):
     note: str = Field(min_length=5, max_length=500)
 
 
+class EvidenceDeletionSuspension(BaseModel):
+    suspended: bool
+    reason: str = Field(min_length=10, max_length=500)
+
+
 class EvidenceRightsRequestCreate(BaseModel):
     request_type: Literal["access", "rectification", "erasure", "restriction"]
     request_reference: str = Field(min_length=5, max_length=160)
@@ -687,6 +692,70 @@ def review_evidence_retention_classification(
     db.commit()
     return {"evidence_id": str(evidence.id), "classification_status": evidence.classification_status,
             "dpo_reviewed": True}
+
+
+@router.post("/evidence/{evidence_id}/deletion-suspension")
+def set_evidence_deletion_suspension(
+    evidence_id: UUID, payload: EvidenceDeletionSuspension, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.hold.review"):
+        raise HTTPException(status_code=403, detail="DPO deletion-suspension authority is required.")
+    evidence = db.scalar(select(CargoDeliveryEvidence).where(
+        CargoDeliveryEvidence.id == evidence_id,
+    ).with_for_update())
+    if evidence is None:
+        raise HTTPException(status_code=404, detail="Evidence record not found.")
+    evidence.deletion_suspended = payload.suspended
+    evidence.deletion_suspension_reason = payload.reason if payload.suspended else None
+    evidence.deletion_suspended_by = context.user.id if payload.suspended else None
+    evidence.deletion_suspended_at = datetime.now(UTC) if payload.suspended else None
+    _audit(
+        db, context=context, evidence=evidence,
+        action="deletion_suspended" if payload.suspended else "deletion_resumed",
+        outcome="success", reason=payload.reason,
+    )
+    db.commit()
+    return {"evidence_id": str(evidence.id), "deletion_suspended": evidence.deletion_suspended}
+
+
+@router.get("/evidence/governance/holds")
+def list_evidence_governance_holds(
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.hold.review"):
+        raise HTTPException(status_code=403, detail="DPO governance-log read permission is required.")
+    items = db.scalars(select(CargoDeliveryEvidenceHold).order_by(
+        CargoDeliveryEvidenceHold.created_at.desc(),
+    ).limit(200)).all()
+    return {"items": [{
+        "hold_id": str(item.id), "evidence_id": str(item.evidence_id),
+        "case_reference": item.case_reference, "issued_at": item.issued_at.isoformat(),
+        "review_due_at": item.review_due_at.isoformat(),
+        "dpo_reviewed_at": item.dpo_reviewed_at.isoformat() if item.dpo_reviewed_at else None,
+        "release_reviewed_at": item.release_reviewed_at.isoformat() if item.release_reviewed_at else None,
+        "released_at": item.released_at.isoformat() if item.released_at else None,
+    } for item in items]}
+
+
+@router.get("/evidence/governance/deletion-requests")
+def list_evidence_governance_deletion_requests(
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.hold.review"):
+        raise HTTPException(status_code=403, detail="DPO governance-log read permission is required.")
+    items = db.scalars(select(CargoDeliveryEvidenceDeletionRequest).order_by(
+        CargoDeliveryEvidenceDeletionRequest.created_at.desc(),
+    ).limit(200)).all()
+    return {"items": [{
+        "request_id": str(item.id), "evidence_id": str(item.evidence_id),
+        "requested_by": str(item.requested_by), "approved_by": str(item.approved_by) if item.approved_by else None,
+        "status": item.status, "reason": item.reason,
+        "created_at": item.created_at.isoformat(),
+        "approved_at": item.approved_at.isoformat() if item.approved_at else None,
+        "completed_at": item.completed_at.isoformat() if item.completed_at else None,
+    } for item in items]}
 
 
 @router.post("/evidence/{evidence_id}/rights-requests", status_code=201)
