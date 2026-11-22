@@ -222,6 +222,7 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
         json={"decision": "approved", "reason": "Synthetic insurance evidence verified"},
     )
     assert evidence_review.status_code == 200, evidence_review.text
+    selected["value"] = users["operator"]
     expired_evidence = client.post(
         f"/api/v1/vehicles/{vehicle_id}/compliance-documents",
         json={
@@ -236,6 +237,7 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
         json={"decision": "approved", "reason": "Expired document must fail closed"},
     )
     assert expired_review.status_code == 409
+    selected["value"] = users["fleet_reviewer"]
     history = client.get(f"/api/v1/vehicles/{vehicle_id}/history")
     assert history.status_code == 200, history.text
     assert any(item["status"] == "approved" for item in history.json()["documents"])
