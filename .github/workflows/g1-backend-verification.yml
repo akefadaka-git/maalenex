@@ -30,6 +30,13 @@ jobs:
     name: Backend tests, lint and PostgreSQL migrations
     runs-on: ubuntu-latest
     services:
+      minio:
+        image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
       postgres:
         image: postgres:16
         env:
@@ -49,7 +56,13 @@ jobs:
     env:
       APP_ENV: test
       SYNTHETIC_DATA_ONLY: "true"
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/maalenex_dev\n      OBJECT_STORAGE_ENABLED: "true"\n      OBJECT_STORAGE_PROVIDER: r2\n      OBJECT_STORAGE_ENDPOINT_URL: http://127.0.0.1:9000\n      OBJECT_STORAGE_BUCKET: maalenex-synthetic-smoke\n      OBJECT_STORAGE_ACCESS_KEY_ID: maalenex-ci\n      OBJECT_STORAGE_SECRET_ACCESS_KEY: maalenex-ci-secret-please-change
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/maalenex_dev
+      OBJECT_STORAGE_ENABLED: "true"
+      OBJECT_STORAGE_PROVIDER: r2
+      OBJECT_STORAGE_ENDPOINT_URL: http://127.0.0.1:9000
+      OBJECT_STORAGE_BUCKET: maalenex-synthetic-smoke
+      OBJECT_STORAGE_ACCESS_KEY_ID: minioadmin
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: minioadmin\n      OBJECT_STORAGE_ENABLED: "true"\n      OBJECT_STORAGE_PROVIDER: r2\n      OBJECT_STORAGE_ENDPOINT_URL: http://127.0.0.1:9000\n      OBJECT_STORAGE_BUCKET: maalenex-synthetic-smoke\n      OBJECT_STORAGE_ACCESS_KEY_ID: maalenex-ci\n      OBJECT_STORAGE_SECRET_ACCESS_KEY: maalenex-ci-secret-please-change
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -87,6 +100,7 @@ jobs:
           app/domains/fleet/models.py
           app/domains/fleet/object_storage.py
           tests/test_fleet_object_storage.py
+          tests/test_fleet_object_storage_minio.py
           app/domains/trips/models.py
           migrations/versions/0016_fleet_compliance_and_geometry.py
           app/main.py
