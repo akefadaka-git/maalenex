@@ -84,7 +84,7 @@ def _carrier_access(db: Session, context: StaffContext, organization_id: UUID) -
 def _proof_json(item: CargoDeliveryProof) -> dict:
     return {
         "id": str(item.id), "dispatch_id": str(item.dispatch_id), "consignment_id": str(item.consignment_id),
-        "received_by_name": item.received_by_name, "evidence_reference": item.evidence_reference,
+        "received_by_name": item.received_by_name,
         "delivery_notes": item.delivery_notes, "occurred_at": item.occurred_at.isoformat(),
         "status": item.status, "review_reason": item.review_reason,
         "created_at": item.created_at.isoformat() if item.created_at else None,
@@ -191,8 +191,31 @@ def create_delivery_proof_upload_intent(
         organization_id=dispatch.carrier_organization_id,
         metadata={"content_type": payload.content_type, "content_length": payload.content_length},
     )
+    now = datetime.now(UTC)
+    evidence = CargoDeliveryEvidence(
+        carrier_organization_id=dispatch.carrier_organization_id,
+        dispatch_id=dispatch.id, object_key=intent["object_key"],
+        content_type=payload.content_type, content_length=payload.content_length,
+        upload_intent_created_at=now,
+        upload_intent_expires_at=now + timedelta(seconds=300),
+        lifecycle_state="pending", classification_status="unclassified",
+    )
+    db.add(evidence)
+    db.flush()
+    record_event(
+        db, event_type="cargo.delivery_proof.upload_intent_created", actor_type="staff",
+        actor_id=str(context.user.id), resource_type="cargo_dispatch",
+        resource_id=str(dispatch.id), action="upload_intent", outcome="success",
+        organization_id=dispatch.carrier_organization_id,
+        metadata={"content_type": payload.content_type, "content_length": payload.content_length,
+                  "evidence_id": str(evidence.id)},
+    )
     db.commit()
-    return intent
+    return {
+        "evidence_id": str(evidence.id), "upload_url": intent["upload_url"],
+        "method": intent["method"], "content_type": intent["content_type"],
+        "max_bytes": intent["max_bytes"], "expires_in_seconds": intent["expires_in_seconds"],
+    }
 
 
 @router.post("/dispatches/{dispatch_id}/delivery-proof", status_code=201)
@@ -242,11 +265,28 @@ def submit_delivery_proof(
     )
     db.add(proof)
     db.flush()
+    evidence = db.scalar(select(CargoDeliveryEvidence).where(
+        CargoDeliveryEvidence.object_key == payload.evidence_reference,
+    ).with_for_update())
+    if evidence is None:
+        evidence = CargoDeliveryEvidence(
+            carrier_organization_id=dispatch.carrier_organization_id, dispatch_id=dispatch.id,
+            delivery_proof_id=proof.id, object_key=payload.evidence_reference,
+            upload_intent_created_at=None, upload_intent_expires_at=None,
+            verified_at=datetime.now(UTC), attached_at=datetime.now(UTC),
+            lifecycle_state="attached", classification_status="unclassified",
+        )
+        db.add(evidence)
+    else:
+        evidence.delivery_proof_id = proof.id
+        evidence.verified_at = datetime.now(UTC)
+        evidence.attached_at = evidence.verified_at
+        evidence.lifecycle_state = "attached"
     record_event(db, event_type="cargo.delivery_proof.submitted", actor_type="staff",
                  actor_id=str(context.user.id), resource_type="cargo_delivery_proof",
                  resource_id=str(proof.id), action="submit", outcome="success",
                  organization_id=dispatch.carrier_organization_id,
-                 metadata={"dispatch_id": str(dispatch.id), "evidence_reference": payload.evidence_reference})
+                 metadata={"dispatch_id": str(dispatch.id), "evidence_id": str(evidence.id)})
     db.commit()
     db.refresh(proof)
     return _proof_json(proof)
