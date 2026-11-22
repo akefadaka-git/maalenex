@@ -785,10 +785,14 @@ def review_evidence_rights_request(
     if evidence.retention_classified_by == context.user.id:
         raise HTTPException(status_code=409, detail="The Legal/Compliance classifier cannot provide independent DPO rights review.")
     if payload.decision == "erase" and (
-        evidence.accounting_document or evidence.commercial_correspondence
+        item.request_type != "erasure"
+        or evidence.accounting_document or evidence.commercial_correspondence
+        or evidence.classification_status != "ordinary"
+        or evidence.retention_dpo_reviewed_at is None
+        or evidence.dpo_deletion_suspended
         or _active_hold(db, evidence.id) is not None
     ):
-        raise HTTPException(status_code=409, detail="Mandatory retention or an active legal hold overrides erasure; record retain or restrict with the legal basis.")
+        raise HTTPException(status_code=409, detail="Erasure is not eligible: the request must be an erasure request for DPO-reviewed residual operational evidence with no statutory retention, active hold or DPO suspension.")
     item.status = "reviewed"
     item.decision = payload.decision
     item.decision_reason = payload.reason
@@ -799,7 +803,11 @@ def review_evidence_rights_request(
         CargoDeliveryEvidenceRightsRequest.id != item.id,
         CargoDeliveryEvidenceRightsRequest.status == "pending",
     ).limit(1))
-    evidence.rights_review_status = "pending" if other_pending is not None else "reviewed"
+    evidence.rights_review_status = (
+        "pending" if other_pending is not None
+        else "erasure_approved" if payload.decision == "erase"
+        else "reviewed"
+    )
     _audit(db, context=context, evidence=evidence, action="rights_request_reviewed", outcome="success",
            reason=f"{payload.decision}:{payload.reason}")
     db.commit()
