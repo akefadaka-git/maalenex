@@ -741,9 +741,13 @@ def get_vehicle_review_history(
     documents = db.scalars(select(VehicleComplianceDocument).where(
         VehicleComplianceDocument.vehicle_id == vehicle.id
     ).order_by(VehicleComplianceDocument.created_at.desc())).all()
+    layout_ids = db.scalars(select(SeatLayoutVersion.id).where(
+        SeatLayoutVersion.vehicle_id == vehicle.id
+    )).all()
+    resource_ids = [str(vehicle.id), *[str(item.id) for item in documents], *[str(item) for item in layout_ids]]
     events = db.scalars(select(AuditEvent).where(
         AuditEvent.organization_id == vehicle.organization_id,
-        AuditEvent.resource_id.in_([str(vehicle.id), *[str(item.id) for item in documents]]),
+        AuditEvent.resource_id.in_(resource_ids),
     ).order_by(AuditEvent.occurred_at.desc()).limit(100)).all()
     return {
         "documents": [{
