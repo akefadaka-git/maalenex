@@ -30,6 +30,11 @@ def test_staff_admin_routes_are_registered():
         "/api/v1/operators/{organization_id}/dispatch/options",
         "/api/v1/operators/{organization_id}/trips",
         "/api/v1/admin/dispatch/trips",
+        "/api/v1/operators/{organization_id}/trips",
+        "/api/v1/trips/{trip_id}/submit",
+        "/api/v1/trips/{trip_id}/approve",
+        "/api/v1/trips/{trip_id}/publish",
+        "/api/v1/trips/{trip_id}/manifest",
     }.issubset(paths)
 
 
@@ -227,3 +232,17 @@ def test_dispatch_roles_receive_expected_trip_permissions():
     assert {"platform.trip.approve", "platform.trip.publish"}.issubset(
         set(migration.ROLE_GRANTS["platform_dispatch_manager"])
     )
+
+
+def test_trip_lifecycle_mutations_require_staff_session():
+    client = TestClient(app)
+    paths = (
+        "/api/v1/operators/00000000-0000-0000-0000-000000000001/trips",
+        "/api/v1/trips/00000000-0000-0000-0000-000000000001/submit",
+        "/api/v1/trips/00000000-0000-0000-0000-000000000001/approve",
+        "/api/v1/trips/00000000-0000-0000-0000-000000000001/publish",
+        "/api/v1/trips/00000000-0000-0000-0000-000000000001/manifest",
+    )
+    for path in paths:
+        response = client.post(path, json={}) if path.endswith("/trips") or path.endswith("/submit") or path.endswith("/approve") or path.endswith("/publish") else client.get(path)
+        assert response.status_code == 401
