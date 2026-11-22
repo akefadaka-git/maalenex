@@ -122,10 +122,15 @@ export function FareWorkspace({ language, organizationIds, currentUserId, canPro
         {fare.versions.map((version, index) => {
           const previousVersion = fare.versions[index + 1];
           const change = previousVersion ? version.amount_minor_units - previousVersion.amount_minor_units : null;
+          const changePercent = previousVersion && previousVersion.amount_minor_units > 0
+            ? (change! / previousVersion.amount_minor_units) * 100 : null;
           return <div className="staff-user-row" key={version.id}>
           <div><strong>v{version.version_number} · {formatMoney(version.amount_minor_units)}</strong>
             <small>{formatDate(version.effective_from)} → {formatDate(version.effective_to)}</small>
-            {previousVersion && <small>{am ? `ለውጥ ከ v${previousVersion.version_number}: ` : `Change vs v${previousVersion.version_number}: `}{change !== null && change > 0 ? "+" : ""}{formatMoney(change ?? 0)}</small>}
+            {previousVersion && <small>{am ? `ለውጥ ከ v${previousVersion.version_number}: ` : `Change vs v${previousVersion.version_number}: `}{change !== null && change > 0 ? "+" : ""}{formatMoney(change ?? 0)}{changePercent !== null ? ` (${changePercent > 0 ? "+" : ""}${changePercent.toFixed(2)}%)` : ""}</small>}
+            {version.approval_history.map(approval => <small key={approval.id}>
+              {approval.decision.toUpperCase()} · {formatDate(approval.decided_at)} · {approval.reason}
+            </small>)}
           </div>
           {status(version.status)}
           {canPropose && organizationIds.includes(fare.organization_id) && version.status === "draft" && version.proposed_by === currentUserId &&
