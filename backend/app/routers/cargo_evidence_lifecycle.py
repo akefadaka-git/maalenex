@@ -803,9 +803,14 @@ def review_evidence_rights_request(
         CargoDeliveryEvidenceRightsRequest.id != item.id,
         CargoDeliveryEvidenceRightsRequest.status == "pending",
     ).limit(1))
+    approved_erasure = db.scalar(select(CargoDeliveryEvidenceRightsRequest.id).where(
+        CargoDeliveryEvidenceRightsRequest.evidence_id == evidence.id,
+        CargoDeliveryEvidenceRightsRequest.status == "reviewed",
+        CargoDeliveryEvidenceRightsRequest.decision == "erase",
+    ).limit(1))
     evidence.rights_review_status = (
         "pending" if other_pending is not None
-        else "erasure_approved" if payload.decision == "erase"
+        else "erasure_approved" if approved_erasure is not None
         else "reviewed"
     )
     _audit(db, context=context, evidence=evidence, action="rights_request_reviewed", outcome="success",
