@@ -684,6 +684,35 @@ def review_vehicle(
     return {"id": str(vehicle.id), "status": vehicle.status, "review_status": vehicle.review_status}
 
 
+@router.post("/vehicles/{vehicle_id}/compliance-documents/upload-intents", status_code=status.HTTP_201_CREATED)
+def create_vehicle_compliance_upload_intent(
+    vehicle_id: UUID, payload: ComplianceUploadIntentCreate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    vehicle = db.get(Vehicle, vehicle_id)
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
+    try:
+        intent = create_compliance_upload_intent(
+            organization_id=str(vehicle.organization_id), vehicle_id=str(vehicle.id),
+            content_type=payload.content_type, content_length=payload.content_length,
+        )
+    except StorageNotConfigured as exc:
+        raise HTTPException(status_code=503, detail="Private evidence storage is not configured.") from exc
+    except InvalidStoredObject as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    _audit(
+        db, context=context, event="fleet.compliance.upload_intent_created",
+        resource_type="vehicle", resource_id=vehicle.id, action="upload_intent",
+        organization_id=vehicle.organization_id,
+        metadata={"content_type": payload.content_type, "content_length": payload.content_length},
+    )
+    db.commit()
+    return intent
+
+
 @router.post("/vehicles/{vehicle_id}/compliance-documents", status_code=status.HTTP_201_CREATED)
 def submit_vehicle_compliance_evidence(
     vehicle_id: UUID, payload: ComplianceEvidenceCreate, request: Request,
