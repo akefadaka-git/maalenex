@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -165,7 +165,7 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
     assert route_publish.status_code == 200, route_publish.text
     with Session(engine) as db:
         ordered = list(db.scalars(
-            select(RouteStop).where(RouteStop.route_id == route_id).order_by(RouteStop.sequence_number)
+            select(RouteStop).where(RouteStop.route_id == UUID(route_id)).order_by(RouteStop.sequence_number)
         ))
         assert [str(item.location_id) for item in ordered] == locations
         assert all(item.status == "published" for item in ordered)
@@ -289,14 +289,14 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
 
     # Verify durable state and audit evidence across every module boundary.
     with Session(engine) as db:
-        assert db.get(Route, route_id).status == "published"
-        assert db.get(Vehicle, vehicle_id).review_status == "approved"
-        assert db.get(SeatLayoutVersion, layout_id).status == "approved"
-        assert db.get(Trip, trip_id).status == "published"
+        assert db.get(Route, UUID(route_id)).status == "published"
+        assert db.get(Vehicle, UUID(vehicle_id)).review_status == "approved"
+        assert db.get(SeatLayoutVersion, UUID(layout_id)).status == "approved"
+        assert db.get(Trip, UUID(trip_id)).status == "published"
         assert db.scalar(select(FareVersion).where(
-            FareVersion.id == version_id,
+            FareVersion.id == UUID(version_id),
         )).status == "published"
-        assert db.scalar(select(Fare).where(Fare.id == fare_id)).status == "published"
+        assert db.scalar(select(Fare).where(Fare.id == UUID(fare_id))).status == "published"
         event_types = set(db.scalars(select(AuditEvent.event_type)))
         assert {
             "catalog.route.published", "fleet.vehicle.reviewed",
