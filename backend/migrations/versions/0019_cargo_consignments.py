@@ -3,6 +3,8 @@
 Revision ID: 0019_cargo_consignments
 Revises: 0018_koybe_boarding_point
 """
+from uuid import NAMESPACE_URL, uuid5
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -39,22 +41,34 @@ def upgrade() -> None:
     )
     op.create_index("ix_cargo_consignments_status", "cargo_consignments", ["status"])
     op.create_index("ix_cargo_org_status_created", "cargo_consignments", ["organization_id", "status", "created_at"])
-    op.execute("""
-        INSERT INTO access_permissions (id, code, description)
-        SELECT gen_random_uuid(), 'platform.cargo.manage', 'Create and manage cargo consignments'
-        WHERE NOT EXISTS (SELECT 1 FROM access_permissions WHERE code = 'platform.cargo.manage')
-    """)
-    op.execute("""
-        INSERT INTO access_role_permissions (id, role_id, permission_id)
-        SELECT gen_random_uuid(), rp.role_id, p.id
-        FROM access_role_permissions rp
-        JOIN access_permissions existing ON existing.id = rp.permission_id AND existing.code = 'platform.dashboard.read'
-        JOIN access_permissions p ON p.code = 'platform.cargo.manage'
-        WHERE NOT EXISTS (
-            SELECT 1 FROM access_role_permissions current
-            WHERE current.role_id = rp.role_id AND current.permission_id = p.id
-        )
-    """)
+    permission_id = uuid5(NAMESPACE_URL, "maalenex:permission:platform.cargo.manage")
+    role_permission_id = uuid5(NAMESPACE_URL, "maalenex:role-permission:platform_operations_manager:platform.cargo.manage")
+    admin_role_permission_id = uuid5(NAMESPACE_URL, "maalenex:role-permission:synthetic_platform_admin:platform.cargo.manage")
+    connection = op.get_bind()
+    permission_exists = connection.execute(sa.text(
+        "SELECT id FROM access_permissions WHERE code = 'platform.cargo.manage'"
+    )).scalar_one_or_none()
+    if permission_exists is None:
+        connection.execute(sa.text(
+            "INSERT INTO access_permissions (id, code, description) "
+            "VALUES (:id, 'platform.cargo.manage', 'Create and manage cargo consignments')"
+        ), {"id": permission_id})
+    permission_id = permission_exists or permission_id
+    for role_code, grant_id in (
+        ("platform_operations_manager", role_permission_id),
+        ("synthetic_platform_admin", admin_role_permission_id),
+    ):
+        role_id = connection.execute(sa.text(
+            "SELECT id FROM access_roles WHERE code = :code"
+        ), {"code": role_code}).scalar_one_or_none()
+        if role_id is not None:
+            connection.execute(sa.text(
+                "INSERT INTO access_role_permissions (id, role_id, permission_id) "
+                "SELECT :id, :role_id, :permission_id "
+                "WHERE NOT EXISTS (SELECT 1 FROM access_role_permissions "
+                "WHERE role_id = :role_id AND permission_id = :permission_id)"
+            ), {"id": grant_id, "role_id": role_id, "permission_id": permission_id})
+
 
 
 def downgrade() -> None:
