@@ -145,7 +145,7 @@ def transition_dispatch(dispatch_id: UUID, payload: DispatchTransition, request:
         cargo.status = "cancelled"
     item.status = payload.target_status
     item.version += 1
-    event_type = "picked_up" if payload.target_status == "picked_up" else payload.target_status
+    event_type = "departed" if payload.target_status == "in_transit" else payload.target_status
     sequence = (db.scalar(select(func.max(CargoTrackingEvent.sequence_number)).where(CargoTrackingEvent.dispatch_id == item.id)) or 0) + 1
     db.add(CargoTrackingEvent(dispatch_id=item.id, consignment_id=cargo.id, sequence_number=sequence,
         idempotency_key=f"dispatch-transition:{item.id}:{item.version}", event_type=event_type,
@@ -172,7 +172,7 @@ def append_tracking_event(dispatch_id: UUID, payload: TrackingEventCreate, reque
     existing = db.scalar(select(CargoTrackingEvent).where(CargoTrackingEvent.dispatch_id == item.id,
         CargoTrackingEvent.idempotency_key == payload.idempotency_key))
     if existing is not None:
-        if existing.event_type != payload.event_type or existing.description != payload.description:
+        if (existing.event_type != payload.event_type or existing.description != payload.description\n                or existing.latitude != payload.latitude or existing.longitude != payload.longitude\n                or existing.occurred_at != (payload.occurred_at or existing.occurred_at)):
             raise HTTPException(status_code=409, detail="Tracking idempotency key conflicts with an earlier event.")
         return _tracking_json(existing)
     validate_tracking_event(payload.event_type)
