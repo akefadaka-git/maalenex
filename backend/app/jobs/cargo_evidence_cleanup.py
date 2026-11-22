@@ -1,9 +1,10 @@
 """Idempotent cleanup of expired, unattached cargo evidence uploads.
+# ruff: noqa: I001
 
 The caller must supply the separately approved orphan grace period. This module
 is intentionally not scheduled or enabled by application startup.
 """
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
