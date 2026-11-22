@@ -83,7 +83,7 @@ def process_expired_retention_evidence(
     candidates = db.scalars(
         select(CargoDeliveryEvidence)
         .where(
-            CargoDeliveryEvidence.lifecycle_state == "attached",
+            CargoDeliveryEvidence.lifecycle_state.in_({"attached", "deletion_failed"}),
             CargoDeliveryEvidence.classification_status == "ordinary",
             CargoDeliveryEvidence.retention_dpo_reviewed_at.is_not(None),
             CargoDeliveryEvidence.retention_expires_at.is_not(None),
