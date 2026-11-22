@@ -20,7 +20,7 @@ from app.domains.fleet import object_storage
     ],
 )
 def test_real_local_s3_presigned_upload_and_object_verification(
-    monkeypatch: pytest.MonkeyPatch, content_type: str, payload: bytes
+    content_type: str, payload: bytes
 ) -> None:
     endpoint = object_storage.settings.object_storage_endpoint_url
     bucket = object_storage.settings.object_storage_bucket
@@ -40,6 +40,7 @@ def test_real_local_s3_presigned_upload_and_object_verification(
             time.sleep(2)
     assert client is not None
 
+    bucket_created = False
     try:
         try:
             client.create_bucket(Bucket=bucket)
@@ -48,6 +49,7 @@ def test_real_local_s3_presigned_upload_and_object_verification(
                 "BucketAlreadyOwnedByYou", "BucketAlreadyExists"
             }:
                 raise
+        bucket_created = True
 
         organization_id = f"synthetic-org-{uuid4().hex}"
         vehicle_id = f"synthetic-vehicle-{uuid4().hex}"
@@ -90,10 +92,7 @@ def test_real_local_s3_presigned_upload_and_object_verification(
             )
     finally:
         # This dedicated CI bucket is disposable and contains synthetic fixtures only.
-        try:
+        if bucket_created:
             for item in client.list_objects_v2(Bucket=bucket).get("Contents", []):
                 client.delete_object(Bucket=bucket, Key=item["Key"])
             client.delete_bucket(Bucket=bucket)
-        except Exception:
-            # Preserve the original test failure; CI service is ephemeral.
-            pass
