@@ -62,7 +62,7 @@ class MainActivity : Activity() {
             )
             setBackgroundColor(Color.rgb(7, 26, 28))
             settings.javaScriptEnabled = true
-            settings.geolocationEnabled = true
+            settings.setGeolocationEnabled(true)
             settings.domStorageEnabled = false
             settings.allowFileAccess = false
             settings.allowContentAccess = false
