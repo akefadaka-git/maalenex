@@ -2,6 +2,14 @@ name: MaaleNex Android shell verification
 # Exact-head transport checks validate configured API origin injection and reject insecure remote API URLs.
 
 on:
+  push:
+    branches: [feat/passenger-backend-connectivity-foundation]
+    paths:
+      - "android/**"
+      - "frontend/**"
+      - "backend/**"
+      - ".github/workflows/android-shell-verification.yml"
+      - ".github/workflows/g1-backend-verification.yml"
   pull_request:
     branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards, fix/passenger-password-minimum-six]
     paths:
