@@ -9,7 +9,7 @@ type Props = { language: "am" | "en"; organizationIds: string[]; canManage: bool
 
 export function DispatchWorkspace({ language, organizationIds, canManage, canReview, canManifest }: Props) {
   const am = language === "am";
-  const [organizationId, setOrganizationId] = useState("");
+  const [organizationId, setOrganizationId] = useState(organizationIds[0] ?? "");
   const [options, setOptions] = useState<DispatchOptions | null>(null);
   const [trips, setTrips] = useState<DispatchTrip[]>([]);
   const [selectedRoute, setSelectedRoute] = useState("");
@@ -117,7 +117,7 @@ export function DispatchWorkspace({ language, organizationIds, canManage, canRev
           {canManage && organizationIds.includes(trip.organization_id) && trip.status === "draft" && <button className="text-link" disabled={busy} onClick={() => void run(() => submitDispatchTrip(trip.id), am ? "ጉዞው ለግምገማ ተልኳል።" : "Trip submitted for review.")}>{am ? "ለግምገማ ላክ" : "Submit"}</button>}
           {canReview && trip.status === "submitted" && <button className="text-link" disabled={busy} onClick={() => void run(() => approveDispatchTrip(trip.id), am ? "ጉዞው ጸድቋል።" : "Trip approved.")}>{am ? "አጽድቅ" : "Approve"}</button>}
           {canReview && trip.status === "approved" && <button className="text-link" disabled={busy} onClick={() => void run(() => publishDispatchTrip(trip.id), am ? "ጉዞው ታትሟል።" : "Trip published.")}>{am ? "አትም" : "Publish"}</button>}
-          {canManifest && <button className="text-link" disabled={busy} onClick={() => void getTripManifest(trip.id).then(setManifest).catch(reason => setError(reason instanceof Error ? reason.message : "Manifest unavailable."))}>{am ? "የተሳፋሪ ዝርዝር" : "Manifest"}</button>}
+          {canManifest && organizationIds.includes(trip.organization_id) && <button className="text-link" disabled={busy} onClick={() => void getTripManifest(trip.id).then(setManifest).catch(reason => setError(reason instanceof Error ? reason.message : "Manifest unavailable."))}>{am ? "የተሳፋሪ ዝርዝር" : "Manifest"}</button>}
         </div>
         {manifest?.trip_id === trip.id && <div className="notice-panel"><strong>{am ? "የተያዙ ቦታዎች" : "Reserved passenger manifest"} · {manifest.passenger_count}</strong>
           {manifest.manifest.map(item => <p key={item.booking_reference + item.sequence}>{item.seat_code} · {item.passenger_name} · {item.booking_reference}</p>)}
