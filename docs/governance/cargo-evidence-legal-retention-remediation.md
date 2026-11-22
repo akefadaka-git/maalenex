@@ -41,7 +41,7 @@ Release requires recorded DPO review, a separate Legal/Compliance releaser, conf
 
 ### Data-subject rights
 
-Rights requests are recorded by reference, triaged by request type, and reviewed separately. Erasure is blocked where a mandatory statutory retention category or active legal hold applies. A reviewed request is not itself proof that a requested action has been fulfilled.
+Rights requests are recorded by reference, triaged by request type, and reviewed separately. Erasure is blocked where a mandatory statutory retention category, active legal hold, DPO suspension or incomplete DPO review applies. A DPO-approved erasure request for residual EC-3 evidence can override its ordinary retention expiry, but execution still requires a separate deletion request and distinct second-person approval. A reviewed request is not itself proof that a requested action has been fulfilled.
 
 ### Audit and tombstone minimization
 
