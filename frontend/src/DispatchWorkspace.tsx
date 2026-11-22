@@ -63,7 +63,12 @@ export function DispatchWorkspace({ language, organizationIds, canManage, canRev
   }, [organizationId, canReview, canManage]);
   const run = async (action: () => Promise<unknown>, success: string) => {
     setBusy(true); setError(""); setMessage("");
-    try { await action(); await refresh(); setMessage(success); }
+    try {
+      await action();
+      await refresh();
+      if (exceptionTripId) setExceptions(await getTripOperationalExceptions(exceptionTripId));
+      setMessage(success);
+    }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Trip operation failed."); }
     finally { setBusy(false); }
   };
