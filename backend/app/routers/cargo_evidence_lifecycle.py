@@ -722,14 +722,17 @@ def set_evidence_deletion_suspension(
 
 @router.get("/evidence/governance/holds")
 def list_evidence_governance_holds(
+    limit: int = 100, offset: int = 0,
     context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
 ) -> dict:
     if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.hold.review"):
         raise HTTPException(status_code=403, detail="DPO governance-log read permission is required.")
+    if not 1 <= limit <= 500 or offset < 0:
+        raise HTTPException(status_code=422, detail="Governance-log pagination bounds are invalid.")
     items = db.scalars(select(CargoDeliveryEvidenceHold).order_by(
         CargoDeliveryEvidenceHold.created_at.desc(),
-    ).limit(200)).all()
-    return {"items": [{
+    ).offset(offset).limit(limit)).all()
+    return {"limit": limit, "offset": offset, "items": [{
         "hold_id": str(item.id), "evidence_id": str(item.evidence_id),
         "case_reference": item.case_reference, "issued_at": item.issued_at.isoformat(),
         "review_due_at": item.review_due_at.isoformat(),
@@ -741,14 +744,17 @@ def list_evidence_governance_holds(
 
 @router.get("/evidence/governance/deletion-requests")
 def list_evidence_governance_deletion_requests(
+    limit: int = 100, offset: int = 0,
     context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
 ) -> dict:
     if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.hold.review"):
         raise HTTPException(status_code=403, detail="DPO governance-log read permission is required.")
+    if not 1 <= limit <= 500 or offset < 0:
+        raise HTTPException(status_code=422, detail="Governance-log pagination bounds are invalid.")
     items = db.scalars(select(CargoDeliveryEvidenceDeletionRequest).order_by(
         CargoDeliveryEvidenceDeletionRequest.created_at.desc(),
-    ).limit(200)).all()
-    return {"items": [{
+    ).offset(offset).limit(limit)).all()
+    return {"limit": limit, "offset": offset, "items": [{
         "request_id": str(item.id), "evidence_id": str(item.evidence_id),
         "requested_by": str(item.requested_by), "approved_by": str(item.approved_by) if item.approved_by else None,
         "status": item.status, "reason": item.reason,
