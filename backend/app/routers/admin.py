@@ -1139,3 +1139,59 @@ def list_audit_events(
         "outcome": item.outcome, "reason_code": item.reason_code,
         "metadata": item.metadata_redacted,
     } for item in events]
+
+
+
+@router.get("/catalog/locations")
+def list_catalog_locations(
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.catalog.manage")
+    items = db.scalars(select(Location).order_by(Location.name, Location.id).limit(200)).all()
+    return [
+        {"id": str(item.id), "name": item.name, "location_type": item.location_type, "status": item.status}
+        for item in items
+    ]
+
+
+@router.get("/catalog/terminals")
+def list_catalog_terminals(
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.catalog.manage")
+    items = db.scalars(select(Terminal).order_by(Terminal.name, Terminal.id).limit(200)).all()
+    locations = {
+        item.id: item.name
+        for item in db.scalars(select(Location).where(Location.id.in_({item.location_id for item in items}))).all()
+    } if items else {}
+    return [
+        {"id": str(item.id), "location_id": str(item.location_id),
+         "location_name": locations.get(item.location_id, "Unknown location"),
+         "name": item.name, "status": item.status}
+        for item in items
+    ]
+
+
+@router.get("/catalog/routes")
+def list_catalog_routes(
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.catalog.manage")
+    items = db.scalars(select(Route).order_by(Route.code, Route.id).limit(200)).all()
+    location_ids = {item.origin_location_id for item in items} | {item.destination_location_id for item in items}
+    locations = {
+        item.id: item.name
+        for item in db.scalars(select(Location).where(Location.id.in_(location_ids))).all()
+    } if location_ids else {}
+    return [
+        {"id": str(item.id), "code": item.code,
+         "origin_location_id": str(item.origin_location_id),
+         "origin_name": locations.get(item.origin_location_id, "Unknown location"),
+         "destination_location_id": str(item.destination_location_id),
+         "destination_name": locations.get(item.destination_location_id, "Unknown location"),
+         "status": item.status}
+        for item in items
+    ]
