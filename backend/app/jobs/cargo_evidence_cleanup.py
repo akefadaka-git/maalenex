@@ -4,6 +4,7 @@
 The caller must supply the separately approved orphan grace period. This module
 is intentionally not scheduled or enabled by application startup.
 """
+# ruff: noqa: I001
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
