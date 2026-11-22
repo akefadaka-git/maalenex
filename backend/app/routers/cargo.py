@@ -71,11 +71,13 @@ def create_consignment(payload: ConsignmentCreate, request: Request,
         CargoConsignment.idempotency_key == payload.idempotency_key,
     ))
     if existing is not None:
-        if existing.consignment_reference != payload.consignment_reference or existing.description != payload.description:
+        fields = ("consignment_reference", "sender_name", "recipient_name", "destination", "description", "weight_grams")
+        if any(getattr(existing, field) != getattr(payload, field) for field in fields):
             raise HTTPException(status_code=409, detail="Idempotency key was already used for a different consignment.")
         return _serialize(existing)
     item = CargoConsignment(**payload.model_dump(), created_by=context.user.id)
     db.add(item)
+    db.flush()
     record_event(db, event_type="cargo.consignment.created", actor_type="staff", actor_id=str(context.user.id),
                  resource_type="cargo_consignment", resource_id=str(item.id), action="create", outcome="success",
                  organization_id=payload.organization_id, metadata={"reference": payload.consignment_reference, "status": "draft"})
