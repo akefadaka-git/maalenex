@@ -117,8 +117,17 @@ class VehicleCreate(BaseModel):
     vehicle_reference: str = Field(min_length=2, max_length=80)
 
 
+class SeatDefinition(BaseModel):
+    seat_code: str = Field(min_length=1, max_length=16)
+    row_label: str | None = Field(default=None, max_length=12)
+    column_index: int = Field(ge=0, le=20)
+    seat_type: str = Field(default="standard", min_length=1, max_length=24)
+    is_sellable: bool = True
+
+
 class SeatLayoutCreate(BaseModel):
-    seat_codes: list[str] = Field(min_length=1, max_length=60)
+    seat_codes: list[str] = Field(default_factory=list, max_length=60)
+    seats: list[SeatDefinition] = Field(default_factory=list, max_length=60)
 
 
 class VehicleReview(BaseModel):
@@ -541,9 +550,26 @@ def create_seat_layout(
     if vehicle is None:
         raise HTTPException(status_code=404, detail="Vehicle not found.")
     _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
-    codes = [item.strip().upper() for item in payload.seat_codes]
-    if any(not item or len(item) > 16 for item in codes) or len(set(codes)) != len(codes):
+    if bool(payload.seat_codes) == bool(payload.seats):
+        raise HTTPException(status_code=422, detail="Provide either seat_codes or structured seats.")
+    if payload.seats:
+        seat_rows = [{
+            "seat_code": item.seat_code.strip().upper(),
+            "row_label": item.row_label.strip().upper() if item.row_label else None,
+            "column_index": item.column_index, "seat_type": item.seat_type.strip().lower(),
+            "is_sellable": item.is_sellable,
+        } for item in payload.seats]
+    else:
+        seat_rows = [{
+            "seat_code": code.strip().upper(), "row_label": None,
+            "column_index": index, "seat_type": "standard", "is_sellable": True,
+        } for index, code in enumerate(payload.seat_codes)]
+    codes = [item["seat_code"] for item in seat_rows]
+    positions = [(item["row_label"], item["column_index"]) for item in seat_rows if item["row_label"] is not None]
+    if any(not code or len(code) > 16 for code in codes) or len(set(codes)) != len(codes):
         raise HTTPException(status_code=422, detail="Seat codes must be unique and 1–16 characters.")
+    if len(set(positions)) != len(positions):
+        raise HTTPException(status_code=422, detail="Seat positions must be unique within each row.")
     latest = db.scalar(select(func.max(SeatLayoutVersion.version_number)).where(
         SeatLayoutVersion.vehicle_id == vehicle.id
     )) or 0
@@ -551,9 +577,12 @@ def create_seat_layout(
     db.add(layout)
     db.flush()
     db.add_all([
-        VehicleSeat(seat_layout_version_id=layout.id, seat_code=code, position_metadata={},
-                    seat_type="standard", is_sellable=True)
-        for code in codes
+        VehicleSeat(
+            seat_layout_version_id=layout.id, seat_code=item["seat_code"],
+            row_label=item["row_label"], position_metadata={"column_index": item["column_index"]},
+            seat_type=item["seat_type"], is_sellable=item["is_sellable"],
+        )
+        for item in seat_rows
     ])
     _audit(db, context=context, event="fleet.seat_layout.created", resource_type="seat_layout_version",
            resource_id=layout.id, action="create", organization_id=vehicle.organization_id)
@@ -1475,3 +1504,91 @@ def archive_catalog_route(
            resource_id=item.id, action="archive")
     db.commit()
     return {"id": str(item.id), "status": item.status}
+
+
+
+def _fleet_payload(db: Session, vehicles: list[Vehicle]) -> list[dict]:
+    if not vehicles:
+        return []
+    organization_ids = {item.organization_id for item in vehicles}
+    organizations = {
+        item.id: item.display_name
+        for item in db.scalars(select(Organization).where(Organization.id.in_(organization_ids))).all()
+    }
+    layouts = list(db.scalars(select(SeatLayoutVersion).where(
+        SeatLayoutVersion.vehicle_id.in_([item.id for item in vehicles])
+    ).order_by(SeatLayoutVersion.vehicle_id, SeatLayoutVersion.version_number.desc())).all())
+    layout_ids = [item.id for item in layouts]
+    counts = dict(db.execute(
+        select(VehicleSeat.seat_layout_version_id, func.count(VehicleSeat.id))
+        .where(VehicleSeat.seat_layout_version_id.in_(layout_ids))
+        .group_by(VehicleSeat.seat_layout_version_id)
+    ).all()) if layout_ids else {}
+    by_vehicle: dict[UUID, list[dict]] = {}
+    for layout in layouts:
+        by_vehicle.setdefault(layout.vehicle_id, []).append({
+            "id": str(layout.id), "version_number": layout.version_number,
+            "status": layout.status, "seat_count": counts.get(layout.id, 0),
+        })
+    return [{
+        "id": str(vehicle.id), "organization_id": str(vehicle.organization_id),
+        "organization_name": organizations.get(vehicle.organization_id, "Unknown operator"),
+        "vehicle_reference": vehicle.vehicle_reference, "status": vehicle.status,
+        "review_status": vehicle.review_status, "created_at": vehicle.created_at.isoformat() if vehicle.created_at else None,
+        "seat_layouts": by_vehicle.get(vehicle.id, []),
+    } for vehicle in vehicles]
+
+
+@router.get("/admin/fleet/vehicles")
+def list_platform_fleet(
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.fleet.review")
+    vehicles = db.scalars(select(Vehicle).order_by(Vehicle.created_at.desc(), Vehicle.id).limit(300)).all()
+    return _fleet_payload(db, vehicles)
+
+
+@router.get("/operators/{organization_id}/fleet")
+def list_operator_fleet(
+    organization_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "operator.fleet.manage", organization_id)
+    operator = db.get(Organization, organization_id)
+    if operator is None or operator.organization_type != "operator":
+        raise HTTPException(status_code=404, detail="Operator organization not found.")
+    vehicles = db.scalars(select(Vehicle).where(
+        Vehicle.organization_id == organization_id
+    ).order_by(Vehicle.created_at.desc(), Vehicle.id).limit(300)).all()
+    return _fleet_payload(db, vehicles)
+
+
+@router.get("/vehicles/{vehicle_id}/seat-layouts")
+def list_vehicle_seat_layouts(
+    vehicle_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    vehicle = db.get(Vehicle, vehicle_id)
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    if not has_permission(db, user_id=context.user.id, permission_code="platform.fleet.review", organization_id=None):
+        _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
+    layouts = db.scalars(select(SeatLayoutVersion).where(
+        SeatLayoutVersion.vehicle_id == vehicle.id
+    ).order_by(SeatLayoutVersion.version_number.desc())).all()
+    results = []
+    for layout in layouts:
+        seats = db.scalars(select(VehicleSeat).where(
+            VehicleSeat.seat_layout_version_id == layout.id
+        ).order_by(VehicleSeat.row_label, VehicleSeat.seat_code)).all()
+        results.append({
+            "id": str(layout.id), "version_number": layout.version_number, "status": layout.status,
+            "effective_from": layout.effective_from.isoformat() if layout.effective_from else None,
+            "effective_to": layout.effective_to.isoformat() if layout.effective_to else None,
+            "seats": [{
+                "id": str(seat.id), "seat_code": seat.seat_code, "row_label": seat.row_label,
+                "column_index": (seat.position_metadata or {}).get("column_index", 0),
+                "seat_type": seat.seat_type, "is_sellable": seat.is_sellable,
+            } for seat in seats],
+        })
+    return results
