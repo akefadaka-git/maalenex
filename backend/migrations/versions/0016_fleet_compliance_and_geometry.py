@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Fleet compliance evidence and seat-map geometry metadata.
 
 Revision ID: 0016_fleet_compliance_and_geometry
