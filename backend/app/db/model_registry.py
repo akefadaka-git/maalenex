@@ -2,6 +2,7 @@
 
 from app.domains.audit import models as audit_models  # noqa: F401
 from app.domains.bookings import models as booking_models  # noqa: F401
+from app.domains.cargo import models as cargo_models  # noqa: F401
 from app.domains.catalog import models as catalog_models  # noqa: F401
 from app.domains.fares import models as fare_models  # noqa: F401
 from app.domains.fleet import models as fleet_models  # noqa: F401
