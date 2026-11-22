@@ -1,8 +1,11 @@
 from datetime import datetime
 from uuid import UUID, uuid4
+
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Uuid, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db.base import Base
+
 class Vehicle(Base):
     __tablename__ = "vehicles"
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
