@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
   approveDispatchTrip, createDispatchTrip, getOperatorDispatchOptions, getOperatorTrips,
-  getPlatformDispatchTrips, getTripManifest, publishDispatchTrip, submitDispatchTrip, updateDispatchTrip,
-  type DispatchOptions, type DispatchTrip, type TripManifest,
+  getPlatformDispatchTrips, getTripManifest, getTripOperationalExceptions, publishDispatchTrip,
+  reportTripOperationalException, resolveTripOperationalException, submitDispatchTrip, updateDispatchTrip,
+  type DispatchOptions, type DispatchTrip, type TripManifest, type TripOperationalException,
 } from "./staff-api";
 
 type Props = { language: "am" | "en"; organizationIds: string[]; canManage: boolean; canReview: boolean; canPublish: boolean; canManifest: boolean };
@@ -20,6 +21,12 @@ export function DispatchWorkspace({ language, organizationIds, canManage, canRev
   const [arrival, setArrival] = useState("");
   const [editingTripId, setEditingTripId] = useState("");
   const [manifest, setManifest] = useState<TripManifest | null>(null);
+  const [exceptionTripId, setExceptionTripId] = useState("");
+  const [exceptions, setExceptions] = useState<TripOperationalException[]>([]);
+  const [exceptionCategory, setExceptionCategory] = useState("vehicle_breakdown");
+  const [exceptionSeverity, setExceptionSeverity] = useState<"normal" | "high" | "critical">("normal");
+  const [exceptionDescription, setExceptionDescription] = useState("");
+  const [exceptionResolution, setExceptionResolution] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -127,11 +134,47 @@ export function DispatchWorkspace({ language, organizationIds, canManage, canRev
           {canPublish && trip.status === "approved" && <button className="text-link" disabled={busy} onClick={() => void run(() => publishDispatchTrip(trip.id), am ? "ጉዞው ታትሟል።" : "Trip published.")}>{am ? "አትም" : "Publish"}</button>}
           {canManifest && organizationIds.includes(trip.organization_id) && <button className="text-link" disabled={busy} onClick={() => void getTripManifest(trip.id).then(setManifest).catch(reason => setError(reason instanceof Error ? reason.message : "Manifest unavailable."))}>{am ? "የተሳፋሪ ዝርዝር" : "Manifest"}</button>}
         </div>
+          {canManage && organizationIds.includes(trip.organization_id) && !["completed", "cancelled"].includes(trip.status) &&
+            <button className="text-link" disabled={busy} onClick={() => {
+              setExceptionTripId(exceptionTripId === trip.id ? "" : trip.id);
+              void getTripOperationalExceptions(trip.id).then(setExceptions).catch(reason => setError(reason instanceof Error ? reason.message : "Exceptions unavailable."));
+            }}>{am ? "የአሠራር ችግር" : "Operational exceptions"}</button>}
         {manifest?.trip_id === trip.id && <div className="notice-panel"><strong>{am ? "የተያዙ ቦታዎች" : "Reserved passenger manifest"} · {manifest.passenger_count}</strong>
           {manifest.manifest.map(item => <p key={item.booking_reference + item.sequence}>{item.seat_code} · {item.passenger_name} · {item.booking_reference}</p>)}
           <small>{am ? "የስልክ ቁጥር አልተካተተም። መሳፈር አልተፈቀደም።" : "Contact phone is excluded. Manifest access does not authorize boarding."}</small>
           <button className="text-link" onClick={() => setManifest(null)}>{am ? "ዝጋ" : "Close"}</button>
         </div>}
+        {exceptionTripId === trip.id && <section className="staff-module">
+          <h4>{am ? "የጉዞ የአሠራር ችግሮች" : "Trip operational exceptions"}</h4>
+          {canManage && organizationIds.includes(trip.organization_id) && !["completed", "cancelled"].includes(trip.status) &&
+            <form className="role-assignment-form" onSubmit={event => {
+              event.preventDefault();
+              void run(() => reportTripOperationalException(trip.id, {
+                category: exceptionCategory, severity: exceptionSeverity, description: exceptionDescription.trim(),
+              }), am ? "ችግሩ ተመዝግቧል።" : "Operational exception reported.");
+              setExceptionDescription("");
+            }}>
+              <label>{am ? "የችግር አይነት" : "Category"}<select value={exceptionCategory} onChange={event => setExceptionCategory(event.target.value)}>
+                <option value="vehicle_breakdown">Vehicle breakdown</option><option value="late_departure">Late departure</option>
+                <option value="route_disruption">Route disruption</option><option value="safety_concern">Safety concern</option>
+                <option value="passenger_incident">Passenger incident</option><option value="other">Other</option>
+              </select></label>
+              <label>{am ? "ክብደት" : "Severity"}<select value={exceptionSeverity} onChange={event => setExceptionSeverity(event.target.value as "normal" | "high" | "critical")}>
+                <option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option>
+              </select></label>
+              <label>{am ? "ዝርዝር" : "Description"}<textarea required minLength={5} maxLength={1000} value={exceptionDescription} onChange={event => setExceptionDescription(event.target.value)} /></label>
+              <button className="primary-action" disabled={busy || exceptionDescription.trim().length < 5}>{am ? "ችግር መዝግብ" : "Report exception"}</button>
+            </form>}
+          {exceptions.map(item => <div className="staff-user-row" key={item.id}>
+            <div><strong>{item.category.replaceAll("_", " ")} · {item.severity}</strong><small>{item.description}</small>
+              {item.resolution && <small>{item.resolution}</small>}</div>{status(item.status)}
+            {canReview && item.status === "open" && <>
+              <input aria-label="Resolution" minLength={5} maxLength={1000} value={exceptionResolution} onChange={event => setExceptionResolution(event.target.value)} placeholder={am ? "የመፍትሄ ማብራሪያ" : "Resolution notes"} />
+              <button className="text-link" disabled={busy || exceptionResolution.trim().length < 5} onClick={() => void run(() => resolveTripOperationalException(item.id, exceptionResolution.trim()), am ? "ችግሩ ተፈትቷል።" : "Exception resolved.")}>{am ? "መፍትሄ መዝግብ" : "Resolve"}</button>
+            </>}
+          </div>)}
+          <p className="compliance-note">{am ? "ስረዛ በዚህ ስራ ውስጥ አልተፈጸመም፤ የስረዛ መመሪያ እና ፈቃድ በተለይ መጽደቅ አለበት።" : "No trip cancellation is performed here. Cancellation policy, authority, timing and passenger/refund consequences require a separately approved rule set."}</p>
+        </section>}
       </article>)}
     </>}
     <p className="compliance-note">{am ? "የጉዞ ማተም የታተመ ETB ዋጋ ይፈልጋል። የጉዞ ማተም ብቻውን ትኬት ወይም የመሳፈር ፈቃድ አያነቃም።" : "Trip publication requires an effective published ETB fare. Publishing a trip does not issue tickets or authorize boarding."}</p>
