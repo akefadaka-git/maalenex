@@ -135,13 +135,62 @@ def upgrade() -> None:
         "platform.cargo.delivery_proof.evidence.retention.manage": "Classify cargo evidence under legally validated retention rules",
         "platform.cargo.delivery_proof.evidence.retention.review": "Provide independent DPO review of cargo evidence retention classification",
     }
+    permission_ids = {}
     for code, description in permissions.items():
         existing = connection.execute(sa.text("SELECT id FROM access_permissions WHERE code=:code"), {"code": code}).scalar_one_or_none()
+        permission_id = existing or uuid5(NAMESPACE_URL, f"maalenex:permission:{code}")
         if existing is None:
             connection.execute(
                 sa.text("INSERT INTO access_permissions (id,code,description) VALUES (:id,:code,:description)"),
-                {"id": uuid5(NAMESPACE_URL, f"maalenex:permission:{code}"), "code": code, "description": description},
+                {"id": permission_id, "code": code, "description": description},
             )
+        permission_ids[code] = permission_id
+
+    roles = {
+        "platform_evidence_reviewer": ("Platform reviewer with case-granted evidence read access", [
+            "platform.cargo.delivery_proof.evidence.read",
+        ]),
+        "platform_evidence_custodian": ("Evidence custody and controlled deletion administration", [
+            "platform.cargo.delivery_proof.evidence.access.manage",
+            "platform.cargo.delivery_proof.evidence.delete",
+        ]),
+        "platform_legal_compliance_officer": ("Legal and compliance authority for evidence holds and classification", [
+            "platform.cargo.delivery_proof.evidence.hold.manage",
+            "platform.cargo.delivery_proof.evidence.retention.manage",
+        ]),
+        "platform_data_protection_officer": ("Independent DPO oversight for evidence holds and retention", [
+            "platform.cargo.delivery_proof.evidence.hold.review",
+            "platform.cargo.delivery_proof.evidence.retention.review",
+        ]),
+        "operator_manager": ("Organization-scoped operator manager", [
+            "operator.cargo.delivery_proof.evidence.read",
+        ]),
+        "operator_dispatcher": ("Organization-scoped operator dispatcher", [
+            "operator.cargo.delivery_proof.evidence.read",
+        ]),
+        "synthetic_operator_manager": ("Synthetic-only organization-scoped operator manager", [
+            "operator.cargo.delivery_proof.evidence.read",
+        ]),
+    }
+    for role_code, (description, codes) in roles.items():
+        role_id = connection.execute(
+            sa.text("SELECT id FROM access_roles WHERE code=:code"), {"code": role_code},
+        ).scalar_one_or_none()
+        if role_id is None:
+            role_id = uuid5(NAMESPACE_URL, f"maalenex:role:{role_code}")
+            connection.execute(
+                sa.text("INSERT INTO access_roles (id,code,description) VALUES (:id,:code,:description)"),
+                {"id": role_id, "code": role_code, "description": description},
+            )
+        for code in codes:
+            exists = connection.execute(sa.text(
+                "SELECT id FROM access_role_permissions WHERE role_id=:role AND permission_id=:permission"
+            ), {"role": role_id, "permission": permission_ids[code]}).scalar_one_or_none()
+            if exists is None:
+                grant_id = uuid5(NAMESPACE_URL, f"maalenex:role-permission:{role_code}:{code}")
+                connection.execute(sa.text(
+                    "INSERT INTO access_role_permissions (id,role_id,permission_id) VALUES (:id,:role,:permission)"
+                ), {"id": grant_id, "role": role_id, "permission": permission_ids[code]})
 
 
 def downgrade() -> None:
