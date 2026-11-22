@@ -753,7 +753,12 @@ def get_vehicle_review_history(
     ).order_by(AuditEvent.occurred_at.desc()).limit(100)).all()
     return {
         "documents": [{
-            "id": str(item.id), "document_type": item.document_type, "status": item.status,
+            "id": str(item.id), "document_type": item.document_type,
+            "status": (
+                "expired" if item.status == "pending" and item.expires_at and
+                (item.expires_at.replace(tzinfo=UTC) if item.expires_at.tzinfo is None else item.expires_at) <= datetime.now(UTC)
+                else item.status
+            ),
             "evidence_reference": item.evidence_reference, "issued_at": item.issued_at.isoformat() if item.issued_at else None,
             "expires_at": item.expires_at.isoformat() if item.expires_at else None,
             "review_reason": item.review_reason, "created_at": item.created_at.isoformat() if item.created_at else None,
