@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 from uuid import UUID
 from sqlalchemy.orm import Session
 from app.domains.audit.models import AuditEvent
