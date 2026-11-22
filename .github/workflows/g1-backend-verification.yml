@@ -84,6 +84,8 @@ jobs:
           app/routers/passenger_reports.py
           app/routers/admin.py
           app/domains/fleet/models.py
+          app/domains/fleet/object_storage.py
+          tests/test_fleet_object_storage.py
           app/domains/trips/models.py
           migrations/versions/0016_fleet_compliance_and_geometry.py
           app/main.py
