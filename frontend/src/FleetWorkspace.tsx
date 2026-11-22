@@ -1,11 +1,33 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   approveFleetSeatLayout, createFleetSeatLayout, createFleetVehicle, getFleetVehicles,
-  getVehicleSeatLayouts, reviewFleetVehicle,
+  getVehicleSeatLayouts, reviewFleetVehicle, updateDraftFleetSeatLayout, updateFleetVehicle,
   type FleetSeatLayout, type FleetVehicle,
 } from "./staff-api";
 
 type Props = { language: "am" | "en"; organizationIds: string[]; canManage: boolean; canReview: boolean };
+
+function parseSeatRows(value: string) {
+  const rows = value.split("\n").map(line => line.trim()).filter(Boolean);
+  if (!rows.length || rows.length > 26) return null;
+  const seats = rows.flatMap((line, rowIndex) => line.split(/[\s,]+/).filter(Boolean).map((code, columnIndex) => ({
+    seat_code: code.toUpperCase(), row_label: String.fromCharCode(65 + rowIndex),
+    column_index: columnIndex, seat_type: "standard", is_sellable: true,
+  })));
+  return seats.length > 0 && seats.length <= 60 && rows.every(line => line.split(/[\s,]+/).filter(Boolean).length <= 21)
+    ? seats : null;
+}
+
+function formatSeatRows(layout: FleetSeatLayout) {
+  const grouped = new Map<string, FleetSeatLayout["seats"]>();
+  for (const seat of layout.seats) {
+    const row = seat.row_label ?? "A";
+    grouped.set(row, [...(grouped.get(row) ?? []), seat]);
+  }
+  return [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b))
+    .map(([, seats]) => seats.sort((a, b) => a.column_index - b.column_index).map(seat => seat.seat_code).join(" "))
+    .join("\n");
+}
 
 export function FleetWorkspace({ language, organizationIds, canManage, canReview }: Props) {
   const am = language === "am";
@@ -16,6 +38,10 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
   const [vehicleReference, setVehicleReference] = useState("");
   const [seatRows, setSeatRows] = useState("A1 A2 A3 A4\nB1 B2 B3 B4\nC1 C2 C3 C4");
   const [reviewReason, setReviewReason] = useState("");
+  const [editingVehicleId, setEditingVehicleId] = useState("");
+  const [editingVehicleReference, setEditingVehicleReference] = useState("");
+  const [editingLayoutId, setEditingLayoutId] = useState("");
+  const [editingSeatRows, setEditingSeatRows] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -63,16 +89,20 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
   const submitLayout = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedVehicle) return;
-    const rows = seatRows.split("\n").map(line => line.trim()).filter(Boolean);
-    const seats = rows.flatMap((line, rowIndex) => line.split(/[\s,]+/).filter(Boolean).map((code, columnIndex) => ({
-      seat_code: code.toUpperCase(), row_label: String.fromCharCode(65 + rowIndex),
-      column_index: columnIndex, seat_type: "standard", is_sellable: true,
-    })));
-    if (!seats.length || seats.length > 60) {
-      setError(am ? "የመቀመጫ ብዛት ከ1 እስከ 60 መሆን አለበት።" : "A seat layout must contain between 1 and 60 seats.");
+    const seats = parseSeatRows(seatRows);
+    if (!seats) {
+      setError(am ? "ከ1 እስከ 60 መቀመጫዎች፣ ከ26 ያልበለጡ ረድፎች እና በአንድ ረድፍ ከ21 ያልበለጡ መቀመጫዎች ያስገቡ።" : "Enter 1–60 seats, no more than 26 rows and no more than 21 seats per row.");
       return;
     }
     await run(() => createFleetSeatLayout(selectedVehicle.id, seats), am ? "አዲስ የመቀመጫ አቀማመጥ እንደ ረቂቅ ተፈጥሯል።" : "New seat layout version created as a draft.");
+  };
+  const saveVehicle = (vehicleId: string) => void run(() => updateFleetVehicle(vehicleId, editingVehicleReference.trim()),
+    am ? "የተሽከርካሪ ረቂቅ ተሻሽሏል።" : "Vehicle draft updated.");
+  const saveLayout = (layoutId: string) => {
+    const seats = parseSeatRows(editingSeatRows);
+    if (!seats) { setError(am ? "የመቀመጫ ረድፎችን ያስተካክሉ።" : "Correct the seat rows before saving."); return; }
+    void run(() => updateDraftFleetSeatLayout(layoutId, seats), am ? "የመቀመጫ ረቂቅ ተሻሽሏል።" : "Seat layout draft updated.");
+    setEditingLayoutId("");
   };
   const status = (value: string) => <span className={"support-status status-" + value}>{value.replaceAll("_", " ")}</span>;
   const seatRowsGrouped = useMemo(() => {
@@ -113,12 +143,17 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
       {vehicles.map(vehicle => <article className="staff-module" key={vehicle.id}>
         <div className="staff-user-row"><div><strong>{vehicle.vehicle_reference}</strong><small>{vehicle.organization_name} · {vehicle.id}</small></div>{status(vehicle.review_status)}{status(vehicle.status)}
           <button className="text-link" onClick={() => setSelectedVehicleId(vehicle.id)}>{am ? "ዝርዝር ክፈት" : "View layouts"}</button>
+          {canManage && organizationIds.includes(vehicle.organization_id) && vehicle.status === "draft" && <button className="text-link" onClick={() => { setEditingVehicleId(vehicle.id); setEditingVehicleReference(vehicle.vehicle_reference); }}>{am ? "አስተካክል" : "Edit draft"}</button>}
           {canReview && vehicle.review_status === "pending" && <>
             <button className="text-link" disabled={busy || reviewReason.trim().length < 3} onClick={() => void run(() => reviewFleetVehicle(vehicle.id, "approved", reviewReason.trim()), am ? "ተሽከርካሪው ጸድቋል።" : "Vehicle approved.")}>{am ? "አጽድቅ" : "Approve"}</button>
             <button className="text-link" disabled={busy || reviewReason.trim().length < 3} onClick={() => void run(() => reviewFleetVehicle(vehicle.id, "rejected", reviewReason.trim()), am ? "ተሽከርካሪው ውድቅ ተደርጓል።" : "Vehicle rejected.")}>{am ? "ውድቅ አድርግ" : "Reject"}</button>
           </>}
         </div>
         <small>{vehicle.seat_layouts.length} {am ? "የመቀመጫ ስሪቶች" : "seat layout versions"}</small>
+        {editingVehicleId === vehicle.id && <form className="role-assignment-form" onSubmit={event => { event.preventDefault(); void saveVehicle(vehicle.id); setEditingVehicleId(""); }}>
+          <label>{am ? "የተሽከርካሪ መለያ" : "Vehicle reference"}<input required minLength={2} maxLength={80} value={editingVehicleReference} onChange={event => setEditingVehicleReference(event.target.value)} /></label>
+          <div className="staff-actions"><button className="primary-action" disabled={busy}>{am ? "አስቀምጥ" : "Save"}</button><button type="button" className="secondary-action" onClick={() => setEditingVehicleId("")}>{am ? "ሰርዝ" : "Cancel"}</button></div>
+        </form>}
       </article>)}
       {canReview && vehicles.some(item => item.review_status === "pending") && <label>{am ? "የግምገማ ምክንያት" : "Review reason"}<input minLength={3} maxLength={500} value={reviewReason} onChange={event => setReviewReason(event.target.value)} /></label>}
       {selectedVehicle && <section className="staff-module">
@@ -130,9 +165,14 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
           <button className="primary-action" disabled={busy || selectedVehicle.review_status !== "approved"}>{am ? "አዲስ ረቂቅ አቀማመጥ ፍጠር" : "Create draft layout version"}</button>
           {selectedVehicle.review_status !== "approved" && <small>{am ? "የመቀመጫ አቀማመጥ ለመፍጠር ተሽከርካሪው መጽደቅ አለበት።" : "Vehicle must be approved before creating a seat layout."}</small>}
         </form>}
-        {layouts.map(layout => <article className="staff-user-row" key={layout.id}><div><strong>Version {layout.version_number}</strong><small>{layout.seats.length} seats</small></div>{status(layout.status)}
+        {layouts.map(layout => <article className="staff-module" key={layout.id}><div className="staff-user-row"><div><strong>Version {layout.version_number}</strong><small>{layout.seats.length} seats</small></div>{status(layout.status)}
+          {canManageSelected && layout.status === "draft" && <button className="text-link" onClick={() => { setEditingLayoutId(layout.id); setEditingSeatRows(formatSeatRows(layout)); }}>{am ? "ረቂቅ አስተካክል" : "Edit draft"}</button>}
           {canReview && layout.status === "draft" && selectedVehicle.review_status === "approved" && <button className="text-link" disabled={busy} onClick={() => void run(() => approveFleetSeatLayout(layout.id), am ? "የመቀመጫ አቀማመጡ ጸድቋል።" : "Seat layout approved.")}>{am ? "አቀማመጥ አጽድቅ" : "Approve layout"}</button>}
-        </article>)}
+        </div>
+        {editingLayoutId === layout.id && <form className="role-assignment-form" onSubmit={event => { event.preventDefault(); saveLayout(layout.id); }}>
+          <label>{am ? "የመቀመጫ ረድፎች" : "Seat rows"}<textarea rows={4} value={editingSeatRows} onChange={event => setEditingSeatRows(event.target.value)} /></label>
+          <div className="staff-actions"><button className="primary-action" disabled={busy}>{am ? "ለውጦችን አስቀምጥ" : "Save layout changes"}</button><button type="button" className="secondary-action" onClick={() => setEditingLayoutId("")}>{am ? "ሰርዝ" : "Cancel"}</button></div>
+        </form>}</article>)}
         <div className="seat-layout-preview">{seatRowsGrouped.map(([row, seats]) => <div className="seat-layout-row" key={row}><strong>{row}</strong>{seats.sort((a,b)=>a.column_index-b.column_index).map(seat=><span className="seat-layout-seat" key={seat.id}>{seat.seat_code}</span>)}</div>)}</div>
       </section>}
     </>}
