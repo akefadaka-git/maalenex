@@ -148,6 +148,10 @@ class TripCreate(BaseModel):
     arrival_estimate_at: datetime | None = None
 
 
+class TripDraftUpdate(TripCreate):
+    pass
+
+
 class FareCreate(BaseModel):
     route_id: UUID
     trip_id: UUID | None = None
@@ -688,6 +692,60 @@ def create_trip(
     ])
     _audit(db, context=context, event="trip.created", resource_type="trip",
            resource_id=trip.id, action="create", organization_id=organization_id)
+    db.commit()
+    return {"id": str(trip.id), "status": trip.status, "seat_count": len(seats)}
+
+
+@router.patch("/trips/{trip_id}")
+def update_trip_draft(
+    trip_id: UUID, payload: TripDraftUpdate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    trip = db.scalar(select(Trip).where(Trip.id == trip_id).with_for_update())
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found.")
+    _authorize(db, context, "operator.trip.manage", trip.organization_id)
+    if trip.status != "draft":
+        raise HTTPException(status_code=409, detail="Only draft trips can be edited.")
+    if payload.departure_at.tzinfo is None or (payload.arrival_estimate_at and payload.arrival_estimate_at.tzinfo is None):
+        raise HTTPException(status_code=422, detail="Trip timestamps must include a timezone.")
+    if payload.arrival_estimate_at is not None and payload.arrival_estimate_at <= payload.departure_at:
+        raise HTTPException(status_code=422, detail="Arrival estimate must be later than departure.")
+    route = db.get(Route, payload.route_id)
+    terminal = db.get(Terminal, payload.boarding_terminal_id)
+    vehicle = db.get(Vehicle, payload.vehicle_id)
+    layout = db.get(SeatLayoutVersion, payload.seat_layout_version_id)
+    if route is None or route.status != "published":
+        raise HTTPException(status_code=409, detail="Route is not published.")
+    if terminal is None or terminal.status != "published" or terminal.location_id != route.origin_location_id:
+        raise HTTPException(status_code=409, detail="Boarding terminal must be published at the route origin.")
+    if vehicle is None or vehicle.organization_id != trip.organization_id or vehicle.status != "active" or vehicle.review_status != "approved":
+        raise HTTPException(status_code=409, detail="Vehicle must be approved and belong to this operator.")
+    if layout is None or layout.vehicle_id != vehicle.id or layout.status != "approved":
+        raise HTTPException(status_code=409, detail="Seat layout must be approved for the selected vehicle.")
+    seats = db.scalars(select(VehicleSeat).where(
+        VehicleSeat.seat_layout_version_id == layout.id,
+        VehicleSeat.is_sellable.is_(True),
+    ).order_by(VehicleSeat.seat_code)).all()
+    if not seats:
+        raise HTTPException(status_code=409, detail="Approved seat layout has no sellable seats.")
+    trip.route_id = route.id
+    trip.boarding_terminal_id = terminal.id
+    trip.vehicle_id = vehicle.id
+    trip.seat_layout_version_id = layout.id
+    trip.departure_at = payload.departure_at
+    trip.arrival_estimate_at = payload.arrival_estimate_at
+    for existing in db.scalars(select(TripSeat).where(TripSeat.trip_id == trip.id)).all():
+        db.delete(existing)
+    db.add_all([
+        TripSeat(trip_id=trip.id, vehicle_seat_id=seat.id,
+                 seat_code_snapshot=seat.seat_code, sellable_status="sellable")
+        for seat in seats
+    ])
+    _audit(db, context=context, event="trip.draft.updated", resource_type="trip",
+           resource_id=trip.id, action="update", organization_id=trip.organization_id,
+           metadata={"seat_count": len(seats)})
     db.commit()
     return {"id": str(trip.id), "status": trip.status, "seat_count": len(seats)}
 
