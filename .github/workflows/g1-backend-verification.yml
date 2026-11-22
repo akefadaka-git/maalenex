@@ -33,27 +33,6 @@ jobs:
       minio:
         image: minio/minio:RELEASE.2025-04-22T22-12-26Z
         env:
-          MINIO_ROOT_USER: minio-${{ github.run_id }}-ci
-          MINIO_ROOT_PASSWORD: minio-${{ github.run_id }}-ci
-        ports:
-          - 9000:9000
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: maalenex_dev
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d maalenex_dev"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-    defaults:
-      run:
-        working-directory: backend
-    env:
       APP_ENV: test
       SYNTHETIC_DATA_ONLY: "true"
       DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/maalenex_dev
@@ -62,7 +41,7 @@ jobs:
       OBJECT_STORAGE_ENDPOINT_URL: http://127.0.0.1:9000
       OBJECT_STORAGE_BUCKET: maalenex-synthetic-smoke
       OBJECT_STORAGE_ACCESS_KEY_ID: minio-${{ github.run_id }}-ci
-      OBJECT_STORAGE_SECRET_ACCESS_KEY: minio-${{ github.run_id }}-ci\n      OBJECT_STORAGE_ENABLED: "true"\n      OBJECT_STORAGE_PROVIDER: r2\n      OBJECT_STORAGE_ENDPOINT_URL: http://127.0.0.1:9000\n      OBJECT_STORAGE_BUCKET: maalenex-synthetic-smoke\n      OBJECT_STORAGE_ACCESS_KEY_ID: maalenex-ci\n      OBJECT_STORAGE_SECRET_ACCESS_KEY: maalenex-ci-secret-please-change
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: minio-${{ github.run_id }}-ci
     steps:
       - name: Checkout
         uses: actions/checkout@v4
