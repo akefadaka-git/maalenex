@@ -116,3 +116,19 @@ def test_erasure_cannot_override_ten_year_accounting_retention():
         contains_sensitive_personal_data=False,
     )
     assert deletion_block_reason(evidence, now=datetime(2026, 2, 1, tzinfo=UTC)) == "statutory_retention_overrides_erasure_request"
+
+
+
+def test_dpo_deletion_suspension_blocks_every_deletion_path():
+    evidence = SimpleNamespace(
+        classification_complete=True, is_accounting_document=False,
+        is_commercial_correspondence=False, is_ordinary_operational_evidence=True,
+        operational_retention_started_at=datetime(2020, 1, 1, tzinfo=UTC),
+        operational_legal_basis="contract",
+        operational_retention_justification="Documented operational purpose",
+        operational_dpia_reference="DPIA-DPO-SUSPEND-001",
+        retention_dpo_reviewed_at=datetime(2026, 1, 1, tzinfo=UTC),
+        rights_request_status="none", contains_sensitive_personal_data=False,
+        deletion_suspended=True,
+    )
+    assert deletion_block_reason(evidence, now=datetime(2027, 1, 1, tzinfo=UTC)) == "deletion_suspended_by_dpo"
