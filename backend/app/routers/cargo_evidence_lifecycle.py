@@ -22,8 +22,9 @@ from app.domains.cargo.dispatch import CargoDispatch
 from app.domains.cargo.evidence_lifecycle import (
     CargoDeliveryEvidence, CargoDeliveryEvidenceAccessGrant,
     CargoDeliveryEvidenceDeletionRequest, CargoDeliveryEvidenceHold,
-    CargoDeliveryEvidenceRetentionPolicy,
+    CargoDeliveryEvidenceRetentionPolicy, CargoDeliveryEvidenceRightsRequest,
 )
+from app.domains.cargo.legal_retention import deletion_block_reason, effective_retention_deadline
 from app.domains.fleet.object_storage import (
     InvalidStoredObject, StorageNotConfigured, StorageOperationFailed,
     create_cargo_delivery_download_url, create_cargo_delivery_upload_intent,
@@ -82,12 +83,51 @@ class EvidenceDeletionApproval(BaseModel):
 
 
 class EvidenceRetentionClassify(BaseModel):
-    classification: Literal["ordinary", "accounting_document", "extended_review"]
+    is_accounting_document: bool = False
+    is_commercial_correspondence: bool = False
+    is_ordinary_operational_evidence: bool = False
+    contains_personal_data: bool = True
+    contains_sensitive_personal_data: bool = False
+    personal_data_legal_basis: Literal["contract", "legal_obligation", "legitimate_interests", "consent", "vital_interests", "public_interest"] | None = None
+    personal_data_processing_justification: str | None = Field(default=None, min_length=10, max_length=1000)
+    privacy_notice_reference: str | None = Field(default=None, min_length=5, max_length=160)
+    international_transfer_required: bool = False
+    transfer_safeguard_reference: str | None = Field(default=None, min_length=5, max_length=160)
+    sensitive_transfer_eca_approval_reference: str | None = Field(default=None, min_length=5, max_length=160)
+    accounting_document_date: datetime | None = None
+    commercial_correspondence_date: datetime | None = None
+    operational_legal_basis: Literal["contract", "legal_obligation", "legitimate_interests", "consent", "vital_interests", "public_interest"] | None = None
+    operational_retention_justification: str | None = Field(default=None, min_length=10, max_length=1000)
+    sensitive_data_handling_review_reference: str | None = Field(default=None, min_length=5, max_length=160)
     legal_review_reference: str = Field(min_length=5, max_length=160)
 
 
 class EvidenceRetentionReview(BaseModel):
     note: str = Field(min_length=5, max_length=500)
+    operational_dpia_reference: str | None = Field(default=None, min_length=5, max_length=160)
+    sensitive_data_handling_review_reference: str | None = Field(default=None, min_length=5, max_length=160)
+    tombstone_retention_until: datetime | None = None
+    audit_retention_until: datetime | None = None
+    metadata_retention_justification: str | None = Field(default=None, min_length=10, max_length=1000)
+
+
+class EvidenceHoldReleaseReview(BaseModel):
+    note: str = Field(min_length=5, max_length=500)
+
+
+class EvidenceDeletionSuspension(BaseModel):
+    suspended: bool
+    reason: str = Field(min_length=10, max_length=500)
+
+
+class EvidenceRightsRequestCreate(BaseModel):
+    request_type: Literal["access", "rectification", "erasure", "restriction"]
+    request_reference: str = Field(min_length=5, max_length=160)
+
+
+class EvidenceRightsRequestAssessment(BaseModel):
+    outcome: Literal["under_review", "retained_by_legal_obligation", "eligible_for_erasure", "completed"]
+    note: str = Field(min_length=10, max_length=1000)
 
 
 class EvidenceAccessGrantCreate(BaseModel):
@@ -482,6 +522,28 @@ def review_evidence_hold(
     return {"hold_id": str(hold.id), "oversight_recorded": True, "outcome": payload.outcome}
 
 
+@router.post("/evidence/holds/{hold_id}/release-review")
+def review_evidence_hold_release(
+    hold_id: UUID, payload: EvidenceHoldReleaseReview, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.hold.review"):
+        raise HTTPException(status_code=403, detail="Independent DPO hold-release review permission is required.")
+    hold = db.scalar(select(CargoDeliveryEvidenceHold).where(
+        CargoDeliveryEvidenceHold.id == hold_id,
+    ).with_for_update())
+    if hold is None or hold.released_at is not None:
+        raise HTTPException(status_code=404, detail="Active legal hold not found.")
+    if hold.issued_by == context.user.id:
+        raise HTTPException(status_code=409, detail="Hold issuer cannot independently review hold release.")
+    hold.release_reviewed_by = context.user.id
+    hold.release_reviewed_at = datetime.now(UTC)
+    hold.release_review_note = payload.note
+    db.commit()
+    return {"hold_id": str(hold.id), "release_reviewed": True}
+
+
 @router.post("/evidence/holds/{hold_id}/release")
 def release_evidence_hold(
     hold_id: UUID, payload: EvidenceHoldRelease, request: Request,
@@ -495,8 +557,8 @@ def release_evidence_hold(
     ).with_for_update())
     if hold is None or hold.released_at is not None:
         raise HTTPException(status_code=404, detail="Active legal hold not found.")
-    if hold.dpo_reviewed_at is None:
-        raise HTTPException(status_code=409, detail="DPO oversight must be recorded before hold release.")
+    if hold.release_reviewed_at is None or hold.release_reviewed_by in {None, context.user.id, hold.issued_by}:
+        raise HTTPException(status_code=409, detail="A distinct DPO release review is required before Legal/Compliance can release the hold.")
     hold.released_by = context.user.id
     hold.released_at = datetime.now(UTC)
     hold.release_note = payload.note
@@ -526,7 +588,49 @@ def classify_evidence_retention(
         raise HTTPException(status_code=404, detail="Evidence record not found.")
     if evidence.lifecycle_state not in {"attached", "held"} or evidence.retention_started_at is None:
         raise HTTPException(status_code=409, detail="Evidence must be attached to a closed delivery before classification.")
-    evidence.classification_status = f"{payload.classification}_pending_dpo"
+    if not (payload.is_accounting_document or payload.is_commercial_correspondence or payload.is_ordinary_operational_evidence):
+        raise HTTPException(status_code=422, detail="At least one legal evidence classification is required.")
+    if payload.is_accounting_document and payload.accounting_document_date is None:
+        raise HTTPException(status_code=422, detail="Accounting-document preparation/last-entry date is required.")
+    if payload.is_commercial_correspondence and payload.commercial_correspondence_date is None:
+        raise HTTPException(status_code=422, detail="Commercial correspondence date is required.")
+    if payload.contains_sensitive_personal_data and not payload.contains_personal_data:
+        raise HTTPException(status_code=422, detail="Sensitive personal data must also be marked as personal data.")
+    if payload.contains_personal_data and (
+        not payload.personal_data_legal_basis or not payload.personal_data_processing_justification
+        or not payload.privacy_notice_reference
+    ):
+        raise HTTPException(status_code=422, detail="Personal-data processing requires a documented legal basis, necessity justification and privacy-notice reference.")
+    if payload.international_transfer_required and not payload.transfer_safeguard_reference:
+        raise HTTPException(status_code=422, detail="International transfers require documented adequacy or safeguard evidence.")
+    if payload.contains_sensitive_personal_data and payload.international_transfer_required and not payload.sensitive_transfer_eca_approval_reference:
+        raise HTTPException(status_code=422, detail="Sensitive personal-data transfers require prior ECA approval evidence.")
+    if payload.is_ordinary_operational_evidence and (not payload.operational_legal_basis or not payload.operational_retention_justification):
+        raise HTTPException(status_code=422, detail="Residual operational evidence requires a documented legal basis and retention justification.")
+    for source_date in (payload.accounting_document_date, payload.commercial_correspondence_date):
+        if source_date is not None and (source_date.tzinfo is None or source_date.utcoffset() is None):
+            raise HTTPException(status_code=422, detail="Legal retention source dates must include a timezone offset.")
+    evidence.is_accounting_document = payload.is_accounting_document
+    evidence.is_commercial_correspondence = payload.is_commercial_correspondence
+    evidence.is_ordinary_operational_evidence = payload.is_ordinary_operational_evidence
+    evidence.contains_personal_data = payload.contains_personal_data
+    evidence.contains_sensitive_personal_data = payload.contains_sensitive_personal_data
+    evidence.personal_data_legal_basis = payload.personal_data_legal_basis
+    evidence.personal_data_processing_justification = payload.personal_data_processing_justification
+    evidence.privacy_notice_reference = payload.privacy_notice_reference
+    evidence.international_transfer_required = payload.international_transfer_required
+    evidence.transfer_safeguard_reference = payload.transfer_safeguard_reference
+    evidence.sensitive_transfer_eca_approval_reference = payload.sensitive_transfer_eca_approval_reference
+    evidence.accounting_document_date = payload.accounting_document_date
+    evidence.commercial_correspondence_date = payload.commercial_correspondence_date
+    evidence.operational_retention_started_at = evidence.retention_started_at or evidence.attached_at
+    evidence.operational_legal_basis = payload.operational_legal_basis
+    evidence.operational_retention_justification = payload.operational_retention_justification
+    evidence.sensitive_data_handling_review_reference = payload.sensitive_data_handling_review_reference
+    evidence.classification_complete = False
+    evidence.classification_status = "multi_class_pending_dpo"
+    evidence.legal_retention_until = None
+    evidence.retention_expires_at = None
     evidence.retention_legal_review_reference = payload.legal_review_reference
     evidence.retention_classified_by = context.user.id
     evidence.retention_classified_at = datetime.now(UTC)
@@ -554,15 +658,176 @@ def review_evidence_retention_classification(
         raise HTTPException(status_code=409, detail="No pending Legal/Compliance classification requires DPO review.")
     if evidence.retention_classified_by == context.user.id:
         raise HTTPException(status_code=409, detail="The Legal/Compliance classifier cannot provide independent DPO review.")
-    classification = evidence.classification_status.removesuffix("_pending_dpo")
-    evidence.classification_status = classification
+    if evidence.is_ordinary_operational_evidence and not payload.operational_dpia_reference:
+        raise HTTPException(status_code=409, detail="A documented DPIA reference is required for the 24-month residual operational category.")
+    if evidence.contains_sensitive_personal_data and not (payload.sensitive_data_handling_review_reference or evidence.sensitive_data_handling_review_reference):
+        raise HTTPException(status_code=409, detail="Sensitive-data handling review evidence is required.")
+    if payload.tombstone_retention_until is None or payload.audit_retention_until is None or payload.metadata_retention_justification is None:
+        raise HTTPException(status_code=409, detail="Tombstone and audit-log retention periods require an independent documented justification.")
+    now = datetime.now(UTC)
+    for retention_date in (payload.tombstone_retention_until, payload.audit_retention_until):
+        if retention_date.tzinfo is None or retention_date.utcoffset() is None:
+            raise HTTPException(status_code=422, detail="Metadata retention dates must include timezone offsets.")
+        if retention_date <= now:
+            raise HTTPException(status_code=422, detail="Metadata retention deadlines must be in the future.")
+    evidence.operational_dpia_reference = payload.operational_dpia_reference
+    if payload.sensitive_data_handling_review_reference:
+        evidence.sensitive_data_handling_review_reference = payload.sensitive_data_handling_review_reference
+    evidence.tombstone_retention_until = payload.tombstone_retention_until
+    evidence.audit_retention_until = payload.audit_retention_until
+    evidence.retention_metadata_justification = payload.metadata_retention_justification
+    evidence.classification_complete = True
+    deadline = effective_retention_deadline(evidence)
+    if deadline is None:
+        evidence.classification_complete = False
+        raise HTTPException(status_code=409, detail="A complete category-specific retention deadline could not be established.")
+    evidence.legal_retention_until = deadline
+    evidence.retention_expires_at = deadline
+    evidence.classification_status = "classified"
+    evidence.classification_complete = True
     evidence.retention_dpo_reviewed_by = context.user.id
-    evidence.retention_dpo_reviewed_at = datetime.now(UTC)
+    evidence.retention_dpo_reviewed_at = now
     _audit(db, context=context, evidence=evidence, action="retention_classification_dpo_reviewed",
-           outcome="success", reason=f"{classification}:{payload.note}")
+           outcome="success", reason=f"multi_class:{payload.note}")
     db.commit()
     return {"evidence_id": str(evidence.id), "classification_status": evidence.classification_status,
             "dpo_reviewed": True}
+
+
+@router.post("/evidence/{evidence_id}/deletion-suspension")
+def set_evidence_deletion_suspension(
+    evidence_id: UUID, payload: EvidenceDeletionSuspension, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.hold.review"):
+        raise HTTPException(status_code=403, detail="DPO deletion-suspension authority is required.")
+    evidence = db.scalar(select(CargoDeliveryEvidence).where(
+        CargoDeliveryEvidence.id == evidence_id,
+    ).with_for_update())
+    if evidence is None:
+        raise HTTPException(status_code=404, detail="Evidence record not found.")
+    evidence.deletion_suspended = payload.suspended
+    evidence.deletion_suspension_reason = payload.reason if payload.suspended else None
+    evidence.deletion_suspended_by = context.user.id if payload.suspended else None
+    evidence.deletion_suspended_at = datetime.now(UTC) if payload.suspended else None
+    _audit(
+        db, context=context, evidence=evidence,
+        action="deletion_suspended" if payload.suspended else "deletion_resumed",
+        outcome="success", reason=payload.reason,
+    )
+    db.commit()
+    return {"evidence_id": str(evidence.id), "deletion_suspended": evidence.deletion_suspended}
+
+
+@router.get("/evidence/governance/holds")
+def list_evidence_governance_holds(
+    limit: int = 100, offset: int = 0,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.hold.review"):
+        raise HTTPException(status_code=403, detail="DPO governance-log read permission is required.")
+    if not 1 <= limit <= 500 or offset < 0:
+        raise HTTPException(status_code=422, detail="Governance-log pagination bounds are invalid.")
+    items = db.scalars(select(CargoDeliveryEvidenceHold).order_by(
+        CargoDeliveryEvidenceHold.created_at.desc(),
+    ).offset(offset).limit(limit)).all()
+    return {"limit": limit, "offset": offset, "items": [{
+        "hold_id": str(item.id), "evidence_id": str(item.evidence_id),
+        "case_reference": item.case_reference, "issued_at": item.issued_at.isoformat(),
+        "review_due_at": item.review_due_at.isoformat(),
+        "dpo_reviewed_at": item.dpo_reviewed_at.isoformat() if item.dpo_reviewed_at else None,
+        "release_reviewed_at": item.release_reviewed_at.isoformat() if item.release_reviewed_at else None,
+        "released_at": item.released_at.isoformat() if item.released_at else None,
+    } for item in items]}
+
+
+@router.get("/evidence/governance/deletion-requests")
+def list_evidence_governance_deletion_requests(
+    limit: int = 100, offset: int = 0,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.hold.review"):
+        raise HTTPException(status_code=403, detail="DPO governance-log read permission is required.")
+    if not 1 <= limit <= 500 or offset < 0:
+        raise HTTPException(status_code=422, detail="Governance-log pagination bounds are invalid.")
+    items = db.scalars(select(CargoDeliveryEvidenceDeletionRequest).order_by(
+        CargoDeliveryEvidenceDeletionRequest.created_at.desc(),
+    ).offset(offset).limit(limit)).all()
+    return {"limit": limit, "offset": offset, "items": [{
+        "request_id": str(item.id), "evidence_id": str(item.evidence_id),
+        "requested_by": str(item.requested_by), "approved_by": str(item.approved_by) if item.approved_by else None,
+        "status": item.status, "reason": item.reason,
+        "created_at": item.created_at.isoformat(),
+        "approved_at": item.approved_at.isoformat() if item.approved_at else None,
+        "completed_at": item.completed_at.isoformat() if item.completed_at else None,
+    } for item in items]}
+
+
+@router.post("/evidence/{evidence_id}/rights-requests", status_code=201)
+def register_evidence_rights_request(
+    evidence_id: UUID, payload: EvidenceRightsRequestCreate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.retention.manage"):
+        raise HTTPException(status_code=403, detail="Legal/Compliance rights-request triage permission is required.")
+    evidence = db.get(CargoDeliveryEvidence, evidence_id)
+    if evidence is None:
+        raise HTTPException(status_code=404, detail="Evidence record not found.")
+    item = CargoDeliveryEvidenceRightsRequest(
+        evidence_id=evidence.id, request_type=payload.request_type,
+        request_reference=payload.request_reference, status="pending",
+    )
+    db.add(item)
+    evidence.rights_request_status = "pending"
+    db.flush()
+    _audit(db, context=context, evidence=evidence, action="rights_request_registered", outcome="success")
+    db.commit()
+    return {"rights_request_id": str(item.id), "status": item.status}
+
+
+@router.post("/evidence/rights-requests/{request_id}/assessment")
+def assess_evidence_rights_request(
+    request_id: UUID, payload: EvidenceRightsRequestAssessment, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.retention.manage"):
+        raise HTTPException(status_code=403, detail="Legal/Compliance rights-request triage permission is required.")
+    item = db.scalar(select(CargoDeliveryEvidenceRightsRequest).where(
+        CargoDeliveryEvidenceRightsRequest.id == request_id,
+    ).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Rights request not found.")
+    evidence = db.scalar(select(CargoDeliveryEvidence).where(
+        CargoDeliveryEvidence.id == item.evidence_id,
+    ).with_for_update())
+    if payload.outcome == "completed" and item.request_type == "erasure":
+        raise HTTPException(status_code=409, detail="An erasure request can be marked completed only after the controlled deletion workflow succeeds.")
+    if payload.outcome == "eligible_for_erasure":
+        if item.request_type != "erasure":
+            raise HTTPException(status_code=422, detail="Only an erasure request can receive erasure eligibility.")
+        if _active_hold(db, evidence.id) is not None:
+            raise HTTPException(status_code=409, detail="An active legal hold prevents erasure eligibility.")
+        prior_rights_status = evidence.rights_request_status
+        evidence.rights_request_status = "eligible_for_erasure"
+        block_reason = deletion_block_reason(evidence, now=datetime.now(UTC))
+        if block_reason:
+            evidence.rights_request_status = prior_rights_status
+            raise HTTPException(status_code=409, detail=f"Erasure cannot be approved: {block_reason}.")
+    item.status = payload.outcome
+    item.assessed_by = context.user.id
+    item.assessed_at = datetime.now(UTC)
+    item.assessment_note = payload.note
+    evidence.rights_request_status = (
+        "pending" if payload.outcome == "under_review"
+        else "eligible_for_erasure" if payload.outcome == "eligible_for_erasure"
+        else "none"
+    )
+    _audit(db, context=context, evidence=evidence, action="rights_request_assessed", outcome="success")
+    db.commit()
+    return {"rights_request_id": str(item.id), "status": item.status}
 
 
 @router.post("/evidence/{evidence_id}/deletion-requests", status_code=201)
@@ -583,11 +848,11 @@ def request_evidence_deletion(
     if _active_hold(db, evidence.id):
         raise HTTPException(status_code=409, detail="Active legal hold prevents deletion.")
     policy = _active_policy(db, evidence.retention_policy_version)
-    if (evidence.classification_status != "ordinary" or evidence.retention_dpo_reviewed_at is None
-            or evidence.retention_expires_at is None or policy is None):
-        raise HTTPException(status_code=409, detail="Legal classification, independent DPO review or activated retention policy is missing; deletion fails closed.")
-    if evidence.retention_expires_at > datetime.now(UTC):
-        raise HTTPException(status_code=409, detail="Evidence is still within its retention period.")
+    block_reason = deletion_block_reason(evidence, now=datetime.now(UTC))
+    if block_reason:
+        raise HTTPException(status_code=409, detail=f"Evidence deletion fails closed: {block_reason}.")
+    if policy is None and evidence.rights_request_status != "eligible_for_erasure":
+        raise HTTPException(status_code=409, detail="An independently validated and activated retention policy is required; deletion fails closed.")
     item = CargoDeliveryEvidenceDeletionRequest(
         evidence_id=evidence.id, requested_by=context.user.id,
         reason=payload.reason, status="requested",
@@ -622,10 +887,11 @@ def approve_and_execute_evidence_deletion(
     if _active_hold(db, evidence.id):
         raise HTTPException(status_code=409, detail="Active legal hold prevents deletion.")
     policy = _active_policy(db, evidence.retention_policy_version)
-    if (evidence.classification_status != "ordinary" or evidence.retention_dpo_reviewed_at is None
-            or policy is None or evidence.retention_expires_at is None
-            or evidence.retention_expires_at > datetime.now(UTC)):
-        raise HTTPException(status_code=409, detail="Legal classification, independent DPO review, activated policy or expiry eligibility is missing; deletion fails closed.")
+    block_reason = deletion_block_reason(evidence, now=datetime.now(UTC))
+    if block_reason:
+        raise HTTPException(status_code=409, detail=f"Evidence deletion fails closed: {block_reason}.")
+    if policy is None and evidence.rights_request_status != "eligible_for_erasure":
+        raise HTTPException(status_code=409, detail="An independently validated and activated retention policy is required; deletion fails closed.")
     item.approved_by = context.user.id
     item.approved_at = datetime.now(UTC)
     item.executed_by = context.user.id
@@ -647,6 +913,13 @@ def approve_and_execute_evidence_deletion(
     evidence.storage_deleted_at = item.completed_at
     evidence.lifecycle_state = "deleted"
     evidence.deletion_failure_code = None
+    for rights_item in db.scalars(select(CargoDeliveryEvidenceRightsRequest).where(
+        CargoDeliveryEvidenceRightsRequest.evidence_id == evidence.id,
+        CargoDeliveryEvidenceRightsRequest.request_type == "erasure",
+        CargoDeliveryEvidenceRightsRequest.status == "eligible_for_erasure",
+    )).all():
+        rights_item.status = "completed"
+    evidence.rights_request_status = "none"
     _audit(db, context=context, evidence=evidence, action="deletion_completed", outcome="success")
     db.commit()
     return {"deletion_request_id": str(item.id), "status": "completed", "evidence_metadata_preserved": True}

@@ -17,6 +17,7 @@ from app.domains.cargo.evidence_lifecycle import (
 from app.domains.fleet.object_storage import (
     StorageNotConfigured, StorageOperationFailed, delete_cargo_delivery_object,
 )
+from app.domains.cargo.legal_retention import deletion_block_reason
 
 
 def cleanup_expired_unattached_evidence(
@@ -33,6 +34,7 @@ def cleanup_expired_unattached_evidence(
             CargoDeliveryEvidence.upload_intent_expires_at.is_not(None),
             CargoDeliveryEvidence.upload_intent_expires_at <= cutoff,
             CargoDeliveryEvidence.lifecycle_state.in_({"pending", "deletion_failed"}),
+            CargoDeliveryEvidence.classification_complete.is_(True),
             CargoDeliveryEvidence.storage_deleted_at.is_(None),
         )
         .order_by(CargoDeliveryEvidence.upload_intent_expires_at)
@@ -47,7 +49,12 @@ def cleanup_expired_unattached_evidence(
             CargoDeliveryEvidenceHold.evidence_id == evidence.id,
             CargoDeliveryEvidenceHold.released_at.is_(None),
         ).limit(1))
-        if active_hold is not None:
+        active_policy = db.scalar(select(CargoDeliveryEvidenceRetentionPolicy.version).where(
+            CargoDeliveryEvidenceRetentionPolicy.version == evidence.retention_policy_version,
+            CargoDeliveryEvidenceRetentionPolicy.status == "active",
+        ))
+        if (active_policy is None or active_hold is not None
+                or deletion_block_reason(evidence, now=now) is not None):
             held += 1
             continue
         try:
@@ -90,7 +97,7 @@ def process_expired_retention_evidence(
         select(CargoDeliveryEvidence)
         .where(
             CargoDeliveryEvidence.lifecycle_state.in_({"attached", "deletion_failed"}),
-            CargoDeliveryEvidence.classification_status == "ordinary",
+            CargoDeliveryEvidence.classification_complete.is_(True),
             CargoDeliveryEvidence.retention_dpo_reviewed_at.is_not(None),
             CargoDeliveryEvidence.retention_expires_at.is_not(None),
             CargoDeliveryEvidence.retention_expires_at <= now,
@@ -112,7 +119,8 @@ def process_expired_retention_evidence(
             CargoDeliveryEvidenceHold.evidence_id == evidence.id,
             CargoDeliveryEvidenceHold.released_at.is_(None),
         ).limit(1))
-        if policy is None or active_hold is not None:
+        block_reason = deletion_block_reason(evidence, now=now)
+        if policy is None or active_hold is not None or block_reason is not None:
             blocked += 1
             continue
         try:
