@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     scheduler_interval_seconds: int = 30
     scheduler_lease_seconds: int = 90
     scheduler_batch_size: int = 100
+    cargo_evidence_orphan_grace_hours: int = 0
     object_storage_enabled: bool = False
     object_storage_provider: str = "r2"
     object_storage_endpoint_url: str = ""
@@ -80,6 +81,8 @@ class Settings(BaseSettings):
             raise ValueError("Scheduler lease must be at least twice the polling interval.")
         if not 1 <= self.scheduler_batch_size <= 1000:
             raise ValueError("Scheduler batch size must be between 1 and 1000.")
+        if self.cargo_evidence_orphan_grace_hours < 0:
+            raise ValueError("Cargo evidence orphan grace hours cannot be negative; zero disables orphan deletion.")
         if self.object_storage_enabled and not all((
             self.object_storage_endpoint_url,
             self.object_storage_bucket,

@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from app.core.config import settings
 from app.db.session import SessionLocal
-from app.jobs.scheduler_service import run_scheduler_cycle
+from app.jobs.scheduler_service import run_cargo_evidence_cycle, run_scheduler_cycle
 
 
 logger = logging.getLogger("maalenex.scheduler")
@@ -33,6 +33,13 @@ def main() -> None:
                 lease_seconds=settings.scheduler_lease_seconds,
             )
             logger.info("Scheduler cycle completed: %s", result)
+            evidence_result = run_cargo_evidence_cycle(
+                SessionLocal, worker_id=worker_id,
+                batch_size=settings.scheduler_batch_size,
+                lease_seconds=settings.scheduler_lease_seconds,
+                orphan_grace_hours=settings.cargo_evidence_orphan_grace_hours,
+            )
+            logger.info("Cargo evidence maintenance cycle completed: %s", evidence_result)
         except Exception:
             logger.exception("Scheduler cycle failed; retrying after configured interval")
         time.sleep(settings.scheduler_interval_seconds)

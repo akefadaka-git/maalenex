@@ -10,6 +10,10 @@ class FakeS3:
         self.payload = payload
         self.content_type = content_type
         self.presign_args = None
+        self.deleted = []
+
+    def delete_object(self, *, Bucket, Key):
+        self.deleted.append((Bucket, Key))
 
     def generate_presigned_url(self, operation, *, Params, ExpiresIn):
         self.presign_args = (operation, Params, ExpiresIn)
@@ -94,4 +98,98 @@ def test_cargo_delivery_object_verification_rejects_mismatched_signature(monkeyp
             object_key="cargo-delivery/carrier-a/dispatch-a/object-1",
             carrier_organization_id="carrier-a",
             dispatch_id="dispatch-a",
+        )
+
+
+
+def test_cargo_download_url_is_private_and_bounded(fake_s3):
+    url = object_storage.create_cargo_delivery_download_url(
+        object_key="cargo-delivery/carrier-a/dispatch-a/object-1",
+        carrier_organization_id="carrier-a", dispatch_id="dispatch-a",
+        expires_in_seconds=60,
+    )
+    assert url == "https://storage.invalid/presigned-put"
+    operation, params, ttl = fake_s3.presign_args
+    assert operation == "get_object"
+    assert params == {
+        "Bucket": "synthetic-private",
+        "Key": "cargo-delivery/carrier-a/dispatch-a/object-1",
+    }
+    assert ttl == 60
+
+
+@pytest.mark.parametrize("ttl", [0, 301])
+def test_cargo_download_url_rejects_unbounded_lifetime(fake_s3, ttl):
+    with pytest.raises(ValueError):
+        object_storage.create_cargo_delivery_download_url(
+            object_key="cargo-delivery/carrier-a/dispatch-a/object-1",
+            carrier_organization_id="carrier-a", dispatch_id="dispatch-a",
+            expires_in_seconds=ttl,
+        )
+
+
+def test_cargo_delete_targets_only_private_cargo_key(fake_s3):
+    key = "cargo-delivery/carrier-a/dispatch-a/object-1"
+    object_storage.delete_cargo_delivery_object(
+        object_key=key, carrier_organization_id="carrier-a", dispatch_id="dispatch-a",
+    )
+    assert fake_s3.deleted == [("synthetic-private", key)]
+
+
+def test_cargo_delete_rejects_path_traversal(fake_s3):
+    with pytest.raises(object_storage.InvalidStoredObject):
+        object_storage.delete_cargo_delivery_object(
+            object_key="cargo-delivery/carrier-a/../other/object-1",
+            carrier_organization_id="carrier-a", dispatch_id="dispatch-a",
+        )
+
+
+def test_cargo_verification_storage_outage_is_retryable(monkeypatch):
+    class UnavailableS3:
+        def head_object(self, **kwargs):
+            raise TimeoutError("synthetic timeout")
+
+    monkeypatch.setattr(object_storage, "_client", lambda: UnavailableS3())
+    with pytest.raises(object_storage.StorageOperationFailed):
+        object_storage.verify_cargo_delivery_object(
+            object_key="cargo-delivery/carrier-a/dispatch-a/object-1",
+            carrier_organization_id="carrier-a",
+            dispatch_id="dispatch-a",
+        )
+
+
+def test_audit_redacts_private_evidence_references():
+    from app.domains.audit.service import redact_metadata
+
+    result = redact_metadata({
+        "evidence_reference": "cargo-delivery/private/key",
+        "object_key": "cargo-delivery/private/key",
+        "evidence_id": "synthetic-evidence-id",
+    })
+    assert result["evidence_reference"] == "[REDACTED]"
+    assert result["object_key"] == "[REDACTED]"
+    assert result["evidence_id"] == "synthetic-evidence-id"
+
+
+
+def test_provisional_retention_uses_calendar_months_and_month_end():
+    from datetime import UTC, datetime
+
+    from app.domains.cargo.evidence_lifecycle import add_calendar_months
+
+    assert add_calendar_months(datetime(2026, 1, 31, tzinfo=UTC), 1) == datetime(2026, 2, 28, tzinfo=UTC)
+    assert add_calendar_months(datetime(2024, 2, 29, tzinfo=UTC), 24) == datetime(2026, 2, 28, tzinfo=UTC)
+
+
+
+def test_cargo_download_and_delete_reject_cross_dispatch_keys(fake_s3):
+    key = "cargo-delivery/carrier-a/dispatch-b/object-1"
+    with pytest.raises(object_storage.InvalidStoredObject):
+        object_storage.create_cargo_delivery_download_url(
+            object_key=key, carrier_organization_id="carrier-a",
+            dispatch_id="dispatch-a", expires_in_seconds=30,
+        )
+    with pytest.raises(object_storage.InvalidStoredObject):
+        object_storage.delete_cargo_delivery_object(
+            object_key=key, carrier_organization_id="carrier-a", dispatch_id="dispatch-a",
         )

@@ -1,14 +1,17 @@
 # ruff: noqa: I001
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from app.core.config import Settings, settings
 from app.db.base import Base
 from app.domains.bookings.models import Booking
+from app.domains.cargo.evidence_lifecycle import CargoDeliveryEvidenceHold
 from app.domains.identity.authorization import has_permission
 from app.domains.identity.models import Permission, Role, RoleAssignment, RolePermission, User
 from app.domains.operations.models import SchedulerLease, SchedulerRun
@@ -36,7 +39,10 @@ def test_scheduler_snapshot_reports_unconfigured_and_healthy_states():
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool,
     )
-    Base.metadata.create_all(engine, tables=[Booking.__table__, SchedulerLease.__table__, SchedulerRun.__table__])
+    Base.metadata.create_all(engine, tables=[
+        Booking.__table__, CargoDeliveryEvidenceHold.__table__,
+        SchedulerLease.__table__, SchedulerRun.__table__,
+    ])
     with Session(engine) as db:
         initial = scheduler_snapshot(db)
         assert initial["health"] == "not_configured"
@@ -156,3 +162,67 @@ def test_staff_admin_sensitive_read_routes_fail_closed_without_staff_session():
     for path in protected_gets:
         response = client.get(path)
         assert response.status_code == 401, (path, response.status_code)
+
+
+
+def test_cargo_evidence_orphan_cleanup_is_disabled_without_explicit_grace():
+    assert settings.cargo_evidence_orphan_grace_hours == 0
+    try:
+        Settings(cargo_evidence_orphan_grace_hours=-1)
+    except ValueError as error:
+        assert "cannot be negative" in str(error)
+    else:
+        raise AssertionError("Negative orphan cleanup grace was accepted.")
+
+
+def test_cargo_evidence_scheduler_is_visible_in_operations_snapshot():
+    from app.jobs.scheduler_service import CARGO_EVIDENCE_LEASE_NAME
+
+    assert CARGO_EVIDENCE_LEASE_NAME == "cargo_evidence_lifecycle"
+    paths = app.openapi()["paths"]
+    assert "/api/v1/cargo/evidence/{evidence_id}/download" in paths
+    assert "/api/v1/cargo/evidence/{evidence_id}/holds" in paths
+    assert "/api/v1/cargo/evidence/{evidence_id}/deletion-requests" in paths
+
+
+def test_cargo_evidence_scheduler_cycle_records_lease_and_keeps_orphans_disabled(monkeypatch):
+    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+    from sqlalchemy.orm import sessionmaker
+
+    from app.jobs import scheduler_service
+
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine, tables=[SchedulerLease.__table__, SchedulerRun.__table__])
+    session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+    monkeypatch.setattr(scheduler_service, "pg_insert", sqlite_insert)
+    monkeypatch.setattr(
+        scheduler_service, "alert_due_legal_hold_reviews",
+        lambda *args, **kwargs: {"review_due": 0},
+    )
+    monkeypatch.setattr(
+        scheduler_service, "process_expired_retention_evidence",
+        lambda *args, **kwargs: {"examined": 0, "deleted": 0, "failed": 0, "blocked": 0},
+    )
+    monkeypatch.setattr(
+        scheduler_service, "cleanup_expired_unattached_evidence",
+        lambda *args, **kwargs: pytest.fail("Orphan cleanup must remain disabled at zero grace."),
+    )
+
+    result = scheduler_service.run_cargo_evidence_cycle(
+        session_factory, worker_id="synthetic-evidence-worker",
+        batch_size=10, lease_seconds=90, orphan_grace_hours=0,
+    )
+    assert result["status"] == "succeeded"
+    assert result["orphan_cleanup"]["disabled"] == 1
+    with Session(engine) as db:
+        lease = db.get(SchedulerLease, scheduler_service.CARGO_EVIDENCE_LEASE_NAME)
+        run = db.scalar(select(SchedulerRun).where(
+            SchedulerRun.job_name == scheduler_service.CARGO_EVIDENCE_LEASE_NAME,
+        ))
+        assert lease is not None
+        assert lease.owner_id == "synthetic-evidence-worker"
+        assert run.status == "succeeded"
+        assert run.records_processed == 0
+    engine.dispose()

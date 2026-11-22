@@ -24,7 +24,7 @@ from app.domains.support.passenger_models import PassengerSupportCase
 from app.domains.support.report_models import PassengerReport
 from app.domains.trips.models import Trip
 from app.routers.auth import current_staff_context, require_csrf
-from app.jobs.scheduler_service import run_scheduler_cycle, scheduler_snapshot
+from app.jobs.scheduler_service import run_cargo_evidence_cycle, run_scheduler_cycle, scheduler_snapshot
 
 router = APIRouter(prefix="/admin", tags=["staff-admin"])
 
@@ -342,9 +342,16 @@ def run_scheduler_once(
     if settings.app_env not in {"development", "test"} or not settings.synthetic_data_only or not settings.scheduler_enabled:
         raise HTTPException(status_code=409, detail="Scheduler manual execution is disabled by the current safety configuration.")
     _authorize(db, context, "platform.scheduler.manage")
+    worker_id = f"admin-once-{uuid4()}"
     result = run_scheduler_cycle(
-        SessionLocal, worker_id=f"admin-once-{uuid4()}",
+        SessionLocal, worker_id=worker_id,
         batch_size=settings.scheduler_batch_size,
         lease_seconds=settings.scheduler_lease_seconds,
     )
-    return result
+    evidence_result = run_cargo_evidence_cycle(
+        SessionLocal, worker_id=worker_id,
+        batch_size=settings.scheduler_batch_size,
+        lease_seconds=settings.scheduler_lease_seconds,
+        orphan_grace_hours=settings.cargo_evidence_orphan_grace_hours,
+    )
+    return {"booking_hold_expiry": result, "cargo_evidence_lifecycle": evidence_result}

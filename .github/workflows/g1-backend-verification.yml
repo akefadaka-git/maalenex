@@ -149,8 +149,14 @@ jobs:
           scripts/seed_synthetic_admin.py
           app/domains/cargo/**
           app/domains/fleet/object_storage.py
+          app/domains/audit/service.py
           app/routers/cargo_carrier_operations.py
+          app/routers/cargo_evidence_lifecycle.py
+          app/jobs/cargo_evidence_cleanup.py
           tests/test_cargo_delivery_evidence_storage.py
+          migrations/versions/0022_cargo_evidence_lifecycle.py
+          migrations/versions/0023_cargo_evidence_hold_review_alert.py
+          tests/test_cargo_evidence_lifecycle_routes.py
           app/routers/cargo.py
           tests/test_cargo_lifecycle.py
           migrations/versions/0019_cargo_consignments.py
