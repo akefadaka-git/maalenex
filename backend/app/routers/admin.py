@@ -819,6 +819,16 @@ def create_fare(
 ) -> dict:
     _require_mutation(request, context)
     _authorize(db, context, "operator.fare.propose", organization_id)
+    operator = db.get(Organization, organization_id)
+    route = db.get(Route, payload.route_id)
+    if operator is None or operator.organization_type != "operator" or operator.status != "approved":
+        raise HTTPException(status_code=409, detail="An approved operator organization is required.")
+    if route is None or route.status != "published":
+        raise HTTPException(status_code=409, detail="Fare proposals require a published route.")
+    if payload.trip_id is not None:
+        trip = db.get(Trip, payload.trip_id)
+        if trip is None or trip.organization_id != organization_id or trip.route_id != payload.route_id or trip.status not in {"approved", "published"}:
+            raise HTTPException(status_code=409, detail="Trip-specific fare must reference an approved trip for this operator and route.")
     try:
         version = propose_fare(
             db, organization_id=organization_id, route_id=payload.route_id,
@@ -1795,3 +1805,80 @@ def list_platform_dispatch_trips(
     _authorize(db, context, "platform.trip.approve")
     trips = db.scalars(select(Trip).order_by(Trip.departure_at.desc(), Trip.id).limit(500)).all()
     return _trip_payload(db, trips)
+
+
+def _fare_payload(db: Session, fares: list[Fare]) -> list[dict]:
+    if not fares:
+        return []
+    route_ids = {item.route_id for item in fares}
+    trip_ids = {item.trip_id for item in fares if item.trip_id is not None}
+    organization_ids = {item.organization_id for item in fares}
+    routes = {item.id: item for item in db.scalars(select(Route).where(Route.id.in_(route_ids))).all()}
+    trips = {item.id: item for item in db.scalars(select(Trip).where(Trip.id.in_(trip_ids))).all()} if trip_ids else {}
+    organizations = {item.id: item for item in db.scalars(select(Organization).where(Organization.id.in_(organization_ids))).all()}
+    versions = db.scalars(select(FareVersion).where(
+        FareVersion.fare_id.in_([item.id for item in fares])
+    ).order_by(FareVersion.fare_id, FareVersion.version_number.desc())).all()
+    by_fare: dict[UUID, list[dict]] = {}
+    for version in versions:
+        by_fare.setdefault(version.fare_id, []).append({
+            "id": str(version.id), "version_number": version.version_number,
+            "amount_minor_units": version.amount_minor_units, "currency_code": version.currency_code,
+            "effective_from": version.effective_from.isoformat(),
+            "effective_to": version.effective_to.isoformat() if version.effective_to else None,
+            "status": version.status, "proposed_by": str(version.proposed_by),
+            "approved_by": str(version.approved_by) if version.approved_by else None,
+            "published_by": str(version.published_by) if version.published_by else None,
+            "published_at": version.published_at.isoformat() if version.published_at else None,
+        })
+    return [{
+        "id": str(fare.id), "organization_id": str(fare.organization_id),
+        "organization_name": organizations[fare.organization_id].display_name if fare.organization_id in organizations else "Unknown operator",
+        "route_id": str(fare.route_id), "route_code": routes[fare.route_id].code if fare.route_id in routes else "Unknown route",
+        "trip_id": str(fare.trip_id) if fare.trip_id else None,
+        "trip_departure_at": trips[fare.trip_id].departure_at.isoformat() if fare.trip_id in trips else None,
+        "status": fare.status, "versions": by_fare.get(fare.id, []),
+    } for fare in fares]
+
+
+@router.get("/operators/{organization_id}/fare/options")
+def get_operator_fare_options(
+    organization_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _authorize(db, context, "operator.fare.propose", organization_id)
+    operator = db.get(Organization, organization_id)
+    if operator is None or operator.organization_type != "operator" or operator.status != "approved":
+        raise HTTPException(status_code=409, detail="An approved operator organization is required.")
+    routes = db.scalars(select(Route).where(Route.status == "published").order_by(Route.code).limit(300)).all()
+    trips = db.scalars(select(Trip).where(
+        Trip.organization_id == organization_id, Trip.status.in_(["approved", "published"])
+    ).order_by(Trip.departure_at.desc()).limit(300)).all()
+    return {
+        "routes": [{"id": str(item.id), "code": item.code} for item in routes],
+        "trips": [{"id": str(item.id), "route_id": str(item.route_id),
+                   "route_code": db.get(Route, item.route_id).code if db.get(Route, item.route_id) else "Unknown route",
+                   "departure_at": item.departure_at.isoformat(), "status": item.status}
+                  for item in trips],
+    }
+
+
+@router.get("/operators/{organization_id}/fares")
+def list_operator_fares(
+    organization_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "operator.fare.propose", organization_id)
+    fares = db.scalars(select(Fare).where(
+        Fare.organization_id == organization_id
+    ).order_by(Fare.id.desc()).limit(300)).all()
+    return _fare_payload(db, fares)
+
+
+@router.get("/admin/fares")
+def list_platform_fares(
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.fare.approve")
+    fares = db.scalars(select(Fare).order_by(Fare.id.desc()).limit(500)).all()
+    return _fare_payload(db, fares)
