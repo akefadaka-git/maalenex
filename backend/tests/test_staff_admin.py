@@ -22,6 +22,9 @@ def test_staff_admin_routes_are_registered():
         "/api/v1/catalog/locations/{location_id}/archive",
         "/api/v1/catalog/terminals/{terminal_id}/archive",
         "/api/v1/catalog/routes/{route_id}/archive",
+        "/api/v1/admin/fleet/vehicles",
+        "/api/v1/operators/{organization_id}/fleet",
+        "/api/v1/vehicles/{vehicle_id}/seat-layouts",
     }.issubset(paths)
 
 
@@ -103,3 +106,39 @@ def test_catalog_manager_seed_grants_manage_and_publish():
     grants = set(migration.ROLE_GRANTS["platform_catalog_manager"])
     assert {"platform.catalog.manage", "platform.catalog.publish"}.issubset(grants)
     assert "platform.catalog.manage" in migration.ROLE_GRANTS["platform_operations_manager"]
+
+
+def test_fleet_read_routes_require_staff_session():
+    client = TestClient(app)
+    for path in (
+        "/api/v1/admin/fleet/vehicles",
+        "/api/v1/operators/00000000-0000-0000-0000-000000000001/fleet",
+        "/api/v1/vehicles/00000000-0000-0000-0000-000000000001/seat-layouts",
+    ):
+        response = client.get(path)
+        assert response.status_code == 401
+
+
+def test_operator_fleet_permission_is_organization_scoped(monkeypatch):
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    import pytest
+    from fastapi import HTTPException
+
+    from app.routers import admin
+
+    organization_id = uuid4()
+    calls = []
+
+    def deny_permission(_db, **kwargs):
+        calls.append(kwargs)
+        return False
+
+    monkeypatch.setattr(admin, "has_permission", deny_permission)
+    context = SimpleNamespace(user=SimpleNamespace(id=uuid4()))
+    with pytest.raises(HTTPException) as error:
+        admin._authorize(object(), context, "operator.fleet.manage", organization_id)
+    assert error.value.status_code == 403
+    assert calls[0]["permission_code"] == "operator.fleet.manage"
+    assert calls[0]["organization_id"] == organization_id
