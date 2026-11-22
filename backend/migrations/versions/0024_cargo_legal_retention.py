@@ -67,6 +67,27 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+    rights_count = bind.execute(sa.text(
+        "SELECT count(*) FROM cargo_delivery_evidence_rights_requests"
+    )).scalar_one()
+    classified_count = bind.execute(sa.text(
+        "SELECT count(*) FROM cargo_delivery_evidence "
+        "WHERE accounting_document OR commercial_correspondence "
+        "OR sensitive_personal_data_present OR dpo_deletion_suspended "
+        "OR classification_status <> 'unclassified' "
+        "OR privacy_processing_basis IS NOT NULL OR dpia_reference IS NOT NULL "
+        "OR audit_retention_justification IS NOT NULL "
+        "OR tombstone_retention_justification IS NOT NULL"
+    )).scalar_one()
+    released_holds = bind.execute(sa.text(
+        "SELECT count(*) FROM cargo_delivery_evidence_holds "
+        "WHERE release_conclusion_reference IS NOT NULL OR release_confirmed_by IS NOT NULL"
+    )).scalar_one()
+    if rights_count or classified_count or released_holds:
+        raise RuntimeError(
+            "Refusing to downgrade populated legal-retention or rights-governance records."
+        )
     op.drop_index("ix_cargo_evidence_rights_status", table_name="cargo_delivery_evidence_rights_requests")
     op.drop_table("cargo_delivery_evidence_rights_requests")
     op.drop_column("cargo_delivery_evidence_holds", "release_confirmed_by")
