@@ -3,7 +3,7 @@ from calendar import monthrange
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, Uuid, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -39,6 +39,27 @@ class CargoDeliveryEvidence(Base):
     retention_policy_version: Mapped[str | None] = mapped_column(String(40))
     retention_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     retention_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    accounting_document: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    commercial_correspondence: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    personal_data_present: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    sensitive_personal_data_present: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    accounting_record_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    correspondence_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    privacy_processing_basis: Mapped[str | None] = mapped_column(String(40))
+    retention_justification: Mapped[str | None] = mapped_column(String(500))
+    dpia_reference: Mapped[str | None] = mapped_column(String(160))
+    rights_review_status: Mapped[str] = mapped_column(String(24), nullable=False, default="not_reviewed", server_default="not_reviewed")
+    dpo_deletion_suspended: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    audit_retention_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    tombstone_retention_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    audit_retention_justification: Mapped[str | None] = mapped_column(String(500))
+    tombstone_retention_justification: Mapped[str | None] = mapped_column(String(500))
+    audit_retention_classified_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
+    audit_retention_reviewed_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
+    audit_retention_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    tombstone_retention_classified_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
+    tombstone_retention_reviewed_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
+    tombstone_retention_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     classification_status: Mapped[str] = mapped_column(String(24), nullable=False, default="unclassified", server_default="unclassified")
     retention_legal_review_reference: Mapped[str | None] = mapped_column(String(160))
     retention_classified_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
@@ -72,6 +93,8 @@ class CargoDeliveryEvidenceHold(Base):
     released_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
     released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     release_note: Mapped[str | None] = mapped_column(String(500))
+    release_conclusion_reference: Mapped[str | None] = mapped_column(String(160))
+    release_confirmed_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
@@ -143,4 +166,23 @@ class CargoDeliveryEvidenceRetentionPolicy(Base):
     dpo_reviewed_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
     activated_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+
+class CargoDeliveryEvidenceRightsRequest(Base):
+    __tablename__ = "cargo_delivery_evidence_rights_requests"
+    __table_args__ = (Index("ix_cargo_evidence_rights_status", "status", "created_at"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    evidence_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("cargo_delivery_evidence.id", ondelete="RESTRICT"), nullable=False,
+    )
+    request_type: Mapped[str] = mapped_column(String(24), nullable=False)
+    requested_by_reference: Mapped[str] = mapped_column(String(160), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="pending", server_default="pending")
+    decision: Mapped[str | None] = mapped_column(String(24))
+    decision_reason: Mapped[str | None] = mapped_column(String(500))
+    reviewed_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

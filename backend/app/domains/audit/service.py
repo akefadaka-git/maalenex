@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from app.domains.audit.models import AuditEvent
 
-_SENSITIVE_KEYS = {"password", "secret", "token", "authorization", "phone", "email", "qr", "credential", "object_key", "evidence_reference", "presigned", "storage_endpoint"}
+_SENSITIVE_KEYS = {"password", "secret", "token", "authorization", "phone", "email", "qr", "credential", "object_key", "evidence_reference", "presigned", "storage_endpoint", "gps", "coordinates", "signature", "consignee", "address", "location", "driver"}
 
 def redact_metadata(value: dict | None) -> dict:
     safe = {}
