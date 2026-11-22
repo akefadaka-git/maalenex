@@ -2010,6 +2010,80 @@ def list_platform_dispatch_trips(
     return _trip_payload(db, trips)
 
 
+@router.post("/trips/{trip_id}/exceptions", status_code=status.HTTP_201_CREATED)
+def report_trip_operational_exception(
+    trip_id: UUID, payload: OperationalExceptionCreate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    trip = db.get(Trip, trip_id)
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found.")
+    _authorize(db, context, "operator.trip.manage", trip.organization_id)
+    if trip.status in {"completed", "cancelled"}:
+        raise HTTPException(status_code=409, detail="Operational exceptions cannot be added to completed or cancelled trips.")
+    exception = TripOperationalException(
+        trip_id=trip.id, organization_id=trip.organization_id,
+        category=payload.category, severity=payload.severity,
+        description=payload.description.strip(), status="open", created_by=context.user.id,
+    )
+    db.add(exception)
+    db.flush()
+    _audit(db, context=context, event="trip.exception.reported", resource_type="trip_operational_exception",
+           resource_id=exception.id, action="report", organization_id=trip.organization_id,
+           metadata={"trip_id": str(trip.id), "category": exception.category, "severity": exception.severity})
+    db.commit()
+    return {"id": str(exception.id), "trip_id": str(trip.id), "status": exception.status}
+
+
+@router.get("/trips/{trip_id}/exceptions")
+def list_trip_operational_exceptions(
+    trip_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    trip = db.get(Trip, trip_id)
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found.")
+    if not has_permission(db, user_id=context.user.id, permission_code="platform.trip.approve", organization_id=None):
+        _authorize(db, context, "operator.trip.manage", trip.organization_id)
+    items = db.scalars(select(TripOperationalException).where(
+        TripOperationalException.trip_id == trip.id,
+        TripOperationalException.organization_id == trip.organization_id,
+    ).order_by(TripOperationalException.created_at.desc())).all()
+    return [{
+        "id": str(item.id), "category": item.category, "severity": item.severity,
+        "description": item.description, "status": item.status,
+        "resolution": item.resolution,
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+        "resolved_at": item.resolved_at.isoformat() if item.resolved_at else None,
+    } for item in items]
+
+
+@router.post("/trip-exceptions/{exception_id}/resolve")
+def resolve_trip_operational_exception(
+    exception_id: UUID, payload: OperationalExceptionResolution, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.trip.approve")
+    item = db.scalar(select(TripOperationalException).where(
+        TripOperationalException.id == exception_id
+    ).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Operational exception not found.")
+    if item.status != "open":
+        raise HTTPException(status_code=409, detail="Only open operational exceptions can be resolved.")
+    item.status = "resolved"
+    item.reviewed_by = context.user.id
+    item.resolution = payload.resolution.strip()
+    item.resolved_at = datetime.now(UTC)
+    _audit(db, context=context, event="trip.exception.resolved", resource_type="trip_operational_exception",
+           resource_id=item.id, action="resolve", organization_id=item.organization_id,
+           reason=item.resolution, metadata={"trip_id": str(item.trip_id)})
+    db.commit()
+    return {"id": str(item.id), "status": item.status, "resolved_at": item.resolved_at.isoformat()}
+
+
 def _fare_payload(db: Session, fares: list[Fare]) -> list[dict]:
     if not fares:
         return []
