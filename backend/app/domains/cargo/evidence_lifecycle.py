@@ -68,6 +68,7 @@ class CargoDeliveryEvidenceHold(Base):
     dpo_reviewed_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
     dpo_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     review_due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    review_alerted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     released_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
     released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     release_note: Mapped[str | None] = mapped_column(String(500))
