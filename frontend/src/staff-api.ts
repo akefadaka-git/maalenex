@@ -146,3 +146,36 @@ export function reviewStaffSupportReport(
     method: "POST", body: JSON.stringify(input),
   });
 }
+
+
+export type CatalogLocation = { id: string; name: string; location_type: string; status: string };
+export type CatalogTerminal = { id: string; location_id: string; location_name: string; name: string; status: string };
+export type CatalogRoute = { id: string; code: string; origin_location_id: string; origin_name: string;
+  destination_location_id: string; destination_name: string; status: string };
+export type CatalogSnapshot = { locations: CatalogLocation[]; terminals: CatalogTerminal[]; routes: CatalogRoute[] };
+export async function getCatalogSnapshot(): Promise<CatalogSnapshot> {
+  const [locations, terminals, routes] = await Promise.all([
+    request<CatalogLocation[]>("/catalog/locations"),
+    request<CatalogTerminal[]>("/catalog/terminals"),
+    request<CatalogRoute[]>("/catalog/routes"),
+  ]);
+  return { locations, terminals, routes };
+}
+export function createCatalogLocation(input: { name: string; location_type: string }): Promise<{ id: string; name: string; status: string }> {
+  return request("/catalog/locations", { method: "POST", body: JSON.stringify(input) });
+}
+export function publishCatalogLocation(id: string): Promise<{ id: string; status: string }> {
+  return request(`/catalog/locations/${encodeURIComponent(id)}/publish`, { method: "POST" });
+}
+export function createCatalogTerminal(input: { location_id: string; name: string }): Promise<{ id: string; name: string; status: string }> {
+  return request("/catalog/terminals", { method: "POST", body: JSON.stringify(input) });
+}
+export function publishCatalogTerminal(id: string): Promise<{ id: string; status: string }> {
+  return request(`/catalog/terminals/${encodeURIComponent(id)}/publish`, { method: "POST" });
+}
+export function createCatalogRoute(input: { code: string; origin_location_id: string; destination_location_id: string }): Promise<{ id: string; code: string; status: string }> {
+  return request("/catalog/routes", { method: "POST", body: JSON.stringify(input) });
+}
+export function publishCatalogRoute(id: string): Promise<{ id: string; status: string }> {
+  return request(`/catalog/routes/${encodeURIComponent(id)}/publish`, { method: "POST" });
+}
