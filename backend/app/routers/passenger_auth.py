@@ -29,7 +29,7 @@ CSRF_COOKIE = "mnm_passenger_csrf"
 class PassengerRegistration(BaseModel):
     login_identifier: str = Field(min_length=5, max_length=254)
     display_name: str = Field(min_length=2, max_length=120)
-    password: SecretStr
+    password: SecretStr = Field(min_length=6, max_length=128)
 
 class PassengerLogin(BaseModel):
     login_identifier: str = Field(min_length=5, max_length=254)
@@ -76,8 +76,8 @@ def register(payload: PassengerRegistration, request: Request, response: Respons
     _origin(request)
     identifier = _identifier(payload.login_identifier)
     password = payload.password.get_secret_value()
-    if len(password) < 12 or len(password) > 128:
-        raise HTTPException(status_code=422, detail="Password must contain 12 to 128 characters.")
+    if len(password) < 6 or len(password) > 128:
+        raise HTTPException(status_code=422, detail="Password must contain 6 to 128 characters.")
     try:
         passenger = register_passenger(db, login_identifier=identifier, display_name=payload.display_name, password=password)
         issued = create_passenger_session(db, login_identifier=identifier, password=password, client_ip=request.client.host if request.client else "unknown")
