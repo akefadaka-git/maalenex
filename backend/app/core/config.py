@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     scheduler_interval_seconds: int = 30
     scheduler_lease_seconds: int = 90
     scheduler_batch_size: int = 100
+    object_storage_enabled: bool = False
+    object_storage_provider: str = "r2"
+    object_storage_endpoint_url: str = ""
+    object_storage_bucket: str = ""
+    object_storage_access_key_id: str = ""
+    object_storage_secret_access_key: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
