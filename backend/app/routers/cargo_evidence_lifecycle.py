@@ -351,7 +351,10 @@ def get_private_evidence_download(
             dispatch_id=str(evidence.dispatch_id),
         )
         url = create_cargo_delivery_download_url(
-            object_key=evidence.object_key, expires_in_seconds=DOWNLOAD_TTL_SECONDS,
+            object_key=evidence.object_key,
+            carrier_organization_id=str(evidence.carrier_organization_id),
+            dispatch_id=str(evidence.dispatch_id),
+            expires_in_seconds=DOWNLOAD_TTL_SECONDS,
         )
     except StorageNotConfigured as exc:
         raise HTTPException(status_code=503, detail="Private evidence storage is not configured.") from exc
@@ -619,7 +622,11 @@ def approve_and_execute_evidence_deletion(
     item.approved_at = datetime.now(UTC)
     item.executed_by = context.user.id
     try:
-        delete_cargo_delivery_object(object_key=evidence.object_key)
+        delete_cargo_delivery_object(
+            object_key=evidence.object_key,
+            carrier_organization_id=str(evidence.carrier_organization_id),
+            dispatch_id=str(evidence.dispatch_id),
+        )
     except (StorageOperationFailed, StorageNotConfigured) as exc:
         item.status = "failed"
         item.failure_code = "storage_unavailable"
