@@ -73,6 +73,18 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     )
     op.create_index("ix_cargo_evidence_deletion_status", "cargo_delivery_evidence_deletion_requests", ["status", "created_at"])
+    op.create_table(
+        "cargo_delivery_evidence_access_grants",
+        sa.Column("id", uuid, primary_key=True),
+        sa.Column("evidence_id", uuid, sa.ForeignKey("cargo_delivery_evidence.id", ondelete="RESTRICT"), nullable=False),
+        sa.Column("user_id", uuid, sa.ForeignKey("staff_users.id", ondelete="RESTRICT"), nullable=False),
+        sa.Column("granted_by", uuid, sa.ForeignKey("staff_users.id", ondelete="RESTRICT"), nullable=False),
+        sa.Column("reason", sa.String(500), nullable=False),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("revoked_at", sa.DateTime(timezone=True)),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    )
+    op.create_index("ix_cargo_evidence_access_user_active", "cargo_delivery_evidence_access_grants", ["user_id", "revoked_at", "expires_at"])
     connection = op.get_bind()
     # Preserve legacy proof rows without inventing historical upload/verification times.
     legacy_rows = connection.execute(sa.text(
@@ -97,8 +109,8 @@ def upgrade() -> None:
         "platform.cargo.delivery_proof.evidence.hold.manage": "Initiate and release legal holds on cargo delivery evidence",
         "platform.cargo.delivery_proof.evidence.hold.review": "Provide independent DPO oversight of cargo evidence legal holds",
         "platform.cargo.delivery_proof.evidence.delete": "Approve and execute controlled cargo delivery evidence deletion",
+        "platform.cargo.delivery_proof.evidence.access.manage": "Grant and revoke case-scoped cargo evidence access",
     }
-    from uuid import NAMESPACE_URL, uuid5
     for code, description in permissions.items():
         existing = connection.execute(sa.text("SELECT id FROM access_permissions WHERE code=:code"), {"code": code}).scalar_one_or_none()
         if existing is None:
@@ -115,6 +127,8 @@ def downgrade() -> None:
     count = connection.execute(sa.text("SELECT count(*) FROM cargo_delivery_evidence")).scalar_one()
     if count:
         raise RuntimeError("Refusing to drop cargo evidence lifecycle records during downgrade.")
+    op.drop_index("ix_cargo_evidence_access_user_active", table_name="cargo_delivery_evidence_access_grants")
+    op.drop_table("cargo_delivery_evidence_access_grants")
     op.drop_index("ix_cargo_evidence_deletion_status", table_name="cargo_delivery_evidence_deletion_requests")
     op.drop_table("cargo_delivery_evidence_deletion_requests")
     op.drop_index("ix_cargo_evidence_hold_evidence_active", table_name="cargo_delivery_evidence_holds")
