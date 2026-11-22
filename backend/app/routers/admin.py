@@ -738,6 +738,7 @@ def update_trip_draft(
     trip.arrival_estimate_at = payload.arrival_estimate_at
     for existing in db.scalars(select(TripSeat).where(TripSeat.trip_id == trip.id)).all():
         db.delete(existing)
+    db.flush()
     db.add_all([
         TripSeat(trip_id=trip.id, vehicle_seat_id=seat.id,
                  seat_code_snapshot=seat.seat_code, sellable_status="sellable")
