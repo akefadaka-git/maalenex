@@ -1,12 +1,13 @@
+# ruff: noqa: I001
 """Add category-aware legal retention and privacy governance fields.
 
-Revision ID: 0024_cargo_evidence_legal_retention
+Revision ID: 0024_cargo_legal_retention
 Revises: 0023_evidence_hold_review
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0024_cargo_evidence_legal_retention"
+revision = "0024_cargo_legal_retention"
 down_revision = "0023_evidence_hold_review"
 branch_labels = None
 depends_on = None
