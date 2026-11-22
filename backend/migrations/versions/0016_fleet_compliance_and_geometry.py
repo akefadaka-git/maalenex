@@ -39,11 +39,33 @@ def upgrade() -> None:
     op.create_index("ix_vehicle_compliance_documents_vehicle_id", "vehicle_compliance_documents", ["vehicle_id"])
     op.create_index("ix_vehicle_compliance_documents_document_type", "vehicle_compliance_documents", ["document_type"])
     op.create_index("ix_vehicle_compliance_documents_status", "vehicle_compliance_documents", ["status"])
+    op.create_table(
+        "trip_operational_exceptions",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column("trip_id", postgresql.UUID(as_uuid=True),
+                  sa.ForeignKey("trips.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("organization_id", postgresql.UUID(as_uuid=True),
+                  sa.ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False),
+        sa.Column("category", sa.String(40), nullable=False),
+        sa.Column("severity", sa.String(16), nullable=False, server_default="normal"),
+        sa.Column("description", sa.String(1000), nullable=False),
+        sa.Column("status", sa.String(24), nullable=False, server_default="open"),
+        sa.Column("created_by", postgresql.UUID(as_uuid=True),
+                  sa.ForeignKey("staff_users.id", ondelete="RESTRICT"), nullable=False),
+        sa.Column("reviewed_by", postgresql.UUID(as_uuid=True),
+                  sa.ForeignKey("staff_users.id", ondelete="RESTRICT"), nullable=True),
+        sa.Column("resolution", sa.String(1000), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
+    )
+    for column in ("trip_id", "organization_id", "category", "status"):
+        op.create_index(f"ix_trip_operational_exceptions_{column}", "trip_operational_exceptions", [column])
 
 
 def downgrade() -> None:
     op.drop_index("ix_vehicle_compliance_documents_status", table_name="vehicle_compliance_documents")
     op.drop_index("ix_vehicle_compliance_documents_document_type", table_name="vehicle_compliance_documents")
     op.drop_index("ix_vehicle_compliance_documents_vehicle_id", table_name="vehicle_compliance_documents")
+    op.drop_table("trip_operational_exceptions")
     op.drop_table("vehicle_compliance_documents")
     op.drop_column("seat_layout_versions", "geometry_metadata")
