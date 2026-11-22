@@ -5,8 +5,8 @@ import {
   type CatalogSnapshot,
 } from "./staff-api";
 
-type Props = { language: "am" | "en" };
-export function CatalogWorkspace({ language }: Props) {
+type Props = { language: "am" | "en"; canPublish: boolean };
+export function CatalogWorkspace({ language, canPublish }: Props) {
   const am = language === "am";
   const [data, setData] = useState<CatalogSnapshot>({ locations: [], terminals: [], routes: [] });
   const [loading, setLoading] = useState(true);
@@ -94,11 +94,11 @@ export function CatalogWorkspace({ language }: Props) {
         </section>
       </div>
       <h4>{am ? "መገኛ ቦታዎች" : "Locations"}</h4>
-      {data.locations.map(item => <article className="staff-user-row" key={item.id}><div><strong>{item.name}</strong><small>{item.location_type} · {item.id}</small></div>{status(item.status)}{item.status === "draft" && <button className="text-link" disabled={busy} onClick={() => publish("location", item.id)}>{am ? "አትም" : "Publish"}</button>}</article>)}
+      {data.locations.map(item => <article className="staff-user-row" key={item.id}><div><strong>{item.name}</strong><small>{item.location_type} · {item.id}</small></div>{status(item.status)}{item.status === "draft" && canPublish && <button className="text-link" disabled={busy} onClick={() => publish("location", item.id)}>{am ? "አትም" : "Publish"}</button>}</article>)}
       <h4>{am ? "ተርሚናሎች" : "Terminals"}</h4>
-      {data.terminals.map(item => <article className="staff-user-row" key={item.id}><div><strong>{item.name}</strong><small>{item.location_name}</small></div>{status(item.status)}{item.status === "draft" && <button className="text-link" disabled={busy} onClick={() => publish("terminal", item.id)}>{am ? "አትም" : "Publish"}</button>}</article>)}
+      {data.terminals.map(item => <article className="staff-user-row" key={item.id}><div><strong>{item.name}</strong><small>{item.location_name}</small></div>{status(item.status)}{item.status === "draft" && canPublish && <button className="text-link" disabled={busy} onClick={() => publish("terminal", item.id)}>{am ? "አትም" : "Publish"}</button>}</article>)}
       <h4>{am ? "መስመሮች" : "Routes"}</h4>
-      {data.routes.map(item => <article className="staff-user-row" key={item.id}><div><strong>{item.code}</strong><small>{item.origin_name} → {item.destination_name}</small></div>{status(item.status)}{item.status === "draft" && <button className="text-link" disabled={busy} onClick={() => publish("route", item.id)}>{am ? "አትም" : "Publish"}</button>}</article>)}
+      {data.routes.map(item => <article className="staff-user-row" key={item.id}><div><strong>{item.code}</strong><small>{item.origin_name} → {item.destination_name}</small></div>{status(item.status)}{item.status === "draft" && canPublish && <button className="text-link" disabled={busy} onClick={() => publish("route", item.id)}>{am ? "አትም" : "Publish"}</button>}</article>)}
       <p className="compliance-note">{am ? "የካታሎግ ለውጦች የሙከራ መዝገቦች ናቸው። መስመር ማተም ብቻውን ጉዞ ወይም ንግድ አያነቃም።" : "Catalog records remain configuration data. Publishing a route does not create a trip or authorize commercial operation."}</p>
     </>}
   </div>;
