@@ -81,8 +81,9 @@ def deletion_block_reason(
         return "unclassified_or_nonordinary_evidence"
     if retention_dpo_reviewed_at is None or not dpia_reference:
         return "missing_independent_dpo_or_dpia_review"
-    if retention_expires_at is None or retention_expires_at > now:
+    erasure_approved = rights_review_status == "erasure_approved"
+    if not erasure_approved and (retention_expires_at is None or retention_expires_at > now):
         return "retention_period_not_expired"
-    if not active_policy:
+    if not active_policy and not erasure_approved:
         return "retention_policy_not_active"
     return None
