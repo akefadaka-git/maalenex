@@ -82,6 +82,8 @@ def deletion_block_reason(evidence, *, now: datetime) -> str | None:
     )
     if rights_status == "eligible_for_erasure" and not has_statutory_category:
         return None
+    if rights_status == "eligible_for_erasure" and has_statutory_category:
+        return "statutory_retention_overrides_erasure_request"
     deadline = effective_retention_deadline(evidence)
     if deadline is None:
         return "retention_deadline_cannot_be_established"
