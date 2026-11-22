@@ -45,9 +45,11 @@ class TrackingEventCreate(BaseModel):
     occurred_at: datetime | None = None
 
     @model_validator(mode="after")
-    def coordinates_are_a_pair(self):
+    def validate_tracking_payload(self):
         if (self.latitude is None) != (self.longitude is None):
             raise ValueError("Latitude and longitude must be supplied together.")
+        if self.occurred_at is not None and (self.occurred_at.tzinfo is None or self.occurred_at.utcoffset() is None):
+            raise ValueError("occurred_at must include an explicit timezone offset.")
         return self
 
 
@@ -97,6 +99,9 @@ def create_dispatch(payload: DispatchCreate, request: Request,
         offered_by=context.user.id)
     db.add(item)
     db.flush()
+    db.add(CargoTrackingEvent(dispatch_id=item.id, consignment_id=cargo.id, sequence_number=1,
+        idempotency_key=f"dispatch-created:{item.id}", event_type="offered",
+        description="Dispatch offer created", occurred_at=datetime.now(UTC), recorded_by=context.user.id))
     record_event(db, event_type="cargo.dispatch.offered", actor_type="staff", actor_id=str(context.user.id),
         resource_type="cargo_dispatch", resource_id=str(item.id), action="offer", outcome="success",
         organization_id=cargo.organization_id, metadata={"carrier_organization_id": str(carrier.id), "consignment_id": str(cargo.id)})
@@ -185,6 +190,7 @@ def append_tracking_event(dispatch_id: UUID, payload: TrackingEventCreate, reque
         idempotency_key=payload.idempotency_key, event_type=payload.event_type, description=payload.description,
         latitude=payload.latitude, longitude=payload.longitude, occurred_at=occurred, recorded_by=context.user.id)
     db.add(event)
+    db.flush()
     record_event(db, event_type=f"cargo.tracking.{payload.event_type}", actor_type="staff", actor_id=str(context.user.id),
         resource_type="cargo_dispatch", resource_id=str(item.id), action="tracking_event", outcome="success",
         metadata={"sequence_number": sequence, "event_id": str(event.id)})
