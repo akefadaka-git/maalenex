@@ -25,6 +25,8 @@ def test_staff_admin_routes_are_registered():
         "/api/v1/admin/fleet/vehicles",
         "/api/v1/operators/{organization_id}/fleet",
         "/api/v1/vehicles/{vehicle_id}/seat-layouts",
+        "/api/v1/vehicles/{vehicle_id}",
+        "/api/v1/seat-layouts/{layout_id}",
     }.issubset(paths)
 
 
@@ -144,3 +146,26 @@ def test_operator_fleet_permission_is_organization_scoped(monkeypatch):
     assert error.value.status_code == 403
     assert calls[0]["permission_code"] == "operator.fleet.manage"
     assert calls[0]["organization_id"] == organization_id
+
+
+def test_fleet_draft_mutations_require_staff_session():
+    client = TestClient(app)
+    paths = (
+        ("/api/v1/vehicles/00000000-0000-0000-0000-000000000001", "PATCH"),
+        ("/api/v1/seat-layouts/00000000-0000-0000-0000-000000000001", "PUT"),
+    )
+    for path, method in paths:
+        response = client.request(method, path, json={})
+        assert response.status_code == 401
+
+
+def test_structured_seat_layout_request_supports_seat_positions():
+    from app.routers.admin import SeatLayoutCreate
+
+    payload = SeatLayoutCreate(seats=[
+        {"seat_code": "A1", "row_label": "A", "column_index": 0, "seat_type": "standard"},
+        {"seat_code": "A2", "row_label": "A", "column_index": 1, "seat_type": "accessible", "is_sellable": False},
+    ])
+    assert len(payload.seats) == 2
+    assert payload.seats[1].seat_type == "accessible"
+    assert payload.seats[1].is_sellable is False
