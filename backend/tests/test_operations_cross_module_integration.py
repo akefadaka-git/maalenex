@@ -115,6 +115,19 @@ def operations_client(request, monkeypatch):
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[admin.current_staff_context] = override_staff_context
     monkeypatch.setattr(admin, "_require_mutation", lambda _request, _context: None)
+    monkeypatch.setattr(
+        admin, "create_compliance_upload_intent",
+        lambda **kwargs: {
+            "object_key": f"fleet-compliance/{kwargs["organization_id"]}/{kwargs["vehicle_id"]}/synthetic-fixture",
+            "upload_url": "https://storage.invalid/synthetic-fixture",
+            "method": "PUT", "content_type": kwargs["content_type"],
+            "max_bytes": 10 * 1024 * 1024, "expires_in_seconds": 300,
+        },
+    )
+    monkeypatch.setattr(
+        admin, "verify_compliance_object",
+        lambda **kwargs: {"content_type": "application/pdf", "content_length": 512},
+    )
 
     with TestClient(app) as client:
         yield client, selected_user_id, user_ids, organization_ids, engine
@@ -205,11 +218,16 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
     assert vehicle_review.status_code == 200, vehicle_review.text
 
     selected["value"] = users["operator"]
+    upload_intent = client.post(
+        f"/api/v1/vehicles/{vehicle_id}/compliance-documents/upload-intents",
+        json={"content_type": "application/pdf", "content_length": 512},
+    )
+    assert upload_intent.status_code == 201, upload_intent.text
     evidence = client.post(
         f"/api/v1/vehicles/{vehicle_id}/compliance-documents",
         json={
             "document_type": "insurance",
-            "evidence_reference": f"fleet-compliance/operator-a/{uuid4().hex}",
+            "evidence_reference": upload_intent.json()["object_key"],
             "issued_at": datetime.now(UTC).isoformat(),
             "expires_at": (datetime.now(UTC) + timedelta(days=365)).isoformat(),
         },
