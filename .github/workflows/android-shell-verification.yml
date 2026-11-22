@@ -2,7 +2,7 @@ name: MaaleNex Android shell verification
 
 on:
   pull_request:
-    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/my-bookings-hold-expiry-notifications]
+    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/my-bookings-hold-expiry-notifications, fix/passenger-password-minimum-six]
     paths:
       - "android/**"
       - "frontend/**"
@@ -48,6 +48,9 @@ jobs:
       - name: Build frontend for Android asset packaging
         working-directory: frontend
         run: npm run build
+
+      - name: Verify Android internet permission for API connectivity
+        run: python3 -c 'import xml.etree.ElementTree as ET; root=ET.parse("android/app/src/main/AndroidManifest.xml").getroot(); ns="{http://schemas.android.com/apk/res/android}"; assert any(node.tag == "uses-permission" and node.attrib.get(ns+"name") == "android.permission.INTERNET" for node in root), "Android INTERNET permission is required for passenger API calls"'
 
       - name: Verify packaged WebView CSP contract
         run: python3 .github/scripts/verify-android-web-csp.py frontend/dist/index.html

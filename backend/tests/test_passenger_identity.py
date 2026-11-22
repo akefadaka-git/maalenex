@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
@@ -23,6 +24,7 @@ from app.domains.identity.passenger_service import (
     verify_passenger_csrf,
 )
 from app.domains.notifications.models import PassengerNotification, PassengerNotificationPreference
+from app.routers.passenger_auth import PassengerRegistration
 
 
 @pytest.fixture
@@ -84,9 +86,6 @@ def test_revoked_session_is_rejected(db):
 
 
 def test_passenger_registration_password_minimum_is_six_characters():
-    from pydantic import ValidationError
-    from app.routers.passenger_auth import PassengerRegistration
-
     valid = PassengerRegistration(login_identifier="test@example.test", display_name="Test Passenger", password="abc123")
     assert valid.password.get_secret_value() == "abc123"
     try:
