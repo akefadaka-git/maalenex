@@ -8,7 +8,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "0016_fleet_compliance_and_geometry"
+revision = "0016_fleet_compliance"
 down_revision = "0015_scheduler_operations_rbac"
 branch_labels = None
 depends_on = None
