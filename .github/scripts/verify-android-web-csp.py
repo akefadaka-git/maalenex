@@ -4,16 +4,19 @@ from html.parser import HTMLParser
 from pathlib import Path
 import sys
 
+
 class MetaParser(HTMLParser):
     def __init__(self):
         super().__init__()
         self.policies = []
+
     def handle_starttag(self, tag, attrs):
         if tag.lower() != "meta":
             return
         values = dict(attrs)
         if values.get("http-equiv", "").lower() == "content-security-policy":
             self.policies.append(values.get("content", ""))
+
 
 path = Path(sys.argv[1])
 if not path.is_file():
@@ -49,7 +52,7 @@ required = {
     "img-src": ["'self'", "data:"],
     "font-src": ["'self'"],
     "media-src": ["'self'"],
-    "connect-src": ["'self'"],
+    "connect-src": ["'self'", "https:"],
     "worker-src": ["'self'"],
     "manifest-src": ["'self'"],
 }
