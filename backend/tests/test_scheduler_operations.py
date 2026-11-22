@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app.core.config import Settings, settings
 from app.db.base import Base
 from app.domains.bookings.models import Booking
+from app.domains.cargo.evidence_lifecycle import CargoDeliveryEvidenceHold
 from app.domains.identity.authorization import has_permission
 from app.domains.identity.models import Permission, Role, RoleAssignment, RolePermission, User
 from app.domains.operations.models import SchedulerLease, SchedulerRun
@@ -36,7 +37,10 @@ def test_scheduler_snapshot_reports_unconfigured_and_healthy_states():
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool,
     )
-    Base.metadata.create_all(engine, tables=[Booking.__table__, SchedulerLease.__table__, SchedulerRun.__table__])
+    Base.metadata.create_all(engine, tables=[
+        Booking.__table__, CargoDeliveryEvidenceHold.__table__,
+        SchedulerLease.__table__, SchedulerRun.__table__,
+    ])
     with Session(engine) as db:
         initial = scheduler_snapshot(db)
         assert initial["health"] == "not_configured"
