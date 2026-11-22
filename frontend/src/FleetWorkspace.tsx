@@ -10,11 +10,23 @@ type Props = { language: "am" | "en"; organizationIds: string[]; canManage: bool
 function parseSeatRows(value: string, seatType = "standard", isSellable = true) {
   const rows = value.split("\n").map(line => line.trim()).filter(Boolean);
   if (!rows.length || rows.length > 26) return null;
-  const seats = rows.flatMap((line, rowIndex) => line.split(/[\s,]+/).filter(Boolean).map((code, columnIndex) => ({
-    seat_code: code.toUpperCase(), row_label: String.fromCharCode(65 + rowIndex),
-    column_index: columnIndex, seat_type: seatType, is_sellable: isSellable,
-  })));
-  return seats.length > 0 && seats.length <= 60 && rows.every(line => line.split(/[\s,]+/).filter(Boolean).length <= 21)
+  const seats = rows.flatMap((line, rowIndex) => line.split(/[\s,]+/).filter(Boolean).map((token, columnIndex) => {
+    const [rawCode, rawType, rawSellability, ...extra] = token.split(":");
+    const type = rawType || seatType;
+    const sellability = rawSellability || "";
+    if (
+      extra.length || !rawCode || rawCode.length > 16 ||
+      !["standard", "premium", "accessible"].includes(type) ||
+      (sellability && !["sellable", "blocked"].includes(sellability))
+    ) return null;
+    return {
+      seat_code: rawCode.toUpperCase(), row_label: String.fromCharCode(65 + rowIndex),
+      column_index: columnIndex, seat_type: type,
+      is_sellable: sellability ? sellability === "sellable" : isSellable,
+    };
+  }));
+  return seats.length > 0 && seats.length <= 60 && seats.every(Boolean) &&
+    rows.every(line => line.split(/[\\s,]+/).filter(Boolean).length <= 21)
     ? seats : null;
 }
 
@@ -25,7 +37,7 @@ function formatSeatRows(layout: FleetSeatLayout) {
     grouped.set(row, [...(grouped.get(row) ?? []), seat]);
   }
   return [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b))
-    .map(([, seats]) => seats.sort((a, b) => a.column_index - b.column_index).map(seat => seat.seat_code).join(" "))
+    .map(([, seats]) => seats.sort((a, b) => a.column_index - b.column_index).map(seat => `${seat.seat_code}:${seat.seat_type}:${seat.is_sellable ? "sellable" : "blocked"}`).join(" "))
     .join("\n");
 }
 
@@ -164,8 +176,8 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
         <div className="staff-heading"><div><h4>{selectedVehicle.vehicle_reference} · {am ? "የመቀመጫ አቀማመጦች" : "Seat layouts"}</h4><small>{selectedVehicle.organization_name} · {selectedVehicle.status} / {selectedVehicle.review_status}</small></div>
           <button className="text-link" onClick={() => setSelectedVehicleId("")}>{am ? "ዝጋ" : "Close"}</button></div>
         {canManageSelected && <form className="role-assignment-form" onSubmit={submitLayout}>
-          <label>{am ? "የመቀመጫ ረድፎች (በክፍተት ወይም በኮማ ይለዩ)" : "Seat rows (separate seat codes with spaces or commas; one row per line)"}
-            <textarea rows={4} value={seatRows} onChange={event => setSeatRows(event.target.value)} /></label>
+          <label>{am ? "የመቀመጫ ረድፎች (በክፍተት ወይም በኮማ ይለዩ)" : "Seat rows: one row per line; use CODE:type:sellable|blocked for per-seat overrides"}
+            <textarea rows={4} value={seatRows} onChange={event => setSeatRows(event.target.value)} /><small>Example: A1:standard:sellable A2:accessible:blocked. Plain seat codes use the defaults below.</small></label>
           <label>{am ? "የመቀመጫ አይነት" : "Seat type"}<select value={seatType} onChange={event => setSeatType(event.target.value)}><option value="standard">Standard</option><option value="premium">Premium</option><option value="accessible">Accessible</option></select></label>
           <label><input type="checkbox" checked={seatSellable} onChange={event => setSeatSellable(event.target.checked)} /> {am ? "ለሽያጭ የሚቀርብ" : "Sellable seats"}</label>
 
@@ -177,7 +189,7 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
           {canReview && layout.status === "draft" && selectedVehicle.review_status === "approved" && <button className="text-link" disabled={busy} onClick={() => void run(() => approveFleetSeatLayout(layout.id), am ? "የመቀመጫ አቀማመጡ ጸድቋል።" : "Seat layout approved.")}>{am ? "አቀማመጥ አጽድቅ" : "Approve layout"}</button>}
         </div>
         {editingLayoutId === layout.id && <form className="role-assignment-form" onSubmit={event => { event.preventDefault(); saveLayout(layout.id); }}>
-          <label>{am ? "የመቀመጫ ረድፎች" : "Seat rows"}<textarea rows={4} value={editingSeatRows} onChange={event => setEditingSeatRows(event.target.value)} /></label>
+          <label>{am ? "የመቀመጫ ረድፎች" : "Seat rows"}<textarea rows={4} value={editingSeatRows} onChange={event => setEditingSeatRows(event.target.value)} /><small>Example: A1:standard:sellable A2:accessible:blocked. Plain seat codes use the defaults below.</small></label>
           <label>{am ? "የመቀመጫ አይነት" : "Seat type"}<select value={editingSeatType} onChange={event => setEditingSeatType(event.target.value)}><option value="standard">Standard</option><option value="premium">Premium</option><option value="accessible">Accessible</option></select></label>
           <label><input type="checkbox" checked={editingSeatSellable} onChange={event => setEditingSeatSellable(event.target.checked)} /> {am ? "ለሽያጭ የሚቀርብ" : "Sellable seats"}</label>
 
