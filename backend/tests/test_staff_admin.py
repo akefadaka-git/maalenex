@@ -72,3 +72,19 @@ def test_catalog_permission_checks_fail_closed(monkeypatch):
         assert error.value.status_code == 403
 
     assert checked == ["platform.catalog.manage", "platform.catalog.publish"]
+
+
+def test_catalog_mutations_require_staff_session():
+    client = TestClient(app)
+    paths = (
+        ("/api/v1/catalog/locations/00000000-0000-0000-0000-000000000001", "PATCH"),
+        ("/api/v1/catalog/terminals/00000000-0000-0000-0000-000000000001", "PATCH"),
+        ("/api/v1/catalog/routes/00000000-0000-0000-0000-000000000001", "PATCH"),
+        ("/api/v1/catalog/routes/00000000-0000-0000-0000-000000000001/stops", "PUT"),
+        ("/api/v1/catalog/locations/00000000-0000-0000-0000-000000000001/archive", "POST"),
+        ("/api/v1/catalog/terminals/00000000-0000-0000-0000-000000000001/archive", "POST"),
+        ("/api/v1/catalog/routes/00000000-0000-0000-0000-000000000001/archive", "POST"),
+    )
+    for path, method in paths:
+        response = client.request(method, path, json={})
+        assert response.status_code == 401
