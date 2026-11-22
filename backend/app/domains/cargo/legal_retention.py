@@ -72,9 +72,9 @@ def deletion_block_reason(evidence, *, now: datetime) -> str | None:
         return "independent_dpo_review_missing"
     if getattr(evidence, "deletion_suspended", False):
         return "deletion_suspended_by_dpo"
-    if getattr(evidence, "contains_sensitive_personal_data", False):
-        if not getattr(evidence, "sensitive_data_handling_review_reference", None):
-            return "sensitive_data_review_missing"
+    if (getattr(evidence, "contains_sensitive_personal_data", False)
+            and not getattr(evidence, "sensitive_data_handling_review_reference", None)):
+        return "sensitive_data_review_missing"
     rights_status = getattr(evidence, "rights_request_status", "none")
     if rights_status in {"pending", "restricted", "under_review"}:
         return "data_subject_rights_request_pending"
