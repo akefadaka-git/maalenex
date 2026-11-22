@@ -12,14 +12,15 @@ let mapsLoader:Promise<MapsApi>|null=null;
 function loadGoogleMaps(key:string):Promise<MapsApi>{
  if(window.google?.maps)return Promise.resolve(window.google.maps);
  if(mapsLoader)return mapsLoader;
- mapsLoader=new Promise((resolve,reject)=>{
+ const loading=new Promise<MapsApi>((resolve,reject)=>{
   const existing=document.getElementById("maalenex-google-maps") as HTMLScriptElement|null;
   const script=existing??document.createElement("script");
   const finish=()=>{if(window.google?.maps)resolve(window.google.maps);else reject(new Error("Google Maps loaded without its JavaScript API."));};
   script.addEventListener("load",finish,{once:true});script.addEventListener("error",()=>reject(new Error("Google Maps could not be loaded. Check network access, API key restrictions and billing.")),{once:true});
   if(!existing){script.id="maalenex-google-maps";script.async=true;script.defer=true;script.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;document.head.appendChild(script);}
  }).catch(error=>{mapsLoader=null;throw error;});
- return mapsLoader;
+ mapsLoader=loading;
+ return loading;
 }
 function validPoint(value:unknown):LatLng|null{if(!value||typeof value!=="object")return null;const p=value as {latitude?:unknown;longitude?:unknown};if(typeof p.latitude!=="number"||typeof p.longitude!=="number"||!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude)||Math.abs(p.latitude)>90||Math.abs(p.longitude)>180)return null;return{lat:p.latitude,lng:p.longitude};}
 function geometryPoints(route:PassengerRoute|undefined):LatLng[]{const coords=route?.geometry?.coordinates;if(!Array.isArray(coords))return[];return coords.flatMap(pair=>Array.isArray(pair)&&pair.length===2&&pair.every(n=>typeof n==="number"&&Number.isFinite(n))&&Math.abs(pair[1])<=90&&Math.abs(pair[0])<=180?[{lat:pair[1],lng:pair[0]}]:[]);}
