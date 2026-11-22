@@ -84,6 +84,35 @@ class RouteCreate(BaseModel):
     destination_location_id: UUID
 
 
+
+
+
+class LocationUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=160)
+    location_type: str | None = Field(default=None, min_length=2, max_length=32)
+
+
+class TerminalUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=160)
+    location_id: UUID | None = None
+
+
+class RouteUpdate(BaseModel):
+    code: str | None = Field(default=None, min_length=2, max_length=60)
+    origin_location_id: UUID | None = None
+    destination_location_id: UUID | None = None
+
+
+class RouteStopInput(BaseModel):
+    location_id: UUID
+    boarding_allowed: bool = False
+    alighting_allowed: bool = False
+
+
+class RouteStopsUpdate(BaseModel):
+    stops: list[RouteStopInput] = Field(min_length=2, max_length=100)
+
+
 class VehicleCreate(BaseModel):
     vehicle_reference: str = Field(min_length=2, max_length=80)
 
@@ -431,6 +460,12 @@ def create_route(
     )
     db.add(route)
     db.flush()
+    db.add_all([
+        RouteStop(route_id=route.id, location_id=route.origin_location_id, sequence_number=1,
+                  boarding_allowed=True, alighting_allowed=False, status="draft"),
+        RouteStop(route_id=route.id, location_id=route.destination_location_id, sequence_number=2,
+                  boarding_allowed=False, alighting_allowed=True, status="draft"),
+    ])
     _audit(db, context=context, event="catalog.route.created", resource_type="route",
            resource_id=route.id, action="create")
     try:
@@ -452,12 +487,13 @@ def publish_route(
     if route is None or route.status != "draft":
         raise HTTPException(status_code=409, detail="Route is not a draft.")
     route.status = "published"
-    db.add_all([
-        RouteStop(route_id=route.id, location_id=route.origin_location_id, sequence_number=1,
-                  boarding_allowed=True, alighting_allowed=False, status="published"),
-        RouteStop(route_id=route.id, location_id=route.destination_location_id, sequence_number=2,
-                  boarding_allowed=False, alighting_allowed=True, status="published"),
-    ])
+    stops = list(db.scalars(select(RouteStop).where(
+        RouteStop.route_id == route.id
+    ).order_by(RouteStop.sequence_number).with_for_update()))
+    if len(stops) < 2 or stops[0].location_id != route.origin_location_id or stops[-1].location_id != route.destination_location_id:
+        raise HTTPException(status_code=409, detail="Route stops must begin at the origin and end at the destination.")
+    for stop in stops:
+        stop.status = "published"
     _audit(db, context=context, event="catalog.route.published", resource_type="route",
            resource_id=route.id, action="publish")
     db.commit()
@@ -1186,12 +1222,247 @@ def list_catalog_routes(
         item.id: item.name
         for item in db.scalars(select(Location).where(Location.id.in_(location_ids))).all()
     } if location_ids else {}
+    stop_rows = db.execute(
+        select(RouteStop, Location.name).join(Location, Location.id == RouteStop.location_id)
+        .where(RouteStop.route_id.in_([item.id for item in items]))
+        .order_by(RouteStop.route_id, RouteStop.sequence_number)
+    ).all() if items else []
+    route_stops_by_route: dict[UUID, list[dict]] = {}
+    for stop, location_name in stop_rows:
+        route_stops_by_route.setdefault(stop.route_id, []).append({
+            "id": str(stop.id), "location_id": str(stop.location_id),
+            "location_name": location_name, "sequence_number": stop.sequence_number,
+            "boarding_allowed": stop.boarding_allowed, "alighting_allowed": stop.alighting_allowed,
+            "status": stop.status,
+        })
     return [
         {"id": str(item.id), "code": item.code,
          "origin_location_id": str(item.origin_location_id),
          "origin_name": locations.get(item.origin_location_id, "Unknown location"),
          "destination_location_id": str(item.destination_location_id),
          "destination_name": locations.get(item.destination_location_id, "Unknown location"),
-         "status": item.status}
+         "status": item.status,
+         "stops": [
+             {"id": str(stop.id), "location_id": str(stop.location_id),
+              "location_name": stop.location_name, "sequence_number": stop.sequence_number,
+              "boarding_allowed": stop.boarding_allowed, "alighting_allowed": stop.alighting_allowed,
+              "status": stop.status}
+             for stop in route_stops_by_route.get(item.id, [])
+         ]}
         for item in items
     ]
+
+
+
+@router.patch("/catalog/locations/{location_id}")
+def update_catalog_location(
+    location_id: UUID, payload: LocationUpdate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.catalog.manage")
+    item = db.scalar(select(Location).where(Location.id == location_id).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Location not found.")
+    if item.status != "draft":
+        raise HTTPException(status_code=409, detail="Only draft locations can be edited.")
+    values = payload.model_dump(exclude_unset=True)
+    if not values:
+        raise HTTPException(status_code=422, detail="At least one field is required.")
+    for key, value in values.items():
+        setattr(item, key, value.strip() if isinstance(value, str) else value)
+    _audit(db, context=context, event="catalog.location.updated", resource_type="location",
+           resource_id=item.id, action="update")
+    db.commit()
+    return {"id": str(item.id), "name": item.name, "location_type": item.location_type, "status": item.status}
+
+
+@router.patch("/catalog/terminals/{terminal_id}")
+def update_catalog_terminal(
+    terminal_id: UUID, payload: TerminalUpdate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.catalog.manage")
+    item = db.scalar(select(Terminal).where(Terminal.id == terminal_id).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Terminal not found.")
+    if item.status != "draft":
+        raise HTTPException(status_code=409, detail="Only draft terminals can be edited.")
+    values = payload.model_dump(exclude_unset=True)
+    if not values:
+        raise HTTPException(status_code=422, detail="At least one field is required.")
+    if "location_id" in values:
+        location = db.get(Location, values["location_id"])
+        if location is None or location.status != "published":
+            raise HTTPException(status_code=409, detail="Terminal location must be published.")
+    for key, value in values.items():
+        setattr(item, key, value.strip() if isinstance(value, str) else value)
+    _audit(db, context=context, event="catalog.terminal.updated", resource_type="terminal",
+           resource_id=item.id, action="update")
+    db.commit()
+    return {"id": str(item.id), "name": item.name, "location_id": str(item.location_id), "status": item.status}
+
+
+@router.patch("/catalog/routes/{route_id}")
+def update_catalog_route(
+    route_id: UUID, payload: RouteUpdate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.catalog.manage")
+    item = db.scalar(select(Route).where(Route.id == route_id).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Route not found.")
+    if item.status != "draft":
+        raise HTTPException(status_code=409, detail="Only draft routes can be edited.")
+    values = payload.model_dump(exclude_unset=True)
+    if not values:
+        raise HTTPException(status_code=422, detail="At least one field is required.")
+    origin = values.get("origin_location_id", item.origin_location_id)
+    destination = values.get("destination_location_id", item.destination_location_id)
+    if origin == destination:
+        raise HTTPException(status_code=422, detail="Route origin and destination must differ.")
+    published_locations = set(db.scalars(select(Location.id).where(
+        Location.id.in_([origin, destination]), Location.status == "published"
+    )).all())
+    if published_locations != {origin, destination}:
+        raise HTTPException(status_code=409, detail="Both route locations must be published.")
+    if "code" in values:
+        values["code"] = values["code"].strip().upper()
+    for key, value in values.items():
+        setattr(item, key, value)
+    stops = list(db.scalars(select(RouteStop).where(
+        RouteStop.route_id == item.id
+    ).order_by(RouteStop.sequence_number).with_for_update()))
+    if stops:
+        stops[0].location_id = origin
+        stops[-1].location_id = destination
+    _audit(db, context=context, event="catalog.route.updated", resource_type="route",
+           resource_id=item.id, action="update")
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Route code already exists.")
+    return {"id": str(item.id), "code": item.code, "status": item.status}
+
+
+@router.put("/catalog/routes/{route_id}/stops")
+def replace_catalog_route_stops(
+    route_id: UUID, payload: RouteStopsUpdate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.catalog.manage")
+    route = db.scalar(select(Route).where(Route.id == route_id).with_for_update())
+    if route is None:
+        raise HTTPException(status_code=404, detail="Route not found.")
+    if route.status != "draft":
+        raise HTTPException(status_code=409, detail="Stops can only be changed on draft routes.")
+    location_ids = [stop.location_id for stop in payload.stops]
+    if len(set(location_ids)) != len(location_ids):
+        raise HTTPException(status_code=422, detail="A route cannot visit the same location more than once.")
+    if location_ids[0] != route.origin_location_id or location_ids[-1] != route.destination_location_id:
+        raise HTTPException(status_code=422, detail="The first and last stops must match the route origin and destination.")
+    published_ids = set(db.scalars(select(Location.id).where(
+        Location.id.in_(location_ids), Location.status == "published"
+    )).all())
+    if published_ids != set(location_ids):
+        raise HTTPException(status_code=409, detail="Every route stop must reference a published location.")
+    old_stops = list(db.scalars(select(RouteStop).where(
+        RouteStop.route_id == route.id
+    ).with_for_update()))
+    for stop in old_stops:
+        db.delete(stop)
+    db.flush()
+    stops = [
+        RouteStop(
+            route_id=route.id, location_id=stop.location_id, sequence_number=index,
+            boarding_allowed=stop.boarding_allowed, alighting_allowed=stop.alighting_allowed,
+            status="draft",
+        )
+        for index, stop in enumerate(payload.stops, start=1)
+    ]
+    db.add_all(stops)
+    _audit(db, context=context, event="catalog.route.stops_replaced", resource_type="route",
+           resource_id=route.id, action="update", metadata={"stop_count": len(stops)})
+    db.commit()
+    return {"route_id": str(route.id), "stops": len(stops)}
+
+
+@router.post("/catalog/locations/{location_id}/archive")
+def archive_catalog_location(
+    location_id: UUID, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.catalog.manage")
+    item = db.scalar(select(Location).where(Location.id == location_id).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Location not found.")
+    if item.status == "archived":
+        raise HTTPException(status_code=409, detail="Location is already archived.")
+    references = (
+        db.scalar(select(Terminal.id).where(Terminal.location_id == item.id).limit(1))
+        or db.scalar(select(Route.id).where(
+            (Route.origin_location_id == item.id) | (Route.destination_location_id == item.id)
+        ).limit(1))
+        or db.scalar(select(RouteStop.id).where(RouteStop.location_id == item.id).limit(1))
+    )
+    if references:
+        raise HTTPException(status_code=409, detail="Location is referenced by a terminal or route and cannot be archived.")
+    item.status = "archived"
+    _audit(db, context=context, event="catalog.location.archived", resource_type="location",
+           resource_id=item.id, action="archive")
+    db.commit()
+    return {"id": str(item.id), "status": item.status}
+
+
+@router.post("/catalog/terminals/{terminal_id}/archive")
+def archive_catalog_terminal(
+    terminal_id: UUID, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.catalog.manage")
+    item = db.scalar(select(Terminal).where(Terminal.id == terminal_id).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Terminal not found.")
+    if item.status == "archived":
+        raise HTTPException(status_code=409, detail="Terminal is already archived.")
+    if db.scalar(select(Trip.id).where(Trip.boarding_terminal_id == item.id).limit(1)):
+        raise HTTPException(status_code=409, detail="Terminal is referenced by a trip and cannot be archived.")
+    item.status = "archived"
+    _audit(db, context=context, event="catalog.terminal.archived", resource_type="terminal",
+           resource_id=item.id, action="archive")
+    db.commit()
+    return {"id": str(item.id), "status": item.status}
+
+
+@router.post("/catalog/routes/{route_id}/archive")
+def archive_catalog_route(
+    route_id: UUID, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.catalog.manage")
+    item = db.scalar(select(Route).where(Route.id == route_id).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Route not found.")
+    if item.status == "archived":
+        raise HTTPException(status_code=409, detail="Route is already archived.")
+    references = (
+        db.scalar(select(Schedule.id).where(Schedule.route_id == item.id).limit(1))
+        or db.scalar(select(Trip.id).where(Trip.route_id == item.id).limit(1))
+        or db.scalar(select(Fare.id).where(Fare.route_id == item.id).limit(1))
+    )
+    if references:
+        raise HTTPException(status_code=409, detail="Route is referenced by a schedule, trip or fare and cannot be archived.")
+    item.status = "archived"
+    for stop in db.scalars(select(RouteStop).where(RouteStop.route_id == item.id).with_for_update()):
+        stop.status = "archived"
+    _audit(db, context=context, event="catalog.route.archived", resource_type="route",
+           resource_id=item.id, action="archive")
+    db.commit()
+    return {"id": str(item.id), "status": item.status}
