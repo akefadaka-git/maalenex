@@ -164,3 +164,13 @@ def test_audit_redacts_private_evidence_references():
     assert result["evidence_reference"] == "[REDACTED]"
     assert result["object_key"] == "[REDACTED]"
     assert result["evidence_id"] == "synthetic-evidence-id"
+
+
+
+def test_provisional_retention_uses_calendar_months_and_month_end():
+    from datetime import UTC, datetime
+
+    from app.domains.cargo.evidence_lifecycle import add_calendar_months
+
+    assert add_calendar_months(datetime(2026, 1, 31, tzinfo=UTC), 1) == datetime(2026, 2, 28, tzinfo=UTC)
+    assert add_calendar_months(datetime(2024, 2, 29, tzinfo=UTC), 24) == datetime(2026, 2, 28, tzinfo=UTC)
