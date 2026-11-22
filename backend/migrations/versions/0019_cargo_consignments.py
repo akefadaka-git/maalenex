@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Add organization-scoped cargo consignment lifecycle.
 
 Revision ID: 0019_cargo_consignments
