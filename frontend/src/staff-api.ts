@@ -269,3 +269,51 @@ export function updateDraftFleetSeatLayout(layoutId: string, seats: Array<{
     method: "PUT", body: JSON.stringify({ seats }),
   });
 }
+
+
+export type DispatchOptions = {
+  routes: Array<{ id: string; code: string; origin_location_id: string; destination_location_id: string }>;
+  terminals: Array<{ id: string; location_id: string; name: string }>;
+  vehicles: Array<{ id: string; vehicle_reference: string;
+    seat_layouts: Array<{ id: string; version_number: number; seat_count: number }> }>;
+};
+export type DispatchTrip = {
+  id: string; organization_id: string; organization_name: string; route_id: string; route_code: string;
+  boarding_terminal_id: string; boarding_terminal_name: string; vehicle_id: string; vehicle_reference: string;
+  seat_layout_version_id: string; departure_at: string; arrival_estimate_at: string | null;
+  status: string; seat_count: number; published_at: string | null;
+};
+export type TripManifest = {
+  trip_id: string; boarding_terminal_id: string; passenger_count: number;
+  manifest: Array<{ booking_reference: string; passenger_name: string; seat_code: string; sequence: number }>;
+  contact_phone_included: false; boarding_authorized: false;
+};
+export function getOperatorDispatchOptions(organizationId: string): Promise<DispatchOptions> {
+  return request<DispatchOptions>(`/operators/${encodeURIComponent(organizationId)}/dispatch/options`);
+}
+export function getOperatorTrips(organizationId: string): Promise<DispatchTrip[]> {
+  return request<DispatchTrip[]>(`/operators/${encodeURIComponent(organizationId)}/trips`);
+}
+export function getPlatformDispatchTrips(): Promise<DispatchTrip[]> {
+  return request<DispatchTrip[]>("/admin/dispatch/trips");
+}
+export function createDispatchTrip(organizationId: string, input: {
+  route_id: string; boarding_terminal_id: string; vehicle_id: string; seat_layout_version_id: string;
+  departure_at: string; arrival_estimate_at: string | null;
+}): Promise<{ id: string; status: string; seat_count: number }> {
+  return request(`/operators/${encodeURIComponent(organizationId)}/trips`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+export function submitDispatchTrip(tripId: string): Promise<{ id: string; status: string }> {
+  return request(`/trips/${encodeURIComponent(tripId)}/submit`, { method: "POST" });
+}
+export function approveDispatchTrip(tripId: string): Promise<{ id: string; status: string }> {
+  return request(`/trips/${encodeURIComponent(tripId)}/approve`, { method: "POST" });
+}
+export function publishDispatchTrip(tripId: string): Promise<{ id: string; status: string }> {
+  return request(`/trips/${encodeURIComponent(tripId)}/publish`, { method: "POST" });
+}
+export function getTripManifest(tripId: string): Promise<TripManifest> {
+  return request<TripManifest>(`/trips/${encodeURIComponent(tripId)}/manifest`);
+}
