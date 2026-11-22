@@ -22,7 +22,7 @@ from app.domains.bookings.models import Booking, BookingPassenger, Passenger, Se
 from app.domains.catalog.models import Location, Route, RouteStop, Terminal
 from app.domains.fares.models import Fare, FareVersion
 from app.domains.fares.service import FareConflict, decide_fare, propose_fare, publish_fare, submit_fare
-from app.domains.fleet.models import SeatLayoutVersion, Vehicle, VehicleSeat
+from app.domains.fleet.models import SeatLayoutVersion, Vehicle, VehicleComplianceDocument, VehicleSeat
 from app.domains.identity.authorization import has_permission
 from app.domains.identity.models import Role, RoleAssignment, User
 from app.domains.identity.security import issue_opaque_token, token_digest
@@ -32,7 +32,7 @@ from app.domains.organizations.service import create_candidate_operator
 from app.domains.support.models import SupportCase
 from app.domains.support.passenger_models import PassengerSupportCase
 from app.domains.support.report_models import PassengerReport, PassengerReportAttachment
-from app.domains.trips.models import Schedule, Trip, TripSeat
+from app.domains.trips.models import Schedule, Trip, TripOperationalException, TripSeat
 from app.routers.auth import current_staff_context, require_csrf
 
 router = APIRouter(tags=["platform-administration"])
@@ -137,6 +137,28 @@ class SeatLayoutCreate(BaseModel):
 class VehicleReview(BaseModel):
     decision: Literal["approved", "rejected"]
     reason: str = Field(min_length=3, max_length=500)
+
+
+class ComplianceEvidenceCreate(BaseModel):
+    document_type: Literal["registration", "insurance", "roadworthiness", "operating_permit", "other"]
+    evidence_reference: str = Field(min_length=8, max_length=255)
+    issued_at: datetime | None = None
+    expires_at: datetime | None = None
+
+
+class ComplianceEvidenceReview(BaseModel):
+    decision: Literal["approved", "rejected"]
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class OperationalExceptionCreate(BaseModel):
+    category: Literal["vehicle_breakdown", "late_departure", "route_disruption", "safety_concern", "passenger_incident", "other"]
+    severity: Literal["normal", "high", "critical"] = "normal"
+    description: str = Field(min_length=5, max_length=1000)
+
+
+class OperationalExceptionResolution(BaseModel):
+    resolution: str = Field(min_length=5, max_length=1000)
 
 
 class TripCreate(BaseModel):
@@ -622,6 +644,95 @@ def review_vehicle(
            resource_id=vehicle.id, action="review", organization_id=vehicle.organization_id, reason=payload.reason)
     db.commit()
     return {"id": str(vehicle.id), "status": vehicle.status, "review_status": vehicle.review_status}
+
+
+@router.post("/vehicles/{vehicle_id}/compliance-documents", status_code=status.HTTP_201_CREATED)
+def submit_vehicle_compliance_evidence(
+    vehicle_id: UUID, payload: ComplianceEvidenceCreate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    vehicle = db.get(Vehicle, vehicle_id)
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
+    reference = payload.evidence_reference.strip()
+    if reference.startswith(("http://", "https://")) or ".." in reference or not reference.startswith("fleet-compliance/"):
+        raise HTTPException(status_code=422, detail="Evidence reference must be an opaque key from the approved document store.")
+    if payload.issued_at and payload.expires_at and payload.expires_at <= payload.issued_at:
+        raise HTTPException(status_code=422, detail="Evidence expiry must be later than issue date.")
+    document = VehicleComplianceDocument(
+        vehicle_id=vehicle.id, document_type=payload.document_type,
+        evidence_reference=reference, issued_at=payload.issued_at, expires_at=payload.expires_at,
+        status="pending", submitted_by=context.user.id,
+    )
+    db.add(document)
+    db.flush()
+    _audit(db, context=context, event="fleet.compliance.submitted", resource_type="vehicle_compliance_document",
+           resource_id=document.id, action="submit", organization_id=vehicle.organization_id,
+           metadata={"document_type": document.document_type})
+    db.commit()
+    return {"id": str(document.id), "document_type": document.document_type, "status": document.status}
+
+
+@router.post("/compliance-documents/{document_id}/review")
+def review_vehicle_compliance_evidence(
+    document_id: UUID, payload: ComplianceEvidenceReview, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.fleet.review")
+    document = db.scalar(select(VehicleComplianceDocument).where(
+        VehicleComplianceDocument.id == document_id
+    ).with_for_update())
+    if document is None:
+        raise HTTPException(status_code=404, detail="Compliance evidence not found.")
+    if document.status != "pending":
+        raise HTTPException(status_code=409, detail="Only pending compliance evidence can be reviewed.")
+    if payload.decision == "approved" and document.expires_at and document.expires_at <= datetime.now(UTC):
+        raise HTTPException(status_code=409, detail="Expired evidence cannot be approved.")
+    vehicle = db.get(Vehicle, document.vehicle_id)
+    document.status = payload.decision
+    document.reviewed_by = context.user.id
+    document.review_reason = payload.reason.strip()
+    document.reviewed_at = datetime.now(UTC)
+    _audit(db, context=context, event="fleet.compliance.reviewed", resource_type="vehicle_compliance_document",
+           resource_id=document.id, action="review", organization_id=vehicle.organization_id if vehicle else None,
+           reason=document.review_reason, metadata={"decision": document.status})
+    db.commit()
+    return {"id": str(document.id), "status": document.status, "reviewed_at": document.reviewed_at.isoformat()}
+
+
+@router.get("/vehicles/{vehicle_id}/history")
+def get_vehicle_review_history(
+    vehicle_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    vehicle = db.get(Vehicle, vehicle_id)
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    if not has_permission(db, user_id=context.user.id, permission_code="platform.fleet.review", organization_id=None):
+        _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
+    documents = db.scalars(select(VehicleComplianceDocument).where(
+        VehicleComplianceDocument.vehicle_id == vehicle.id
+    ).order_by(VehicleComplianceDocument.created_at.desc())).all()
+    events = db.scalars(select(AuditEvent).where(
+        AuditEvent.organization_id == vehicle.organization_id,
+        AuditEvent.resource_id.in_([str(vehicle.id), *[str(item.id) for item in documents]]),
+    ).order_by(AuditEvent.occurred_at.desc()).limit(100)).all()
+    return {
+        "documents": [{
+            "id": str(item.id), "document_type": item.document_type, "status": item.status,
+            "evidence_reference": item.evidence_reference, "issued_at": item.issued_at.isoformat() if item.issued_at else None,
+            "expires_at": item.expires_at.isoformat() if item.expires_at else None,
+            "review_reason": item.review_reason, "created_at": item.created_at.isoformat() if item.created_at else None,
+        } for item in documents],
+        "events": [{
+            "event_type": item.event_type, "occurred_at": item.occurred_at.isoformat(),
+            "action": item.action, "outcome": item.outcome, "reason_code": item.reason_code,
+            "metadata": item.metadata_redacted or {},
+        } for item in events],
+    }
 
 
 @router.post("/seat-layouts/{layout_id}/approve")
