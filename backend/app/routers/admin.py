@@ -20,9 +20,13 @@ from app.domains.audit.models import AuditEvent
 from app.domains.audit.service import record_event
 from app.domains.bookings.models import Booking, BookingPassenger, Passenger, SeatAllocation
 from app.domains.catalog.models import Location, Route, RouteStop, Terminal
-from app.domains.fares.models import Fare, FareVersion
+from app.domains.fares.models import Fare, FareApproval, FareVersion
 from app.domains.fares.service import FareConflict, decide_fare, propose_fare, publish_fare, submit_fare
-from app.domains.fleet.models import SeatLayoutVersion, Vehicle, VehicleSeat
+from app.domains.fleet.models import SeatLayoutVersion, Vehicle, VehicleComplianceDocument, VehicleSeat
+from app.domains.fleet.object_storage import (
+    InvalidStoredObject, StorageNotConfigured,
+    create_compliance_upload_intent, verify_compliance_object,
+)
 from app.domains.identity.authorization import has_permission
 from app.domains.identity.models import Role, RoleAssignment, User
 from app.domains.identity.security import issue_opaque_token, token_digest
@@ -32,7 +36,7 @@ from app.domains.organizations.service import create_candidate_operator
 from app.domains.support.models import SupportCase
 from app.domains.support.passenger_models import PassengerSupportCase
 from app.domains.support.report_models import PassengerReport, PassengerReportAttachment
-from app.domains.trips.models import Trip, TripSeat
+from app.domains.trips.models import Schedule, Trip, TripOperationalException, TripSeat
 from app.routers.auth import current_staff_context, require_csrf
 
 router = APIRouter(tags=["platform-administration"])
@@ -49,7 +53,7 @@ class OperatorReview(BaseModel):
 
 class OperatorRoleAssignment(BaseModel):
     user_id: UUID
-    role_code: Literal["synthetic_operator_manager"] = "synthetic_operator_manager"
+    role_code: Literal["synthetic_operator_manager", "operator_manager", "operator_dispatcher", "operator_fleet_manager", "operator_fare_manager"] = "synthetic_operator_manager"
 
 
 class SupportResolution(BaseModel):
@@ -65,6 +69,7 @@ class ReportReview(BaseModel):
 class OperatorInvitationCreate(BaseModel):
     login_identifier: str = Field(min_length=5, max_length=254)
     display_name: str = Field(min_length=2, max_length=160)
+    role_code: Literal["synthetic_operator_manager", "operator_manager", "operator_dispatcher", "operator_fleet_manager", "operator_fare_manager"] = "synthetic_operator_manager"
 
 
 class LocationCreate(BaseModel):
@@ -83,17 +88,102 @@ class RouteCreate(BaseModel):
     destination_location_id: UUID
 
 
+
+
+
+class LocationUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=160)
+    location_type: str | None = Field(default=None, min_length=2, max_length=32)
+
+
+class TerminalUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=160)
+    location_id: UUID | None = None
+
+
+class RouteUpdate(BaseModel):
+    code: str | None = Field(default=None, min_length=2, max_length=60)
+    origin_location_id: UUID | None = None
+    destination_location_id: UUID | None = None
+
+
+class RouteStopInput(BaseModel):
+    location_id: UUID
+    boarding_allowed: bool = False
+    alighting_allowed: bool = False
+
+
+class RouteStopsUpdate(BaseModel):
+    stops: list[RouteStopInput] = Field(min_length=2, max_length=100)
+
+
 class VehicleCreate(BaseModel):
     vehicle_reference: str = Field(min_length=2, max_length=80)
 
 
+class VehicleUpdate(BaseModel):
+    vehicle_reference: str = Field(min_length=2, max_length=80)
+
+
+class SeatDefinition(BaseModel):
+    seat_code: str = Field(min_length=1, max_length=16)
+    row_label: str | None = Field(default=None, max_length=12)
+    column_index: int = Field(ge=0, le=20)
+    x: int | None = Field(default=None, ge=0, le=100)
+    y: int | None = Field(default=None, ge=0, le=100)
+    seat_type: Literal["standard", "premium", "accessible"] = "standard"
+    is_sellable: bool = True
+
+
+class LayoutMarker(BaseModel):
+    kind: Literal["aisle", "door"]
+    x: int = Field(ge=0, le=100)
+    y: int = Field(ge=0, le=100)
+    label: str | None = Field(default=None, max_length=40)
+
+
+class SeatLayoutGeometry(BaseModel):
+    width: int = Field(default=100, ge=1, le=100)
+    height: int = Field(default=100, ge=1, le=100)
+    markers: list[LayoutMarker] = Field(default_factory=list, max_length=30)
+
+
 class SeatLayoutCreate(BaseModel):
-    seat_codes: list[str] = Field(min_length=1, max_length=60)
+    seat_codes: list[str] = Field(default_factory=list, max_length=60)
+    seats: list[SeatDefinition] = Field(default_factory=list, max_length=60)
+    geometry: SeatLayoutGeometry = Field(default_factory=SeatLayoutGeometry)
 
 
 class VehicleReview(BaseModel):
     decision: Literal["approved", "rejected"]
     reason: str = Field(min_length=3, max_length=500)
+
+
+class ComplianceUploadIntentCreate(BaseModel):
+    content_type: Literal["application/pdf", "image/jpeg", "image/png"]
+    content_length: int = Field(ge=1, le=10 * 1024 * 1024)
+
+
+class ComplianceEvidenceCreate(BaseModel):
+    document_type: Literal["registration", "insurance", "roadworthiness", "operating_permit", "other"]
+    evidence_reference: str = Field(min_length=8, max_length=255)
+    issued_at: datetime | None = None
+    expires_at: datetime | None = None
+
+
+class ComplianceEvidenceReview(BaseModel):
+    decision: Literal["approved", "rejected"]
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class OperationalExceptionCreate(BaseModel):
+    category: Literal["vehicle_breakdown", "late_departure", "route_disruption", "safety_concern", "passenger_incident", "other"]
+    severity: Literal["normal", "high", "critical"] = "normal"
+    description: str = Field(min_length=5, max_length=1000)
+
+
+class OperationalExceptionResolution(BaseModel):
+    resolution: str = Field(min_length=5, max_length=1000)
 
 
 class TripCreate(BaseModel):
@@ -103,6 +193,10 @@ class TripCreate(BaseModel):
     seat_layout_version_id: UUID
     departure_at: datetime
     arrival_estimate_at: datetime | None = None
+
+
+class TripDraftUpdate(TripCreate):
+    pass
 
 
 class FareCreate(BaseModel):
@@ -199,6 +293,15 @@ def assign_operator_role(
         membership = OrganizationMembership(organization_id=organization_id, user_id=user.id, membership_status="active")
         db.add(membership)
         db.flush()
+    elif membership.membership_status != "active":
+        raise HTTPException(status_code=409, detail="Operator membership is not active.")
+    duplicate = db.scalar(select(RoleAssignment.id).where(
+        RoleAssignment.user_id == user.id, RoleAssignment.role_id == role.id,
+        RoleAssignment.organization_id == organization_id,
+        RoleAssignment.revoked_at.is_(None),
+    ))
+    if duplicate:
+        raise HTTPException(status_code=409, detail="An equivalent active assignment already exists.")
     assignment = RoleAssignment(
         user_id=user.id, role_id=role.id, organization_id=organization_id,
         assigned_by=context.user.id,
@@ -233,9 +336,9 @@ def create_operator_invitation(
         raise HTTPException(status_code=422, detail="A valid login email is required.")
     if db.scalar(select(User.id).where(User.login_identifier == login)) is not None:
         raise HTTPException(status_code=409, detail="A staff account already exists for this login.")
-    role = db.scalar(select(Role).where(Role.code == "synthetic_operator_manager"))
+    role = db.scalar(select(Role).where(Role.code == payload.role_code))
     if role is None:
-        raise HTTPException(status_code=503, detail="Operator manager role has not been provisioned.")
+        raise HTTPException(status_code=503, detail="Selected operator role has not been provisioned.")
     now = db.scalar(select(func.now()))
     stale = list(db.scalars(select(OrganizationInvitation).where(
         OrganizationInvitation.organization_id == organization_id,
@@ -421,6 +524,12 @@ def create_route(
     )
     db.add(route)
     db.flush()
+    db.add_all([
+        RouteStop(route_id=route.id, location_id=route.origin_location_id, sequence_number=1,
+                  boarding_allowed=True, alighting_allowed=False, status="draft"),
+        RouteStop(route_id=route.id, location_id=route.destination_location_id, sequence_number=2,
+                  boarding_allowed=False, alighting_allowed=True, status="draft"),
+    ])
     _audit(db, context=context, event="catalog.route.created", resource_type="route",
            resource_id=route.id, action="create")
     try:
@@ -442,12 +551,22 @@ def publish_route(
     if route is None or route.status != "draft":
         raise HTTPException(status_code=409, detail="Route is not a draft.")
     route.status = "published"
-    db.add_all([
-        RouteStop(route_id=route.id, location_id=route.origin_location_id, sequence_number=1,
-                  boarding_allowed=True, alighting_allowed=False, status="published"),
-        RouteStop(route_id=route.id, location_id=route.destination_location_id, sequence_number=2,
-                  boarding_allowed=False, alighting_allowed=True, status="published"),
-    ])
+    stops = list(db.scalars(select(RouteStop).where(
+        RouteStop.route_id == route.id
+    ).order_by(RouteStop.sequence_number).with_for_update()))
+    if not stops:
+        stops = [
+            RouteStop(route_id=route.id, location_id=route.origin_location_id, sequence_number=1,
+                      boarding_allowed=True, alighting_allowed=False, status="draft"),
+            RouteStop(route_id=route.id, location_id=route.destination_location_id, sequence_number=2,
+                      boarding_allowed=False, alighting_allowed=True, status="draft"),
+        ]
+        db.add_all(stops)
+        db.flush()
+    if len(stops) < 2 or stops[0].location_id != route.origin_location_id or stops[-1].location_id != route.destination_location_id:
+        raise HTTPException(status_code=409, detail="Route stops must begin at the origin and end at the destination.")
+    for stop in stops:
+        stop.status = "published"
     _audit(db, context=context, event="catalog.route.published", resource_type="route",
            resource_id=route.id, action="publish")
     db.commit()
@@ -462,10 +581,16 @@ def create_vehicle(
     _require_mutation(request, context)
     _authorize(db, context, "operator.fleet.manage", organization_id)
     operator = db.get(Organization, organization_id)
-    if operator is None or operator.status != "approved":
-        raise HTTPException(status_code=409, detail="Operator must be approved before fleet setup.")
+    if operator is None or operator.organization_type != "operator" or operator.status != "approved":
+        raise HTTPException(status_code=409, detail="An approved operator organization is required for fleet setup.")
+    vehicle_reference = payload.vehicle_reference.strip()
+    if db.scalar(select(Vehicle.id).where(
+        Vehicle.organization_id == organization_id,
+        Vehicle.vehicle_reference == vehicle_reference,
+    ).limit(1)):
+        raise HTTPException(status_code=409, detail="Vehicle reference already exists for this operator.")
     vehicle = Vehicle(
-        organization_id=organization_id, vehicle_reference=payload.vehicle_reference.strip(),
+        organization_id=organization_id, vehicle_reference=vehicle_reference,
         status="draft", review_status="pending",
     )
     db.add(vehicle)
@@ -486,19 +611,54 @@ def create_seat_layout(
     if vehicle is None:
         raise HTTPException(status_code=404, detail="Vehicle not found.")
     _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
-    codes = [item.strip().upper() for item in payload.seat_codes]
-    if any(not item or len(item) > 16 for item in codes) or len(set(codes)) != len(codes):
+    if vehicle.status != "active" or vehicle.review_status != "approved":
+        raise HTTPException(status_code=409, detail="Vehicle must be approved before creating a seat layout.")
+    if bool(payload.seat_codes) == bool(payload.seats):
+        raise HTTPException(status_code=422, detail="Provide either seat_codes or structured seats.")
+    if payload.seats:
+        seat_rows = [{
+            "seat_code": item.seat_code.strip().upper(),
+            "row_label": item.row_label.strip().upper() if item.row_label else None,
+            "column_index": item.column_index, "x": item.x, "y": item.y,
+            "seat_type": item.seat_type.strip().lower(), "is_sellable": item.is_sellable,
+        } for item in payload.seats]
+    else:
+        seat_rows = [{
+            "seat_code": code.strip().upper(), "row_label": None,
+            "column_index": index, "x": None, "y": None, "seat_type": "standard", "is_sellable": True,
+        } for index, code in enumerate(payload.seat_codes)]
+    codes = [item["seat_code"] for item in seat_rows]
+    positions = [(item["row_label"], item["column_index"]) for item in seat_rows if item["row_label"] is not None]
+    if any(not code or len(code) > 16 for code in codes) or len(set(codes)) != len(codes):
         raise HTTPException(status_code=422, detail="Seat codes must be unique and 1–16 characters.")
+    if len(set(positions)) != len(positions):
+        raise HTTPException(status_code=422, detail="Seat positions must be unique within each row.")
+    coordinates = [(item["x"], item["y"]) for item in seat_rows if item["x"] is not None or item["y"] is not None]
+    if any((item["x"] is None) != (item["y"] is None) for item in seat_rows):
+        raise HTTPException(status_code=422, detail="Seat geometry coordinates must provide both x and y.")
+    if len(set(coordinates)) != len(coordinates):
+        raise HTTPException(status_code=422, detail="Seat geometry coordinates must be unique.")
     latest = db.scalar(select(func.max(SeatLayoutVersion.version_number)).where(
         SeatLayoutVersion.vehicle_id == vehicle.id
     )) or 0
-    layout = SeatLayoutVersion(vehicle_id=vehicle.id, version_number=latest + 1, status="draft")
+    layout = SeatLayoutVersion(
+        vehicle_id=vehicle.id, version_number=latest + 1, status="draft",
+        geometry_metadata=payload.geometry.model_dump(),
+    )
     db.add(layout)
     db.flush()
     db.add_all([
-        VehicleSeat(seat_layout_version_id=layout.id, seat_code=code, position_metadata={},
-                    seat_type="standard", is_sellable=True)
-        for code in codes
+        VehicleSeat(
+            seat_layout_version_id=layout.id, seat_code=item["seat_code"],
+            row_label=item["row_label"],
+            position_metadata={
+                "column_index": item["column_index"],
+                "x": item["x"] if item["x"] is not None else min(100, item["column_index"] * 5),
+                "y": item["y"] if item["y"] is not None else min(100, (ord(item["row_label"][0]) - 65) * 5) if item["row_label"] else 0,
+            },
+            seat_type=item["seat_type"], is_sellable=item["is_sellable"],
+        )
+        for item in seat_rows
     ])
     _audit(db, context=context, event="fleet.seat_layout.created", resource_type="seat_layout_version",
            resource_id=layout.id, action="create", organization_id=vehicle.organization_id)
@@ -522,6 +682,143 @@ def review_vehicle(
            resource_id=vehicle.id, action="review", organization_id=vehicle.organization_id, reason=payload.reason)
     db.commit()
     return {"id": str(vehicle.id), "status": vehicle.status, "review_status": vehicle.review_status}
+
+
+@router.post("/vehicles/{vehicle_id}/compliance-documents/upload-intents", status_code=status.HTTP_201_CREATED)
+def create_vehicle_compliance_upload_intent(
+    vehicle_id: UUID, payload: ComplianceUploadIntentCreate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    vehicle = db.get(Vehicle, vehicle_id)
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
+    try:
+        intent = create_compliance_upload_intent(
+            organization_id=str(vehicle.organization_id), vehicle_id=str(vehicle.id),
+            content_type=payload.content_type, content_length=payload.content_length,
+        )
+    except StorageNotConfigured as exc:
+        raise HTTPException(status_code=503, detail="Private evidence storage is not configured.") from exc
+    except InvalidStoredObject as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    _audit(
+        db, context=context, event="fleet.compliance.upload_intent_created",
+        resource_type="vehicle", resource_id=vehicle.id, action="upload_intent",
+        organization_id=vehicle.organization_id,
+        metadata={"content_type": payload.content_type, "content_length": payload.content_length},
+    )
+    db.commit()
+    return intent
+
+
+@router.post("/vehicles/{vehicle_id}/compliance-documents", status_code=status.HTTP_201_CREATED)
+def submit_vehicle_compliance_evidence(
+    vehicle_id: UUID, payload: ComplianceEvidenceCreate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    vehicle = db.get(Vehicle, vehicle_id)
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
+    reference = payload.evidence_reference.strip()
+    try:
+        object_metadata = verify_compliance_object(
+            object_key=reference, organization_id=str(vehicle.organization_id),
+            vehicle_id=str(vehicle.id),
+        )
+    except StorageNotConfigured as exc:
+        raise HTTPException(status_code=503, detail="Private evidence storage is not configured.") from exc
+    except InvalidStoredObject as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if payload.issued_at and payload.expires_at and payload.expires_at <= payload.issued_at:
+        raise HTTPException(status_code=422, detail="Evidence expiry must be later than issue date.")
+    document = VehicleComplianceDocument(
+        vehicle_id=vehicle.id, document_type=payload.document_type,
+        evidence_reference=reference, issued_at=payload.issued_at, expires_at=payload.expires_at,
+        status="pending", submitted_by=context.user.id,
+    )
+    db.add(document)
+    db.flush()
+    _audit(db, context=context, event="fleet.compliance.submitted", resource_type="vehicle_compliance_document",
+           resource_id=document.id, action="submit", organization_id=vehicle.organization_id,
+           metadata={"document_type": document.document_type, **object_metadata})
+    db.commit()
+    return {"id": str(document.id), "document_type": document.document_type, "status": document.status}
+
+
+@router.post("/compliance-documents/{document_id}/review")
+def review_vehicle_compliance_evidence(
+    document_id: UUID, payload: ComplianceEvidenceReview, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.fleet.review")
+    document = db.scalar(select(VehicleComplianceDocument).where(
+        VehicleComplianceDocument.id == document_id
+    ).with_for_update())
+    if document is None:
+        raise HTTPException(status_code=404, detail="Compliance evidence not found.")
+    if document.status != "pending":
+        raise HTTPException(status_code=409, detail="Only pending compliance evidence can be reviewed.")
+    expires_at = document.expires_at
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    if payload.decision == "approved" and expires_at and expires_at <= datetime.now(UTC):
+        raise HTTPException(status_code=409, detail="Expired evidence cannot be approved.")
+    vehicle = db.get(Vehicle, document.vehicle_id)
+    document.status = payload.decision
+    document.reviewed_by = context.user.id
+    document.review_reason = payload.reason.strip()
+    document.reviewed_at = datetime.now(UTC)
+    _audit(db, context=context, event="fleet.compliance.reviewed", resource_type="vehicle_compliance_document",
+           resource_id=document.id, action="review", organization_id=vehicle.organization_id if vehicle else None,
+           reason=document.review_reason, metadata={"decision": document.status})
+    db.commit()
+    return {"id": str(document.id), "status": document.status, "reviewed_at": document.reviewed_at.isoformat()}
+
+
+@router.get("/vehicles/{vehicle_id}/history")
+def get_vehicle_review_history(
+    vehicle_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    vehicle = db.get(Vehicle, vehicle_id)
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    if not has_permission(db, user_id=context.user.id, permission_code="platform.fleet.review", organization_id=None):
+        _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
+    documents = db.scalars(select(VehicleComplianceDocument).where(
+        VehicleComplianceDocument.vehicle_id == vehicle.id
+    ).order_by(VehicleComplianceDocument.created_at.desc())).all()
+    layout_ids = db.scalars(select(SeatLayoutVersion.id).where(
+        SeatLayoutVersion.vehicle_id == vehicle.id
+    )).all()
+    resource_ids = [str(vehicle.id), *[str(item.id) for item in documents], *[str(item) for item in layout_ids]]
+    events = db.scalars(select(AuditEvent).where(
+        AuditEvent.organization_id == vehicle.organization_id,
+        AuditEvent.resource_id.in_(resource_ids),
+    ).order_by(AuditEvent.occurred_at.desc()).limit(100)).all()
+    return {
+        "documents": [{
+            "id": str(item.id), "document_type": item.document_type,
+            "status": (
+                "expired" if item.status == "pending" and item.expires_at and
+                (item.expires_at.replace(tzinfo=UTC) if item.expires_at.tzinfo is None else item.expires_at) <= datetime.now(UTC)
+                else item.status
+            ),
+            "evidence_reference": item.evidence_reference, "issued_at": item.issued_at.isoformat() if item.issued_at else None,
+            "expires_at": item.expires_at.isoformat() if item.expires_at else None,
+            "review_reason": item.review_reason, "created_at": item.created_at.isoformat() if item.created_at else None,
+        } for item in documents],
+        "events": [{
+            "event_type": item.event_type, "occurred_at": item.occurred_at.isoformat(),
+            "action": item.action, "outcome": item.outcome, "reason_code": item.reason_code,
+            "metadata": item.metadata_redacted or {},
+        } for item in events],
+    }
 
 
 @router.post("/seat-layouts/{layout_id}/approve")
@@ -561,8 +858,8 @@ def create_trip(
     terminal = db.get(Terminal, payload.boarding_terminal_id)
     vehicle = db.get(Vehicle, payload.vehicle_id)
     layout = db.get(SeatLayoutVersion, payload.seat_layout_version_id)
-    if operator is None or operator.status != "approved":
-        raise HTTPException(status_code=409, detail="Operator is not approved.")
+    if operator is None or operator.organization_type != "operator" or operator.status != "approved":
+        raise HTTPException(status_code=409, detail="An approved operator organization is required.")
     if route is None or route.status != "published":
         raise HTTPException(status_code=409, detail="Route is not published.")
     if terminal is None or terminal.status != "published" or terminal.location_id != route.origin_location_id:
@@ -592,6 +889,61 @@ def create_trip(
     ])
     _audit(db, context=context, event="trip.created", resource_type="trip",
            resource_id=trip.id, action="create", organization_id=organization_id)
+    db.commit()
+    return {"id": str(trip.id), "status": trip.status, "seat_count": len(seats)}
+
+
+@router.patch("/trips/{trip_id}")
+def update_trip_draft(
+    trip_id: UUID, payload: TripDraftUpdate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    trip = db.scalar(select(Trip).where(Trip.id == trip_id).with_for_update())
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found.")
+    _authorize(db, context, "operator.trip.manage", trip.organization_id)
+    if trip.status != "draft":
+        raise HTTPException(status_code=409, detail="Only draft trips can be edited.")
+    if payload.departure_at.tzinfo is None or (payload.arrival_estimate_at and payload.arrival_estimate_at.tzinfo is None):
+        raise HTTPException(status_code=422, detail="Trip timestamps must include a timezone.")
+    if payload.arrival_estimate_at is not None and payload.arrival_estimate_at <= payload.departure_at:
+        raise HTTPException(status_code=422, detail="Arrival estimate must be later than departure.")
+    route = db.get(Route, payload.route_id)
+    terminal = db.get(Terminal, payload.boarding_terminal_id)
+    vehicle = db.get(Vehicle, payload.vehicle_id)
+    layout = db.get(SeatLayoutVersion, payload.seat_layout_version_id)
+    if route is None or route.status != "published":
+        raise HTTPException(status_code=409, detail="Route is not published.")
+    if terminal is None or terminal.status != "published" or terminal.location_id != route.origin_location_id:
+        raise HTTPException(status_code=409, detail="Boarding terminal must be published at the route origin.")
+    if vehicle is None or vehicle.organization_id != trip.organization_id or vehicle.status != "active" or vehicle.review_status != "approved":
+        raise HTTPException(status_code=409, detail="Vehicle must be approved and belong to this operator.")
+    if layout is None or layout.vehicle_id != vehicle.id or layout.status != "approved":
+        raise HTTPException(status_code=409, detail="Seat layout must be approved for the selected vehicle.")
+    seats = db.scalars(select(VehicleSeat).where(
+        VehicleSeat.seat_layout_version_id == layout.id,
+        VehicleSeat.is_sellable.is_(True),
+    ).order_by(VehicleSeat.seat_code)).all()
+    if not seats:
+        raise HTTPException(status_code=409, detail="Approved seat layout has no sellable seats.")
+    trip.route_id = route.id
+    trip.boarding_terminal_id = terminal.id
+    trip.vehicle_id = vehicle.id
+    trip.seat_layout_version_id = layout.id
+    trip.departure_at = payload.departure_at
+    trip.arrival_estimate_at = payload.arrival_estimate_at
+    for existing in db.scalars(select(TripSeat).where(TripSeat.trip_id == trip.id)).all():
+        db.delete(existing)
+    db.flush()
+    db.add_all([
+        TripSeat(trip_id=trip.id, vehicle_seat_id=seat.id,
+                 seat_code_snapshot=seat.seat_code, sellable_status="sellable")
+        for seat in seats
+    ])
+    _audit(db, context=context, event="trip.draft.updated", resource_type="trip",
+           resource_id=trip.id, action="update", organization_id=trip.organization_id,
+           metadata={"seat_count": len(seats)})
     db.commit()
     return {"id": str(trip.id), "status": trip.status, "seat_count": len(seats)}
 
@@ -723,6 +1075,16 @@ def create_fare(
 ) -> dict:
     _require_mutation(request, context)
     _authorize(db, context, "operator.fare.propose", organization_id)
+    operator = db.get(Organization, organization_id)
+    route = db.get(Route, payload.route_id)
+    if operator is None or operator.organization_type != "operator" or operator.status != "approved":
+        raise HTTPException(status_code=409, detail="An approved operator organization is required.")
+    if route is None or route.status != "published":
+        raise HTTPException(status_code=409, detail="Fare proposals require a published route.")
+    if payload.trip_id is not None:
+        trip = db.get(Trip, payload.trip_id)
+        if trip is None or trip.organization_id != organization_id or trip.route_id != payload.route_id or trip.status not in {"approved", "published"}:
+            raise HTTPException(status_code=409, detail="Trip-specific fare must reference an approved trip for this operator and route.")
     try:
         version = propose_fare(
             db, organization_id=organization_id, route_id=payload.route_id,
@@ -1129,3 +1491,751 @@ def list_audit_events(
         "outcome": item.outcome, "reason_code": item.reason_code,
         "metadata": item.metadata_redacted,
     } for item in events]
+
+
+
+@router.get("/catalog/locations")
+def list_catalog_locations(
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.catalog.manage")
+    items = db.scalars(select(Location).order_by(Location.name, Location.id).limit(200)).all()
+    return [
+        {"id": str(item.id), "name": item.name, "location_type": item.location_type, "status": item.status}
+        for item in items
+    ]
+
+
+@router.get("/catalog/terminals")
+def list_catalog_terminals(
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.catalog.manage")
+    items = db.scalars(select(Terminal).order_by(Terminal.name, Terminal.id).limit(200)).all()
+    locations = {
+        item.id: item.name
+        for item in db.scalars(select(Location).where(Location.id.in_({item.location_id for item in items}))).all()
+    } if items else {}
+    return [
+        {"id": str(item.id), "location_id": str(item.location_id),
+         "location_name": locations.get(item.location_id, "Unknown location"),
+         "name": item.name, "status": item.status}
+        for item in items
+    ]
+
+
+@router.get("/catalog/routes")
+def list_catalog_routes(
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.catalog.manage")
+    items = db.scalars(select(Route).order_by(Route.code, Route.id).limit(200)).all()
+    location_ids = {item.origin_location_id for item in items} | {item.destination_location_id for item in items}
+    locations = {
+        item.id: item.name
+        for item in db.scalars(select(Location).where(Location.id.in_(location_ids))).all()
+    } if location_ids else {}
+    stop_rows = db.execute(
+        select(RouteStop, Location.name).join(Location, Location.id == RouteStop.location_id)
+        .where(RouteStop.route_id.in_([item.id for item in items]))
+        .order_by(RouteStop.route_id, RouteStop.sequence_number)
+    ).all() if items else []
+    route_stops_by_route: dict[UUID, list[dict]] = {}
+    for stop, location_name in stop_rows:
+        route_stops_by_route.setdefault(stop.route_id, []).append({
+            "id": str(stop.id), "location_id": str(stop.location_id),
+            "location_name": location_name, "sequence_number": stop.sequence_number,
+            "boarding_allowed": stop.boarding_allowed, "alighting_allowed": stop.alighting_allowed,
+            "status": stop.status,
+        })
+    return [
+        {"id": str(item.id), "code": item.code,
+         "origin_location_id": str(item.origin_location_id),
+         "origin_name": locations.get(item.origin_location_id, "Unknown location"),
+         "destination_location_id": str(item.destination_location_id),
+         "destination_name": locations.get(item.destination_location_id, "Unknown location"),
+         "status": item.status,
+         "stops": [
+             {"id": str(stop.id), "location_id": str(stop.location_id),
+              "location_name": stop.location_name, "sequence_number": stop.sequence_number,
+              "boarding_allowed": stop.boarding_allowed, "alighting_allowed": stop.alighting_allowed,
+              "status": stop.status}
+             for stop in route_stops_by_route.get(item.id, [])
+         ]}
+        for item in items
+    ]
+
+
+
+@router.patch("/catalog/locations/{location_id}")
+def update_catalog_location(
+    location_id: UUID, payload: LocationUpdate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.catalog.manage")
+    item = db.scalar(select(Location).where(Location.id == location_id).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Location not found.")
+    if item.status != "draft":
+        raise HTTPException(status_code=409, detail="Only draft locations can be edited.")
+    values = payload.model_dump(exclude_unset=True)
+    if not values or any(value is None for value in values.values()):
+        raise HTTPException(status_code=422, detail="Provide non-null fields to update.")
+    for key, value in values.items():
+        setattr(item, key, value.strip() if isinstance(value, str) else value)
+    _audit(db, context=context, event="catalog.location.updated", resource_type="location",
+           resource_id=item.id, action="update")
+    db.commit()
+    return {"id": str(item.id), "name": item.name, "location_type": item.location_type, "status": item.status}
+
+
+@router.patch("/catalog/terminals/{terminal_id}")
+def update_catalog_terminal(
+    terminal_id: UUID, payload: TerminalUpdate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.catalog.manage")
+    item = db.scalar(select(Terminal).where(Terminal.id == terminal_id).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Terminal not found.")
+    if item.status != "draft":
+        raise HTTPException(status_code=409, detail="Only draft terminals can be edited.")
+    values = payload.model_dump(exclude_unset=True)
+    if not values:
+        raise HTTPException(status_code=422, detail="At least one field is required.")
+    if "location_id" in values:
+        location = db.get(Location, values["location_id"])
+        if location is None or location.status != "published":
+            raise HTTPException(status_code=409, detail="Terminal location must be published.")
+    for key, value in values.items():
+        setattr(item, key, value.strip() if isinstance(value, str) else value)
+    _audit(db, context=context, event="catalog.terminal.updated", resource_type="terminal",
+           resource_id=item.id, action="update")
+    db.commit()
+    return {"id": str(item.id), "name": item.name, "location_id": str(item.location_id), "status": item.status}
+
+
+@router.patch("/catalog/routes/{route_id}")
+def update_catalog_route(
+    route_id: UUID, payload: RouteUpdate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.catalog.manage")
+    item = db.scalar(select(Route).where(Route.id == route_id).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Route not found.")
+    if item.status != "draft":
+        raise HTTPException(status_code=409, detail="Only draft routes can be edited.")
+    values = payload.model_dump(exclude_unset=True)
+    if not values or any(value is None for value in values.values()):
+        raise HTTPException(status_code=422, detail="Provide non-null fields to update.")
+    origin = values.get("origin_location_id", item.origin_location_id)
+    destination = values.get("destination_location_id", item.destination_location_id)
+    if origin == destination:
+        raise HTTPException(status_code=422, detail="Route origin and destination must differ.")
+    published_locations = set(db.scalars(select(Location.id).where(
+        Location.id.in_([origin, destination]), Location.status == "published"
+    )).all())
+    if published_locations != {origin, destination}:
+        raise HTTPException(status_code=409, detail="Both route locations must be published.")
+    if "code" in values:
+        values["code"] = values["code"].strip().upper()
+    for key, value in values.items():
+        setattr(item, key, value)
+    stops = list(db.scalars(select(RouteStop).where(
+        RouteStop.route_id == item.id
+    ).order_by(RouteStop.sequence_number).with_for_update()))
+    if stops:
+        stops[0].location_id = origin
+        stops[-1].location_id = destination
+    _audit(db, context=context, event="catalog.route.updated", resource_type="route",
+           resource_id=item.id, action="update")
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Route code already exists.")
+    return {"id": str(item.id), "code": item.code, "status": item.status}
+
+
+@router.put("/catalog/routes/{route_id}/stops")
+def replace_catalog_route_stops(
+    route_id: UUID, payload: RouteStopsUpdate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.catalog.manage")
+    route = db.scalar(select(Route).where(Route.id == route_id).with_for_update())
+    if route is None:
+        raise HTTPException(status_code=404, detail="Route not found.")
+    if route.status != "draft":
+        raise HTTPException(status_code=409, detail="Stops can only be changed on draft routes.")
+    location_ids = [stop.location_id for stop in payload.stops]
+    if len(set(location_ids)) != len(location_ids):
+        raise HTTPException(status_code=422, detail="A route cannot visit the same location more than once.")
+    if location_ids[0] != route.origin_location_id or location_ids[-1] != route.destination_location_id:
+        raise HTTPException(status_code=422, detail="The first and last stops must match the route origin and destination.")
+    published_ids = set(db.scalars(select(Location.id).where(
+        Location.id.in_(location_ids), Location.status == "published"
+    )).all())
+    if published_ids != set(location_ids):
+        raise HTTPException(status_code=409, detail="Every route stop must reference a published location.")
+    old_stops = list(db.scalars(select(RouteStop).where(
+        RouteStop.route_id == route.id
+    ).with_for_update()))
+    for stop in old_stops:
+        db.delete(stop)
+    db.flush()
+    stops = [
+        RouteStop(
+            route_id=route.id, location_id=stop.location_id, sequence_number=index,
+            boarding_allowed=stop.boarding_allowed, alighting_allowed=stop.alighting_allowed,
+            status="draft",
+        )
+        for index, stop in enumerate(payload.stops, start=1)
+    ]
+    db.add_all(stops)
+    _audit(db, context=context, event="catalog.route.stops_replaced", resource_type="route",
+           resource_id=route.id, action="update", metadata={"stop_count": len(stops)})
+    db.commit()
+    return {"route_id": str(route.id), "stops": len(stops)}
+
+
+@router.post("/catalog/locations/{location_id}/archive")
+def archive_catalog_location(
+    location_id: UUID, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.catalog.manage")
+    item = db.scalar(select(Location).where(Location.id == location_id).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Location not found.")
+    if item.status == "archived":
+        raise HTTPException(status_code=409, detail="Location is already archived.")
+    references = (
+        db.scalar(select(Terminal.id).where(Terminal.location_id == item.id).limit(1))
+        or db.scalar(select(Route.id).where(
+            (Route.origin_location_id == item.id) | (Route.destination_location_id == item.id)
+        ).limit(1))
+        or db.scalar(select(RouteStop.id).where(RouteStop.location_id == item.id).limit(1))
+    )
+    if references:
+        raise HTTPException(status_code=409, detail="Location is referenced by a terminal or route and cannot be archived.")
+    item.status = "archived"
+    _audit(db, context=context, event="catalog.location.archived", resource_type="location",
+           resource_id=item.id, action="archive")
+    db.commit()
+    return {"id": str(item.id), "status": item.status}
+
+
+@router.post("/catalog/terminals/{terminal_id}/archive")
+def archive_catalog_terminal(
+    terminal_id: UUID, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.catalog.manage")
+    item = db.scalar(select(Terminal).where(Terminal.id == terminal_id).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Terminal not found.")
+    if item.status == "archived":
+        raise HTTPException(status_code=409, detail="Terminal is already archived.")
+    if db.scalar(select(Trip.id).where(Trip.boarding_terminal_id == item.id).limit(1)):
+        raise HTTPException(status_code=409, detail="Terminal is referenced by a trip and cannot be archived.")
+    item.status = "archived"
+    _audit(db, context=context, event="catalog.terminal.archived", resource_type="terminal",
+           resource_id=item.id, action="archive")
+    db.commit()
+    return {"id": str(item.id), "status": item.status}
+
+
+@router.post("/catalog/routes/{route_id}/archive")
+def archive_catalog_route(
+    route_id: UUID, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.catalog.manage")
+    item = db.scalar(select(Route).where(Route.id == route_id).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Route not found.")
+    if item.status == "archived":
+        raise HTTPException(status_code=409, detail="Route is already archived.")
+    references = (
+        db.scalar(select(Schedule.id).where(Schedule.route_id == item.id).limit(1))
+        or db.scalar(select(Trip.id).where(Trip.route_id == item.id).limit(1))
+        or db.scalar(select(Fare.id).where(Fare.route_id == item.id).limit(1))
+    )
+    if references:
+        raise HTTPException(status_code=409, detail="Route is referenced by a schedule, trip or fare and cannot be archived.")
+    item.status = "archived"
+    for stop in db.scalars(select(RouteStop).where(RouteStop.route_id == item.id).with_for_update()):
+        stop.status = "archived"
+    _audit(db, context=context, event="catalog.route.archived", resource_type="route",
+           resource_id=item.id, action="archive")
+    db.commit()
+    return {"id": str(item.id), "status": item.status}
+
+
+
+def _fleet_payload(db: Session, vehicles: list[Vehicle]) -> list[dict]:
+    if not vehicles:
+        return []
+    organization_ids = {item.organization_id for item in vehicles}
+    organizations = {
+        item.id: item.display_name
+        for item in db.scalars(select(Organization).where(Organization.id.in_(organization_ids))).all()
+    }
+    layouts = list(db.scalars(select(SeatLayoutVersion).where(
+        SeatLayoutVersion.vehicle_id.in_([item.id for item in vehicles])
+    ).order_by(SeatLayoutVersion.vehicle_id, SeatLayoutVersion.version_number.desc())).all())
+    layout_ids = [item.id for item in layouts]
+    counts = dict(db.execute(
+        select(VehicleSeat.seat_layout_version_id, func.count(VehicleSeat.id))
+        .where(VehicleSeat.seat_layout_version_id.in_(layout_ids))
+        .group_by(VehicleSeat.seat_layout_version_id)
+    ).all()) if layout_ids else {}
+    by_vehicle: dict[UUID, list[dict]] = {}
+    for layout in layouts:
+        by_vehicle.setdefault(layout.vehicle_id, []).append({
+            "id": str(layout.id), "version_number": layout.version_number,
+            "status": layout.status, "seat_count": counts.get(layout.id, 0),
+        })
+    return [{
+        "id": str(vehicle.id), "organization_id": str(vehicle.organization_id),
+        "organization_name": organizations.get(vehicle.organization_id, "Unknown operator"),
+        "vehicle_reference": vehicle.vehicle_reference, "status": vehicle.status,
+        "review_status": vehicle.review_status, "created_at": vehicle.created_at.isoformat() if vehicle.created_at else None,
+        "seat_layouts": by_vehicle.get(vehicle.id, []),
+    } for vehicle in vehicles]
+
+
+@router.get("/admin/fleet/vehicles")
+def list_platform_fleet(
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.fleet.review")
+    vehicles = db.scalars(select(Vehicle).order_by(Vehicle.created_at.desc(), Vehicle.id).limit(300)).all()
+    return _fleet_payload(db, vehicles)
+
+
+@router.get("/operators/{organization_id}/fleet")
+def list_operator_fleet(
+    organization_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "operator.fleet.manage", organization_id)
+    operator = db.get(Organization, organization_id)
+    if operator is None or operator.organization_type != "operator":
+        raise HTTPException(status_code=404, detail="Operator organization not found.")
+    vehicles = db.scalars(select(Vehicle).where(
+        Vehicle.organization_id == organization_id
+    ).order_by(Vehicle.created_at.desc(), Vehicle.id).limit(300)).all()
+    return _fleet_payload(db, vehicles)
+
+
+@router.get("/vehicles/{vehicle_id}/seat-layouts")
+def list_vehicle_seat_layouts(
+    vehicle_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    vehicle = db.get(Vehicle, vehicle_id)
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    if not has_permission(db, user_id=context.user.id, permission_code="platform.fleet.review", organization_id=None):
+        _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
+    layouts = db.scalars(select(SeatLayoutVersion).where(
+        SeatLayoutVersion.vehicle_id == vehicle.id
+    ).order_by(SeatLayoutVersion.version_number.desc())).all()
+    results = []
+    for layout in layouts:
+        seats = db.scalars(select(VehicleSeat).where(
+            VehicleSeat.seat_layout_version_id == layout.id
+        ).order_by(VehicleSeat.row_label, VehicleSeat.seat_code)).all()
+        results.append({
+            "id": str(layout.id), "version_number": layout.version_number, "status": layout.status,
+            "geometry": layout.geometry_metadata or {"width": 100, "height": 100, "markers": []},
+            "effective_from": layout.effective_from.isoformat() if layout.effective_from else None,
+            "effective_to": layout.effective_to.isoformat() if layout.effective_to else None,
+            "seats": [{
+                "id": str(seat.id), "seat_code": seat.seat_code, "row_label": seat.row_label,
+                "column_index": (seat.position_metadata or {}).get("column_index", 0),
+                "x": (seat.position_metadata or {}).get("x", 0),
+                "y": (seat.position_metadata or {}).get("y", 0),
+                "seat_type": seat.seat_type, "is_sellable": seat.is_sellable,
+            } for seat in seats],
+        })
+    return results
+
+
+@router.patch("/vehicles/{vehicle_id}")
+def update_fleet_vehicle(
+    vehicle_id: UUID, payload: VehicleUpdate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    vehicle = db.scalar(select(Vehicle).where(Vehicle.id == vehicle_id).with_for_update())
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
+    if vehicle.status != "draft" or vehicle.review_status != "pending":
+        raise HTTPException(status_code=409, detail="Only pending vehicle drafts can be edited.")
+    reference = payload.vehicle_reference.strip()
+    duplicate = db.scalar(select(Vehicle.id).where(
+        Vehicle.organization_id == vehicle.organization_id,
+        Vehicle.vehicle_reference == reference, Vehicle.id != vehicle.id,
+    ).limit(1))
+    if duplicate:
+        raise HTTPException(status_code=409, detail="Vehicle reference already exists for this operator.")
+    vehicle.vehicle_reference = reference
+    _audit(db, context=context, event="fleet.vehicle.updated", resource_type="vehicle",
+           resource_id=vehicle.id, action="update", organization_id=vehicle.organization_id)
+    db.commit()
+    return {"id": str(vehicle.id), "vehicle_reference": vehicle.vehicle_reference,
+            "status": vehicle.status, "review_status": vehicle.review_status}
+
+
+@router.put("/seat-layouts/{layout_id}")
+def update_draft_seat_layout(
+    layout_id: UUID, payload: SeatLayoutCreate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    layout = db.scalar(select(SeatLayoutVersion).where(
+        SeatLayoutVersion.id == layout_id
+    ).with_for_update())
+    if layout is None:
+        raise HTTPException(status_code=404, detail="Seat layout not found.")
+    vehicle = db.get(Vehicle, layout.vehicle_id)
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
+    if layout.status != "draft":
+        raise HTTPException(status_code=409, detail="Only draft seat layouts can be edited.")
+    if vehicle.status != "active" or vehicle.review_status != "approved":
+        raise HTTPException(status_code=409, detail="Vehicle must remain approved to edit its seat layout.")
+    if bool(payload.seat_codes) == bool(payload.seats):
+        raise HTTPException(status_code=422, detail="Provide either seat_codes or structured seats.")
+    layout.geometry_metadata = payload.geometry.model_dump()
+    if payload.seats:
+        seat_rows = [{
+            "seat_code": item.seat_code.strip().upper(),
+            "row_label": item.row_label.strip().upper() if item.row_label else None,
+            "column_index": item.column_index, "x": item.x, "y": item.y,
+            "seat_type": item.seat_type, "is_sellable": item.is_sellable,
+        } for item in payload.seats]
+    else:
+        seat_rows = [{
+            "seat_code": code.strip().upper(), "row_label": None,
+            "column_index": index, "x": None, "y": None, "seat_type": "standard", "is_sellable": True,
+        } for index, code in enumerate(payload.seat_codes)]
+    codes = [item["seat_code"] for item in seat_rows]
+    positions = [(item["row_label"], item["column_index"]) for item in seat_rows if item["row_label"] is not None]
+    if any(not code or len(code) > 16 for code in codes) or len(set(codes)) != len(codes):
+        raise HTTPException(status_code=422, detail="Seat codes must be unique and 1–16 characters.")
+    if len(set(positions)) != len(positions):
+        raise HTTPException(status_code=422, detail="Seat positions must be unique within each row.")
+    coordinates = [(item["x"], item["y"]) for item in seat_rows if item["x"] is not None or item["y"] is not None]
+    if any((item["x"] is None) != (item["y"] is None) for item in seat_rows):
+        raise HTTPException(status_code=422, detail="Seat geometry coordinates must provide both x and y.")
+    if len(set(coordinates)) != len(coordinates):
+        raise HTTPException(status_code=422, detail="Seat geometry coordinates must be unique.")
+    for seat in db.scalars(select(VehicleSeat).where(
+        VehicleSeat.seat_layout_version_id == layout.id
+    ).with_for_update()):
+        db.delete(seat)
+    db.flush()
+    db.add_all([
+        VehicleSeat(
+            seat_layout_version_id=layout.id, seat_code=item["seat_code"],
+            row_label=item["row_label"],
+            position_metadata={
+                "column_index": item["column_index"],
+                "x": item["x"] if item["x"] is not None else min(100, item["column_index"] * 5),
+                "y": item["y"] if item["y"] is not None else min(100, (ord(item["row_label"][0]) - 65) * 5) if item["row_label"] else 0,
+            },
+            seat_type=item["seat_type"], is_sellable=item["is_sellable"],
+        ) for item in seat_rows
+    ])
+    _audit(db, context=context, event="fleet.seat_layout.updated",
+           resource_type="seat_layout_version", resource_id=layout.id,
+           action="update", organization_id=vehicle.organization_id,
+           metadata={"seat_count": len(seat_rows)})
+    db.commit()
+    return {"id": str(layout.id), "version_number": layout.version_number,
+            "seat_count": len(seat_rows), "status": layout.status}
+
+
+def _trip_payload(db: Session, trips: list[Trip]) -> list[dict]:
+    if not trips:
+        return []
+    route_ids = {item.route_id for item in trips}
+    terminal_ids = {item.boarding_terminal_id for item in trips}
+    vehicle_ids = {item.vehicle_id for item in trips}
+    organization_ids = {item.organization_id for item in trips}
+    trip_ids = [item.id for item in trips]
+    routes = {item.id: item for item in db.scalars(select(Route).where(Route.id.in_(route_ids))).all()}
+    terminals = {item.id: item for item in db.scalars(select(Terminal).where(Terminal.id.in_(terminal_ids))).all()}
+    vehicles = {item.id: item for item in db.scalars(select(Vehicle).where(Vehicle.id.in_(vehicle_ids))).all()}
+    organizations = {item.id: item for item in db.scalars(select(Organization).where(Organization.id.in_(organization_ids))).all()}
+    seat_counts = dict(db.execute(
+        select(TripSeat.trip_id, func.count(TripSeat.id))
+        .where(TripSeat.trip_id.in_(trip_ids)).group_by(TripSeat.trip_id)
+    ).all())
+    return [{
+        "id": str(trip.id), "organization_id": str(trip.organization_id),
+        "organization_name": organizations[trip.organization_id].display_name if trip.organization_id in organizations else "Unknown operator",
+        "route_id": str(trip.route_id), "route_code": routes[trip.route_id].code if trip.route_id in routes else "Unknown route",
+        "boarding_terminal_id": str(trip.boarding_terminal_id),
+        "boarding_terminal_name": terminals[trip.boarding_terminal_id].name if trip.boarding_terminal_id in terminals else "Unknown terminal",
+        "vehicle_id": str(trip.vehicle_id),
+        "vehicle_reference": vehicles[trip.vehicle_id].vehicle_reference if trip.vehicle_id in vehicles else "Unknown vehicle",
+        "seat_layout_version_id": str(trip.seat_layout_version_id),
+        "departure_at": trip.departure_at.isoformat(),
+        "arrival_estimate_at": trip.arrival_estimate_at.isoformat() if trip.arrival_estimate_at else None,
+        "status": trip.status, "seat_count": seat_counts.get(trip.id, 0),
+        "published_at": trip.published_at.isoformat() if trip.published_at else None,
+    } for trip in trips]
+
+
+@router.get("/operators/{organization_id}/dispatch/options")
+def get_operator_dispatch_options(
+    organization_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _authorize(db, context, "operator.trip.manage", organization_id)
+    operator = db.get(Organization, organization_id)
+    if operator is None or operator.organization_type != "operator" or operator.status != "approved":
+        raise HTTPException(status_code=409, detail="An approved operator organization is required.")
+    routes = db.scalars(select(Route).where(Route.status == "published").order_by(Route.code).limit(300)).all()
+    published_locations = select(Location.id).where(Location.status == "published")
+    terminals = db.scalars(select(Terminal).where(
+        Terminal.status == "published", Terminal.location_id.in_(published_locations)
+    ).order_by(Terminal.name).limit(300)).all()
+    vehicles = db.scalars(select(Vehicle).where(
+        Vehicle.organization_id == organization_id, Vehicle.status == "active",
+        Vehicle.review_status == "approved",
+    ).order_by(Vehicle.vehicle_reference).limit(200)).all()
+    vehicle_ids = [vehicle.id for vehicle in vehicles]
+    layouts = db.scalars(select(SeatLayoutVersion).where(
+        SeatLayoutVersion.vehicle_id.in_(vehicle_ids), SeatLayoutVersion.status == "approved"
+    ).order_by(SeatLayoutVersion.vehicle_id, SeatLayoutVersion.version_number.desc())).all() if vehicle_ids else []
+    layout_counts = dict(db.execute(
+        select(VehicleSeat.seat_layout_version_id, func.count(VehicleSeat.id))
+        .where(VehicleSeat.seat_layout_version_id.in_([item.id for item in layouts]),
+               VehicleSeat.is_sellable.is_(True))
+        .group_by(VehicleSeat.seat_layout_version_id)
+    ).all()) if layouts else {}
+    layouts_by_vehicle: dict[UUID, list[dict]] = {}
+    for layout in layouts:
+        layouts_by_vehicle.setdefault(layout.vehicle_id, []).append({
+            "id": str(layout.id), "version_number": layout.version_number,
+            "seat_count": layout_counts.get(layout.id, 0),
+        })
+    return {
+        "routes": [{
+            "id": str(route.id), "code": route.code,
+            "origin_location_id": str(route.origin_location_id),
+            "destination_location_id": str(route.destination_location_id),
+        } for route in routes],
+        "terminals": [{
+            "id": str(terminal.id), "location_id": str(terminal.location_id),
+            "name": terminal.name,
+        } for terminal in terminals],
+        "vehicles": [{
+            "id": str(vehicle.id), "vehicle_reference": vehicle.vehicle_reference,
+            "seat_layouts": layouts_by_vehicle.get(vehicle.id, []),
+        } for vehicle in vehicles],
+    }
+
+
+@router.get("/operators/{organization_id}/trips")
+def list_operator_trips(
+    organization_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "operator.trip.manage", organization_id)
+    trips = db.scalars(select(Trip).where(
+        Trip.organization_id == organization_id
+    ).order_by(Trip.departure_at.desc(), Trip.id).limit(300)).all()
+    return _trip_payload(db, trips)
+
+
+@router.get("/admin/dispatch/trips")
+def list_platform_dispatch_trips(
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.trip.approve")
+    trips = db.scalars(select(Trip).order_by(Trip.departure_at.desc(), Trip.id).limit(500)).all()
+    return _trip_payload(db, trips)
+
+
+@router.post("/trips/{trip_id}/exceptions", status_code=status.HTTP_201_CREATED)
+def report_trip_operational_exception(
+    trip_id: UUID, payload: OperationalExceptionCreate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    trip = db.get(Trip, trip_id)
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found.")
+    _authorize(db, context, "operator.trip.manage", trip.organization_id)
+    if trip.status in {"completed", "cancelled"}:
+        raise HTTPException(status_code=409, detail="Operational exceptions cannot be added to completed or cancelled trips.")
+    exception = TripOperationalException(
+        trip_id=trip.id, organization_id=trip.organization_id,
+        category=payload.category, severity=payload.severity,
+        description=payload.description.strip(), status="open", created_by=context.user.id,
+    )
+    db.add(exception)
+    db.flush()
+    _audit(db, context=context, event="trip.exception.reported", resource_type="trip_operational_exception",
+           resource_id=exception.id, action="report", organization_id=trip.organization_id,
+           metadata={"trip_id": str(trip.id), "category": exception.category, "severity": exception.severity})
+    db.commit()
+    return {"id": str(exception.id), "trip_id": str(trip.id), "status": exception.status}
+
+
+@router.get("/trips/{trip_id}/exceptions")
+def list_trip_operational_exceptions(
+    trip_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    trip = db.get(Trip, trip_id)
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found.")
+    if not has_permission(db, user_id=context.user.id, permission_code="platform.trip.approve", organization_id=None):
+        _authorize(db, context, "operator.trip.manage", trip.organization_id)
+    items = db.scalars(select(TripOperationalException).where(
+        TripOperationalException.trip_id == trip.id,
+        TripOperationalException.organization_id == trip.organization_id,
+    ).order_by(TripOperationalException.created_at.desc())).all()
+    return [{
+        "id": str(item.id), "category": item.category, "severity": item.severity,
+        "description": item.description, "status": item.status,
+        "resolution": item.resolution,
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+        "resolved_at": item.resolved_at.isoformat() if item.resolved_at else None,
+    } for item in items]
+
+
+@router.post("/trip-exceptions/{exception_id}/resolve")
+def resolve_trip_operational_exception(
+    exception_id: UUID, payload: OperationalExceptionResolution, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    _authorize(db, context, "platform.trip.approve")
+    item = db.scalar(select(TripOperationalException).where(
+        TripOperationalException.id == exception_id
+    ).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Operational exception not found.")
+    if item.status != "open":
+        raise HTTPException(status_code=409, detail="Only open operational exceptions can be resolved.")
+    item.status = "resolved"
+    item.reviewed_by = context.user.id
+    item.resolution = payload.resolution.strip()
+    item.resolved_at = datetime.now(UTC)
+    _audit(db, context=context, event="trip.exception.resolved", resource_type="trip_operational_exception",
+           resource_id=item.id, action="resolve", organization_id=item.organization_id,
+           reason=item.resolution, metadata={"trip_id": str(item.trip_id)})
+    db.commit()
+    return {"id": str(item.id), "status": item.status, "resolved_at": item.resolved_at.isoformat()}
+
+
+def _fare_payload(db: Session, fares: list[Fare]) -> list[dict]:
+    if not fares:
+        return []
+    route_ids = {item.route_id for item in fares}
+    trip_ids = {item.trip_id for item in fares if item.trip_id is not None}
+    organization_ids = {item.organization_id for item in fares}
+    routes = {item.id: item for item in db.scalars(select(Route).where(Route.id.in_(route_ids))).all()}
+    trips = {item.id: item for item in db.scalars(select(Trip).where(Trip.id.in_(trip_ids))).all()} if trip_ids else {}
+    organizations = {item.id: item for item in db.scalars(select(Organization).where(Organization.id.in_(organization_ids))).all()}
+    versions = db.scalars(select(FareVersion).where(
+        FareVersion.fare_id.in_([item.id for item in fares])
+    ).order_by(FareVersion.fare_id, FareVersion.version_number.desc())).all()
+    version_ids = [item.id for item in versions]
+    approvals = db.scalars(select(FareApproval).where(
+        FareApproval.fare_version_id.in_(version_ids)
+    ).order_by(FareApproval.decided_at.desc())).all() if version_ids else []
+    by_version: dict[UUID, list[dict]] = {}
+    for approval in approvals:
+        by_version.setdefault(approval.fare_version_id, []).append({
+            "id": str(approval.id), "decision": approval.decision,
+            "reviewer_id": str(approval.reviewer_user_id), "reason": approval.reason,
+            "decided_at": approval.decided_at.isoformat() if approval.decided_at else None,
+        })
+    by_fare: dict[UUID, list[dict]] = {}
+    for version in versions:
+        by_fare.setdefault(version.fare_id, []).append({
+            "id": str(version.id), "version_number": version.version_number,
+            "amount_minor_units": version.amount_minor_units, "currency_code": version.currency_code,
+            "effective_from": version.effective_from.isoformat(),
+            "effective_to": version.effective_to.isoformat() if version.effective_to else None,
+            "status": version.status, "proposed_by": str(version.proposed_by),
+            "approved_by": str(version.approved_by) if version.approved_by else None,
+            "published_by": str(version.published_by) if version.published_by else None,
+            "published_at": version.published_at.isoformat() if version.published_at else None,
+            "approval_history": by_version.get(version.id, []),
+        })
+    return [{
+        "id": str(fare.id), "organization_id": str(fare.organization_id),
+        "organization_name": organizations[fare.organization_id].display_name if fare.organization_id in organizations else "Unknown operator",
+        "route_id": str(fare.route_id), "route_code": routes[fare.route_id].code if fare.route_id in routes else "Unknown route",
+        "trip_id": str(fare.trip_id) if fare.trip_id else None,
+        "trip_departure_at": trips[fare.trip_id].departure_at.isoformat() if fare.trip_id in trips else None,
+        "status": fare.status, "versions": by_fare.get(fare.id, []),
+    } for fare in fares]
+
+
+@router.get("/operators/{organization_id}/fare/options")
+def get_operator_fare_options(
+    organization_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _authorize(db, context, "operator.fare.propose", organization_id)
+    operator = db.get(Organization, organization_id)
+    if operator is None or operator.organization_type != "operator" or operator.status != "approved":
+        raise HTTPException(status_code=409, detail="An approved operator organization is required.")
+    routes = db.scalars(select(Route).where(Route.status == "published").order_by(Route.code).limit(300)).all()
+    routes_by_id = {item.id: item for item in routes}
+    trips = db.scalars(select(Trip).where(
+        Trip.organization_id == organization_id, Trip.status.in_(["approved", "published"])
+    ).order_by(Trip.departure_at.desc()).limit(300)).all()
+    return {
+        "routes": [{"id": str(item.id), "code": item.code} for item in routes],
+        "trips": [{"id": str(item.id), "route_id": str(item.route_id),
+                   "route_code": routes_by_id[item.route_id].code if item.route_id in routes_by_id else "Unknown route",
+                   "departure_at": item.departure_at.isoformat(), "status": item.status}
+                  for item in trips],
+    }
+
+
+@router.get("/operators/{organization_id}/fares")
+def list_operator_fares(
+    organization_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "operator.fare.propose", organization_id)
+    fares = db.scalars(select(Fare).where(
+        Fare.organization_id == organization_id
+    ).order_by(Fare.id.desc()).limit(300)).all()
+    return _fare_payload(db, fares)
+
+
+@router.get("/admin/fares")
+def list_platform_fares(
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.fare.approve")
+    fares = db.scalars(select(Fare).order_by(Fare.id.desc()).limit(500)).all()
+    return _fare_payload(db, fares)

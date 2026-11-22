@@ -1,0 +1,442 @@
+/// <reference types="vite/client" />
+
+const configuredBase = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+const API_ROOT = configuredBase ? `${configuredBase}/api/v1` : window.location.origin === "https://appassets.androidplatform.net" ? "" : "/api/v1";
+
+function csrfToken(): string | undefined {
+  const entry = document.cookie.split("; ").find((part) => part.startsWith("mnm_csrf="));
+  return entry ? decodeURIComponent(entry.slice("mnm_csrf=".length)) : undefined;
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (!API_ROOT) throw new Error("Staff account service is not configured for this app build.");
+  const headers = new Headers(init.headers);
+  if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (init.method && !["GET", "HEAD", "OPTIONS"].includes(init.method.toUpperCase())) {
+    const csrf = csrfToken();
+    if (csrf) headers.set("X-CSRF-Token", csrf);
+  }
+  const response = await fetch(`${API_ROOT}${path}`, { ...init, headers, credentials: "include" });
+  if (!response.ok) {
+    let message = "The staff service could not complete this request.";
+    try { const payload = await response.json() as { detail?: string }; if (payload.detail) message = payload.detail; } catch { /* safe generic error */ }
+    throw new Error(message);
+  }
+  if (response.status === 204) return undefined as T;
+  return await response.json() as T;
+}
+
+export type StaffRole = {
+  assignment_id?: string; id?: string; role_code?: string; code?: string;
+  role_description?: string; description?: string; organization_id?: string | null;
+  scope?: "platform" | "organization"; permissions?: string[]; assigned_at?: string;
+};
+export type StaffSession = {
+  id: string; display_name: string; login_identifier: string; expires_at: string;
+  roles: StaffRole[]; permissions: string[];
+};
+export type StaffDashboard = {
+  staff: { id: string; display_name: string; login_identifier: string };
+  roles: StaffRole[]; permissions: string[];
+  modules: Array<{ key: string; label: string }>;
+  scope: "platform" | "organization"; stats: Record<string, number>;
+  safety_boundaries: {
+    synthetic_data_only: boolean; real_money_enabled: boolean;
+    ticketing_enabled: boolean; boarding_authorized: boolean;
+    production_operations_enabled: boolean;
+  };
+};
+export type SchedulerStatus = {
+  job_name: string; health: "not_configured" | "healthy" | "degraded" | "stale";
+  worker_enabled_by_default: boolean; worker_mode: string;
+  backlog: { due_holds: number; oldest_due_at: string | null; oldest_due_age_seconds: number };
+  lease: null | {
+    owner_id: string; lease_expires_at: string; heartbeat_at: string;
+    heartbeat_age_seconds: number; last_success_at: string | null;
+    last_failure_at: string | null; last_error_code: string | null;
+    consecutive_failures: number; batches_completed: number;
+    records_processed: number; last_duration_ms: number | null;
+  };
+  runs: Array<{ id: string; worker_id: string; status: string; started_at: string;
+    finished_at: string | null; records_processed: number; duration_ms: number | null; error_code: string | null }>;
+  runtime: { app_env: string; synthetic_data_only: boolean; scheduler_enabled: boolean;
+    remote_database_allowed: boolean; production_operations_enabled: boolean };
+};
+export type StaffRoleDefinition = { id: string; code: string; description: string; scope: "platform" | "organization"; permissions: string[] };
+export type StaffUser = { id: string; display_name: string; login_identifier: string; status: string; roles: StaffRole[] };
+export type AuditItem = { id: string; event_type: string; occurred_at: string; actor_type: string; actor_id: string | null; resource_type: string; resource_id: string | null; action: string; outcome: string; reason_code: string | null; metadata: Record<string, unknown> };
+
+export function staffLogin(login_identifier: string, password: string): Promise<StaffSession> {
+  return request("/auth/sessions", { method: "POST", body: JSON.stringify({ login_identifier, password }) });
+}
+export function getStaffSession(): Promise<StaffSession> { return request("/auth/sessions/current"); }
+export function staffLogout(): Promise<void> { return request("/auth/sessions/current", { method: "DELETE" }); }
+export function getStaffDashboard(): Promise<StaffDashboard> { return request("/admin/dashboard"); }
+export function getSchedulerStatus(): Promise<SchedulerStatus> { return request("/admin/operations/scheduler"); }
+export function runSchedulerOnce(): Promise<{ status: string; records_processed?: number; duration_ms?: number }> {
+  return request("/admin/operations/scheduler/run-once", { method: "POST" });
+}
+export function getStaffRoles(): Promise<{ items: StaffRoleDefinition[] }> { return request("/admin/access/roles"); }
+export function getStaffUsers(): Promise<{ items: StaffUser[] }> { return request("/admin/access/users"); }
+export function assignStaffRole(userId: string, role_code: string, organization_id: string | null): Promise<unknown> {
+  return request(`/admin/access/users/${encodeURIComponent(userId)}/roles`, {
+    method: "POST", body: JSON.stringify({ role_code, organization_id }),
+  });
+}
+export function revokeStaffRole(assignmentId: string): Promise<{ revoked: boolean }> {
+  return request(`/admin/access/role-assignments/${encodeURIComponent(assignmentId)}`, { method: "DELETE" });
+}
+export function getStaffAudit(): Promise<AuditItem[]> { return request("/audit/events?limit=30"); }
+
+export type StaffOrganization = { id: string; display_name: string; status: string };
+export type StaffInvitation = { id: string; organization_id: string; organization_name: string;
+  login_identifier: string; display_name: string; role_code: string; created_at: string; expires_at: string };
+export function getStaffOrganizations(): Promise<{ items: StaffOrganization[] }> { return request("/admin/access/organizations"); }
+export function getStaffInvitations(): Promise<{ items: StaffInvitation[] }> { return request("/admin/access/invitations"); }
+export function createStaffInvitation(organizationId: string, input: {
+  login_identifier: string; display_name: string; role_code: string;
+}): Promise<{ invitation_id: string; login_identifier: string; expires_at: string;
+  delivery: string; synthetic_invitation_token: string }> {
+  return request(`/operators/${encodeURIComponent(organizationId)}/invitations`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+export function revokeStaffInvitation(organizationId: string, invitationId: string): Promise<{ revoked: boolean }> {
+  return request(`/operators/${encodeURIComponent(organizationId)}/invitations/${encodeURIComponent(invitationId)}/revoke`, { method: "POST" });
+}
+
+export type StaffSupportCase = {
+  id: string; case_reference: string; subject: string; category: string; message: string;
+  status: string; assigned_to: string | null; created_at: string;
+};
+export type StaffPassengerReport = {
+  id: string; report_reference: string; report_type: string; category: string;
+  severity: string; subject: string; description: string; status: string;
+  assigned_to: string | null; created_at: string;
+  attachments: Array<{ id: string; file_name: string; content_type: string; size_bytes: number; sha256: string }>;
+};
+export async function getStaffSupportQueues(): Promise<{
+  bookingCases: StaffSupportCase[]; passengerCases: StaffSupportCase[]; reports: StaffPassengerReport[];
+}> {
+  const [bookingCases, passengerCases, reports] = await Promise.all([
+    request<StaffSupportCase[]>("/support/cases?limit=100"),
+    request<StaffSupportCase[]>("/support/passenger-cases?limit=100"),
+    request<StaffPassengerReport[]>("/reports/passenger?limit=100"),
+  ]);
+  return { bookingCases, passengerCases, reports };
+}
+export function claimStaffSupportItem(kind: "booking" | "passenger" | "report", id: string): Promise<unknown> {
+  const path = kind === "booking" ? "support/cases" :
+    kind === "passenger" ? "support/passenger-cases" : "reports/passenger";
+  return request(`/${path}/${encodeURIComponent(id)}/claim`, { method: "POST" });
+}
+export function resolveStaffSupportItem(
+  kind: "booking" | "passenger", id: string,
+  input: { resolution_code: string; resolution_note: string },
+): Promise<unknown> {
+  const path = kind === "booking" ? "support/cases" : "support/passenger-cases";
+  return request(`/${path}/${encodeURIComponent(id)}/resolve`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+export function reviewStaffSupportReport(
+  id: string, input: { status: "action_required" | "resolved" | "dismissed"; resolution_note: string },
+): Promise<unknown> {
+  return request(`/reports/passenger/${encodeURIComponent(id)}/review`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+
+
+export type CatalogLocation = { id: string; name: string; location_type: string; status: string };
+export type CatalogTerminal = { id: string; location_id: string; location_name: string; name: string; status: string };
+export type CatalogRouteStop = { id: string; location_id: string; location_name: string; sequence_number: number;
+  boarding_allowed: boolean; alighting_allowed: boolean; status: string };
+export type CatalogRoute = { id: string; code: string; origin_location_id: string; origin_name: string;
+  destination_location_id: string; destination_name: string; status: string; stops: CatalogRouteStop[] };
+export type CatalogSnapshot = { locations: CatalogLocation[]; terminals: CatalogTerminal[]; routes: CatalogRoute[] };
+export async function getCatalogSnapshot(): Promise<CatalogSnapshot> {
+  const [locations, terminals, routes] = await Promise.all([
+    request<CatalogLocation[]>("/catalog/locations"),
+    request<CatalogTerminal[]>("/catalog/terminals"),
+    request<CatalogRoute[]>("/catalog/routes"),
+  ]);
+  return { locations, terminals, routes };
+}
+export function createCatalogLocation(input: { name: string; location_type: string }): Promise<{ id: string; name: string; status: string }> {
+  return request("/catalog/locations", { method: "POST", body: JSON.stringify(input) });
+}
+export function publishCatalogLocation(id: string): Promise<{ id: string; status: string }> {
+  return request(`/catalog/locations/${encodeURIComponent(id)}/publish`, { method: "POST" });
+}
+export function createCatalogTerminal(input: { location_id: string; name: string }): Promise<{ id: string; name: string; status: string }> {
+  return request("/catalog/terminals", { method: "POST", body: JSON.stringify(input) });
+}
+export function publishCatalogTerminal(id: string): Promise<{ id: string; status: string }> {
+  return request(`/catalog/terminals/${encodeURIComponent(id)}/publish`, { method: "POST" });
+}
+export function createCatalogRoute(input: { code: string; origin_location_id: string; destination_location_id: string }): Promise<{ id: string; code: string; status: string }> {
+  return request("/catalog/routes", { method: "POST", body: JSON.stringify(input) });
+}
+export function publishCatalogRoute(id: string): Promise<{ id: string; status: string }> {
+  return request(`/catalog/routes/${encodeURIComponent(id)}/publish`, { method: "POST" });
+}
+
+
+export function updateCatalogLocation(id: string, input: { name?: string; location_type?: string }): Promise<unknown> {
+  return request(`/catalog/locations/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+export function updateCatalogTerminal(id: string, input: { name?: string; location_id?: string }): Promise<unknown> {
+  return request(`/catalog/terminals/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+export function updateCatalogRoute(id: string, input: {
+  code?: string; origin_location_id?: string; destination_location_id?: string;
+}): Promise<unknown> {
+  return request(`/catalog/routes/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+export function replaceCatalogRouteStops(id: string, stops: Array<{
+  location_id: string; boarding_allowed: boolean; alighting_allowed: boolean;
+}>): Promise<{ route_id: string; stops: number }> {
+  return request(`/catalog/routes/${encodeURIComponent(id)}/stops`, {
+    method: "PUT", body: JSON.stringify({ stops }),
+  });
+}
+export function archiveCatalogRecord(kind: "location" | "terminal" | "route", id: string): Promise<{ id: string; status: string }> {
+  return request(`/catalog/${kind === "location" ? "locations" : kind === "terminal" ? "terminals" : "routes"}/${encodeURIComponent(id)}/archive`, {
+    method: "POST",
+  });
+}
+
+
+export type FleetVehicle = {
+  id: string; organization_id: string; organization_name: string; vehicle_reference: string;
+  status: string; review_status: string; created_at: string | null;
+  seat_layouts: Array<{ id: string; version_number: number; status: string; seat_count: number }>;
+};
+export type FleetSeat = {
+  id: string; seat_code: string; row_label: string | null; column_index: number;
+  x: number; y: number; seat_type: string; is_sellable: boolean;
+};
+export type SeatLayoutGeometry = {
+  width: number; height: number;
+  markers: Array<{ kind: "aisle" | "door"; x: number; y: number; label?: string | null }>;
+};
+export type FleetSeatLayout = {
+  id: string; version_number: number; status: string; effective_from: string | null;
+  effective_to: string | null; geometry: SeatLayoutGeometry; seats: FleetSeat[];
+};
+export type FleetComplianceDocument = {
+  id: string; document_type: string; status: string; evidence_reference: string;
+  issued_at: string | null; expires_at: string | null; review_reason: string | null; created_at: string | null;
+};
+export type FleetReviewHistory = {
+  documents: FleetComplianceDocument[];
+  events: Array<{ event_type: string; occurred_at: string; action: string; outcome: string; reason_code: string | null; metadata: Record<string, unknown> }>;
+};
+export function getFleetVehicles(organizationId?: string): Promise<FleetVehicle[]> {
+  return request<FleetVehicle[]>(organizationId
+    ? `/operators/${encodeURIComponent(organizationId)}/fleet`
+    : "/admin/fleet/vehicles");
+}
+export function getVehicleSeatLayouts(vehicleId: string): Promise<FleetSeatLayout[]> {
+  return request<FleetSeatLayout[]>(`/vehicles/${encodeURIComponent(vehicleId)}/seat-layouts`);
+}
+export function createFleetVehicle(organizationId: string, vehicle_reference: string): Promise<{
+  id: string; status: string; review_status: string;
+}> {
+  return request(`/operators/${encodeURIComponent(organizationId)}/vehicles`, {
+    method: "POST", body: JSON.stringify({ vehicle_reference }),
+  });
+}
+export function createFleetSeatLayout(vehicleId: string, seats: Array<{
+  seat_code: string; row_label: string; column_index: number; x?: number; y?: number; seat_type: string; is_sellable: boolean;
+}>, geometry: SeatLayoutGeometry): Promise<{ id: string; version_number: number; seat_count: number; status: string }> {
+  return request(`/vehicles/${encodeURIComponent(vehicleId)}/seat-layouts`, {
+    method: "POST", body: JSON.stringify({ seats, geometry }),
+  });
+}
+export function reviewFleetVehicle(vehicleId: string, decision: "approved" | "rejected", reason: string): Promise<{
+  id: string; status: string; review_status: string;
+}> {
+  return request(`/vehicles/${encodeURIComponent(vehicleId)}/review`, {
+    method: "POST", body: JSON.stringify({ decision, reason }),
+  });
+}
+export function approveFleetSeatLayout(layoutId: string): Promise<{ id: string; status: string }> {
+  return request(`/seat-layouts/${encodeURIComponent(layoutId)}/approve`, { method: "POST" });
+}
+
+
+export function updateFleetVehicle(vehicleId: string, vehicle_reference: string): Promise<{
+  id: string; vehicle_reference: string; status: string; review_status: string;
+}> {
+  return request(`/vehicles/${encodeURIComponent(vehicleId)}`, {
+    method: "PATCH", body: JSON.stringify({ vehicle_reference }),
+  });
+}
+export function updateDraftFleetSeatLayout(layoutId: string, seats: Array<{
+  seat_code: string; row_label: string; column_index: number; x?: number; y?: number; seat_type: string; is_sellable: boolean;
+}>, geometry: SeatLayoutGeometry): Promise<{ id: string; version_number: number; seat_count: number; status: string }> {
+  return request(`/seat-layouts/${encodeURIComponent(layoutId)}`, {
+    method: "PUT", body: JSON.stringify({ seats, geometry }),
+  });
+}
+export type FleetComplianceUploadIntent = {
+  object_key: string; upload_url: string; method: "PUT"; content_type: string;
+  max_bytes: number; expires_in_seconds: number;
+};
+export function createFleetComplianceUploadIntent(vehicleId: string, file: File): Promise<FleetComplianceUploadIntent> {
+  return request<FleetComplianceUploadIntent>(`/vehicles/${encodeURIComponent(vehicleId)}/compliance-documents/upload-intents`, {
+    method: "POST",
+    body: JSON.stringify({ content_type: file.type, content_length: file.size }),
+  });
+}
+export async function uploadFleetComplianceEvidence(vehicleId: string, file: File, input: {
+  document_type: string; issued_at: string | null; expires_at: string | null;
+}): Promise<{ id: string; document_type: string; status: string }> {
+  const intent = await createFleetComplianceUploadIntent(vehicleId, file);
+  const response = await fetch(intent.upload_url, {
+    method: "PUT", headers: { "Content-Type": intent.content_type }, body: file,
+  });
+  if (!response.ok) throw new Error("Private evidence upload failed. Check the storage endpoint and bucket CORS configuration.");
+  return submitFleetComplianceEvidence(vehicleId, {
+    ...input, evidence_reference: intent.object_key,
+  });
+}
+export function submitFleetComplianceEvidence(vehicleId: string, input: {
+  document_type: string; evidence_reference: string; issued_at: string | null; expires_at: string | null;
+}): Promise<{ id: string; document_type: string; status: string }> {
+  return request(`/vehicles/${encodeURIComponent(vehicleId)}/compliance-documents`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+export function reviewFleetComplianceEvidence(documentId: string, decision: "approved" | "rejected", reason: string): Promise<{ id: string; status: string }> {
+  return request(`/compliance-documents/${encodeURIComponent(documentId)}/review`, {
+    method: "POST", body: JSON.stringify({ decision, reason }),
+  });
+}
+export function getFleetReviewHistory(vehicleId: string): Promise<FleetReviewHistory> {
+  return request<FleetReviewHistory>(`/vehicles/${encodeURIComponent(vehicleId)}/history`);
+}
+
+
+export type DispatchOptions = {
+  routes: Array<{ id: string; code: string; origin_location_id: string; destination_location_id: string }>;
+  terminals: Array<{ id: string; location_id: string; name: string }>;
+  vehicles: Array<{ id: string; vehicle_reference: string;
+    seat_layouts: Array<{ id: string; version_number: number; seat_count: number }> }>;
+};
+export type DispatchTrip = {
+  id: string; organization_id: string; organization_name: string; route_id: string; route_code: string;
+  boarding_terminal_id: string; boarding_terminal_name: string; vehicle_id: string; vehicle_reference: string;
+  seat_layout_version_id: string; departure_at: string; arrival_estimate_at: string | null;
+  status: string; seat_count: number; published_at: string | null;
+  exceptions?: TripOperationalException[];
+};
+export type TripOperationalException = {
+  id: string; category: string; severity: string; description: string; status: string;
+  resolution: string | null; created_at: string | null; resolved_at: string | null;
+};
+export type TripManifest = {
+  trip_id: string; boarding_terminal_id: string; passenger_count: number;
+  manifest: Array<{ booking_reference: string; passenger_name: string; seat_code: string; sequence: number }>;
+  contact_phone_included: false; boarding_authorized: false;
+};
+export function getOperatorDispatchOptions(organizationId: string): Promise<DispatchOptions> {
+  return request<DispatchOptions>(`/operators/${encodeURIComponent(organizationId)}/dispatch/options`);
+}
+export function getOperatorTrips(organizationId: string): Promise<DispatchTrip[]> {
+  return request<DispatchTrip[]>(`/operators/${encodeURIComponent(organizationId)}/trips`);
+}
+export function getPlatformDispatchTrips(): Promise<DispatchTrip[]> {
+  return request<DispatchTrip[]>("/admin/dispatch/trips");
+}
+export function createDispatchTrip(organizationId: string, input: {
+  route_id: string; boarding_terminal_id: string; vehicle_id: string; seat_layout_version_id: string;
+  departure_at: string; arrival_estimate_at: string | null;
+}): Promise<{ id: string; status: string; seat_count: number }> {
+  return request(`/operators/${encodeURIComponent(organizationId)}/trips`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+export function updateDispatchTrip(tripId: string, input: {
+  route_id: string; boarding_terminal_id: string; vehicle_id: string; seat_layout_version_id: string;
+  departure_at: string; arrival_estimate_at: string | null;
+}): Promise<{ id: string; status: string; seat_count: number }> {
+  return request(`/trips/${encodeURIComponent(tripId)}`, {
+    method: "PATCH", body: JSON.stringify(input),
+  });
+}
+export function submitDispatchTrip(tripId: string): Promise<{ id: string; status: string }> {
+  return request(`/trips/${encodeURIComponent(tripId)}/submit`, { method: "POST" });
+}
+export function approveDispatchTrip(tripId: string): Promise<{ id: string; status: string }> {
+  return request(`/trips/${encodeURIComponent(tripId)}/approve`, { method: "POST" });
+}
+export function publishDispatchTrip(tripId: string): Promise<{ id: string; status: string }> {
+  return request(`/trips/${encodeURIComponent(tripId)}/publish`, { method: "POST" });
+}
+export function getTripManifest(tripId: string): Promise<TripManifest> {
+  return request<TripManifest>(`/trips/${encodeURIComponent(tripId)}/manifest`);
+}
+
+export function getTripOperationalExceptions(tripId: string): Promise<TripOperationalException[]> {
+  return request<TripOperationalException[]>(`/trips/${encodeURIComponent(tripId)}/exceptions`);
+}
+export function reportTripOperationalException(tripId: string, input: {
+  category: string; severity: "normal" | "high" | "critical"; description: string;
+}): Promise<{ id: string; trip_id: string; status: string }> {
+  return request(`/trips/${encodeURIComponent(tripId)}/exceptions`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+export function resolveTripOperationalException(exceptionId: string, resolution: string): Promise<{ id: string; status: string }> {
+  return request(`/trip-exceptions/${encodeURIComponent(exceptionId)}/resolve`, {
+    method: "POST", body: JSON.stringify({ resolution }),
+  });
+}
+
+
+export type FareOptions = {
+  routes: Array<{ id: string; code: string }>;
+  trips: Array<{ id: string; route_id: string; route_code: string; departure_at: string; status: string }>;
+};
+export type FareVersionRecord = {
+  id: string; version_number: number; amount_minor_units: number; currency_code: string;
+  effective_from: string; effective_to: string | null; status: string; proposed_by: string;
+  approved_by: string | null; published_by: string | null; published_at: string | null;
+  approval_history: Array<{ id: string; decision: string; reviewer_id: string; reason: string; decided_at: string | null }>;
+};
+export type FareRecord = {
+  id: string; organization_id: string; organization_name: string; route_id: string;
+  route_code: string; trip_id: string | null; trip_departure_at: string | null;
+  status: string; versions: FareVersionRecord[];
+};
+export function getFareOptions(organizationId: string): Promise<FareOptions> {
+  return request<FareOptions>(`/operators/${encodeURIComponent(organizationId)}/fare/options`);
+}
+export function getOperatorFares(organizationId: string): Promise<FareRecord[]> {
+  return request<FareRecord[]>(`/operators/${encodeURIComponent(organizationId)}/fares`);
+}
+export function getPlatformFares(): Promise<FareRecord[]> {
+  return request<FareRecord[]>("/admin/fares");
+}
+export function createFareProposal(organizationId: string, input: {
+  route_id: string; trip_id: string | null; amount_minor_units: number;
+  effective_from: string; effective_to: string | null;
+}): Promise<{ id: string; fare_id: string; version_number: number; status: string }> {
+  return request(`/operators/${encodeURIComponent(organizationId)}/fares`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+export function submitFareVersion(fareId: string, versionId: string): Promise<{ id: string; status: string }> {
+  return request(`/fares/${encodeURIComponent(fareId)}/versions/${encodeURIComponent(versionId)}/submit`, { method: "POST" });
+}
+export function reviewFareVersion(fareId: string, versionId: string, decision: "approved" | "rejected", reason: string): Promise<unknown> {
+  return request(`/fares/${encodeURIComponent(fareId)}/versions/${encodeURIComponent(versionId)}/review`, {
+    method: "POST", body: JSON.stringify({ decision, reason }),
+  });
+}
+export function publishFareVersion(fareId: string, versionId: string): Promise<{ id: string; status: string }> {
+  return request(`/fares/${encodeURIComponent(fareId)}/versions/${encodeURIComponent(versionId)}/publish`, { method: "POST" });
+}

@@ -2,10 +2,11 @@ name: MaaleNex NEXUS UI verification (exact head)
 # Wallet slice verification: run frontend tests, typecheck and production build on the exact PR head.
 # Passenger wallet: run exact-head frontend, typecheck and production build verification.
 # Verification coverage includes My Bookings, ownership-safe cancellation, and scheduled hold expiry.
+# P1 exact-head UI coverage includes fleet evidence and geometry, dispatch exceptions and fare version history.
 
 on:
   pull_request:
-    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service]
+    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards]
     paths:
       - ".github/workflows/nexus-ui-verification-v2.yml"
       - "frontend/**"

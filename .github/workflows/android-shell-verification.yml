@@ -2,7 +2,7 @@ name: MaaleNex Android shell verification
 
 on:
   pull_request:
-    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean]
+    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/my-bookings-hold-expiry-notifications]
     paths:
       - "android/**"
       - "frontend/**"
@@ -11,6 +11,7 @@ on:
       - ".github/scripts/verify-gradle-sbom.py"
       - ".github/workflows/android-shell-verification.yml"
       - ".github/workflows/osv-scanner.yml"
+      - "docs/acceptance/**"
   workflow_dispatch:
 
 permissions:

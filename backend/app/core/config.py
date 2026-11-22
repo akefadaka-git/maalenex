@@ -11,6 +11,16 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,https://appassets.androidplatform.net"
     synthetic_data_only: bool = True
     secure_cookies: bool = False
+    scheduler_enabled: bool = False
+    scheduler_interval_seconds: int = 30
+    scheduler_lease_seconds: int = 90
+    scheduler_batch_size: int = 100
+    object_storage_enabled: bool = False
+    object_storage_provider: str = "r2"
+    object_storage_endpoint_url: str = ""
+    object_storage_bucket: str = ""
+    object_storage_access_key_id: str = ""
+    object_storage_secret_access_key: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -27,10 +37,16 @@ class Settings(BaseSettings):
             raise ValueError("G1 database host must be local; remote databases are prohibited.")
         if database.database != "maalenex_dev":
             raise ValueError("G1 database name must be maalenex_dev.")
+        if not 5 <= self.scheduler_interval_seconds <= 3600:
+            raise ValueError("Scheduler interval must be between 5 and 3600 seconds.")
+        if self.scheduler_lease_seconds < self.scheduler_interval_seconds * 2:
+            raise ValueError("Scheduler lease must be at least twice the polling interval.")
+        if not 1 <= self.scheduler_batch_size <= 1000:
+            raise ValueError("Scheduler batch size must be between 1 and 1000.")
         return self
 
     def should_use_secure_cookies(self, request_scheme: str) -> bool:
-        """Honor explicit proxy/TLS deployment configuration without trusting forwarded headers."""
+        """Honor explicit TLS configuration without trusting forwarded headers."""
         return self.secure_cookies or request_scheme.lower() == "https"
 
     @property

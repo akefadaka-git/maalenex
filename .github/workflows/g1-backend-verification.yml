@@ -2,15 +2,17 @@ name: G1 backend foundation verification
 # Wallet slice verification: run lint, tests and PostgreSQL migrations on the exact PR head.
 # Passenger wallet: run exact-head lint, tests and PostgreSQL migration verification.
 # Verification coverage includes My Bookings, ownership-safe cancellation, and scheduled hold expiry.
+# P1 exact-head coverage includes fleet evidence review, seat-map geometry, dispatch exceptions, fare history and PostgreSQL ownership integration.
+# Private evidence storage also runs a real presigned PUT/HEAD/ranged-GET smoke test against ephemeral local S3-compatible Silo service.
 
 on:
   push:
-    branches: [feat/passenger-identity-service, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications]
+    branches: [feat/passenger-identity-service, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards]
     paths:
       - "backend/**"
       - ".github/workflows/g1-backend-verification.yml"
   pull_request:
-    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/acceptance-remediation, feat/passenger-identity-service, feat/passenger-journey-search, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service]
+    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/acceptance-remediation, feat/passenger-identity-service, feat/passenger-journey-search, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications]
     paths:
       - "backend/**"
       - ".github/workflows/g1-backend-verification.yml"
@@ -48,6 +50,12 @@ jobs:
       APP_ENV: test
       SYNTHETIC_DATA_ONLY: "true"
       DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/maalenex_dev
+      OBJECT_STORAGE_ENABLED: "true"
+      OBJECT_STORAGE_PROVIDER: r2
+      OBJECT_STORAGE_ENDPOINT_URL: http://127.0.0.1:9000
+      OBJECT_STORAGE_BUCKET: maalenex-synthetic-smoke
+      OBJECT_STORAGE_ACCESS_KEY_ID: minio-${{ github.run_id }}-ci
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: minio-${{ github.run_id }}-ci
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,6 +69,22 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
       - name: Install backend and test dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+      - name: Start local S3-compatible storage service
+        run: |
+          docker run -d --name maalenex-silo -p 9000:9000 \
+            -e MINIO_ROOT_USER="$OBJECT_STORAGE_ACCESS_KEY_ID" \
+            -e MINIO_ROOT_PASSWORD="$OBJECT_STORAGE_SECRET_ACCESS_KEY" \
+            docker.io/pgsty/silo:RELEASE.2026-11-12T00-00-00Z \
+            server /data --console-address ":9001"
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:9000/minio/health/live >/dev/null; then
+              echo "PASS: local S3-compatible storage is live"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs maalenex-silo
+          exit 1
       - name: Ruff wallet ledger implementation
         run: >-
           python -m ruff check --output-format=github
@@ -82,6 +106,12 @@ jobs:
           app/domains/support/report_models.py
           app/routers/passenger_reports.py
           app/routers/admin.py
+          app/domains/fleet/models.py
+          app/domains/fleet/object_storage.py
+          tests/test_fleet_object_storage.py
+          tests/test_fleet_object_storage_s3.py
+          app/domains/trips/models.py
+          migrations/versions/0016_fleet_compliance_and_geometry.py
           app/main.py
           tests/test_passenger_reports.py
           migrations/versions/0011_passenger_reports_complaints.py
@@ -99,6 +129,16 @@ jobs:
           migrations/versions/0014_verified_booking_ownership.py
           migrations/versions/0012_passenger_wallet.py
           tests/test_verified_booking_ownership.py
+          app/domains/operations/**
+          app/jobs/scheduler_service.py
+          app/jobs/scheduler_worker.py
+          app/routers/staff_admin.py
+          app/routers/auth.py
+          app/core/config.py
+          tests/test_scheduler_operations.py
+          tests/test_operations_cross_module_integration.py
+          migrations/versions/0015_scheduler_operations_rbac.py
+          scripts/seed_synthetic_admin.py
       - name: Backend tests
         run: python -m pytest -q
       - name: Apply baseline migration to empty database
@@ -107,3 +147,6 @@ jobs:
         run: python -m alembic check
       - name: Test full migration downgrade and clean re-upgrade
         run: python -m alembic downgrade base && python -m alembic upgrade head
+      - name: Stop local S3-compatible storage service
+        if: always()
+        run: docker rm -f maalenex-silo || true

@@ -32,6 +32,7 @@ class Passenger(Base):
 
 class Booking(Base):
     __tablename__ = "bookings"
+    __table_args__ = (Index("ix_bookings_status_expires_at", "status", "expires_at"),)
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     booking_reference: Mapped[str] = mapped_column(String(32), unique=True)
     booking_contact_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("booking_contacts.id", ondelete="RESTRICT"))

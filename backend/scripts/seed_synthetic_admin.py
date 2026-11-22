@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Provision a synthetic local platform administrator.
 
 Run from backend/: python scripts/seed_synthetic_admin.py
@@ -32,6 +33,9 @@ PLATFORM_PERMISSIONS = (
     "operator.fare.propose",
     "organization.members.manage",
     "platform.support.manage",
+    "platform.scheduler.read",
+    "platform.scheduler.manage",
+    "platform.dashboard.read",
     "operator.trip.manifest.read",
 )
 
