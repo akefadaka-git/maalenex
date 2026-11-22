@@ -156,3 +156,24 @@ def test_staff_admin_sensitive_read_routes_fail_closed_without_staff_session():
     for path in protected_gets:
         response = client.get(path)
         assert response.status_code == 401, (path, response.status_code)
+
+
+
+def test_cargo_evidence_orphan_cleanup_is_disabled_without_explicit_grace():
+    assert settings.cargo_evidence_orphan_grace_hours == 0
+    try:
+        Settings(cargo_evidence_orphan_grace_hours=-1)
+    except ValueError as error:
+        assert "cannot be negative" in str(error)
+    else:
+        raise AssertionError("Negative orphan cleanup grace was accepted.")
+
+
+def test_cargo_evidence_scheduler_is_visible_in_operations_snapshot():
+    from app.jobs.scheduler_service import CARGO_EVIDENCE_LEASE_NAME
+
+    assert CARGO_EVIDENCE_LEASE_NAME == "cargo_evidence_lifecycle"
+    paths = app.openapi()["paths"]
+    assert "/api/v1/cargo/evidence/{evidence_id}/download" in paths
+    assert "/api/v1/cargo/evidence/{evidence_id}/holds" in paths
+    assert "/api/v1/cargo/evidence/{evidence_id}/deletion-requests" in paths
