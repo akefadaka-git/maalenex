@@ -20,7 +20,7 @@ from app.domains.audit.models import AuditEvent
 from app.domains.audit.service import record_event
 from app.domains.bookings.models import Booking, BookingPassenger, Passenger, SeatAllocation
 from app.domains.catalog.models import Location, Route, RouteStop, Terminal
-from app.domains.fares.models import Fare, FareVersion
+from app.domains.fares.models import Fare, FareApproval, FareVersion
 from app.domains.fares.service import FareConflict, decide_fare, propose_fare, publish_fare, submit_fare
 from app.domains.fleet.models import SeatLayoutVersion, Vehicle, VehicleComplianceDocument, VehicleSeat
 from app.domains.identity.authorization import has_permission
@@ -2096,6 +2096,17 @@ def _fare_payload(db: Session, fares: list[Fare]) -> list[dict]:
     versions = db.scalars(select(FareVersion).where(
         FareVersion.fare_id.in_([item.id for item in fares])
     ).order_by(FareVersion.fare_id, FareVersion.version_number.desc())).all()
+    version_ids = [item.id for item in versions]
+    approvals = db.scalars(select(FareApproval).where(
+        FareApproval.fare_version_id.in_(version_ids)
+    ).order_by(FareApproval.decided_at.desc())).all() if version_ids else []
+    by_version: dict[UUID, list[dict]] = {}
+    for approval in approvals:
+        by_version.setdefault(approval.fare_version_id, []).append({
+            "id": str(approval.id), "decision": approval.decision,
+            "reviewer_id": str(approval.reviewer_user_id), "reason": approval.reason,
+            "decided_at": approval.decided_at.isoformat() if approval.decided_at else None,
+        })
     by_fare: dict[UUID, list[dict]] = {}
     for version in versions:
         by_fare.setdefault(version.fare_id, []).append({
@@ -2107,6 +2118,7 @@ def _fare_payload(db: Session, fares: list[Fare]) -> list[dict]:
             "approved_by": str(version.approved_by) if version.approved_by else None,
             "published_by": str(version.published_by) if version.published_by else None,
             "published_at": version.published_at.isoformat() if version.published_at else None,
+            "approval_history": by_version.get(version.id, []),
         })
     return [{
         "id": str(fare.id), "organization_id": str(fare.organization_id),
