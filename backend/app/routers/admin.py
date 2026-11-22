@@ -686,8 +686,15 @@ def submit_vehicle_compliance_evidence(
         raise HTTPException(status_code=404, detail="Vehicle not found.")
     _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
     reference = payload.evidence_reference.strip()
-    if reference.startswith(("http://", "https://")) or ".." in reference or not reference.startswith("fleet-compliance/"):
-        raise HTTPException(status_code=422, detail="Evidence reference must be an opaque key from the approved document store.")
+    try:
+        object_metadata = verify_compliance_object(
+            object_key=reference, organization_id=str(vehicle.organization_id),
+            vehicle_id=str(vehicle.id),
+        )
+    except StorageNotConfigured as exc:
+        raise HTTPException(status_code=503, detail="Private evidence storage is not configured.") from exc
+    except InvalidStoredObject as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     if payload.issued_at and payload.expires_at and payload.expires_at <= payload.issued_at:
         raise HTTPException(status_code=422, detail="Evidence expiry must be later than issue date.")
     document = VehicleComplianceDocument(
@@ -699,7 +706,7 @@ def submit_vehicle_compliance_evidence(
     db.flush()
     _audit(db, context=context, event="fleet.compliance.submitted", resource_type="vehicle_compliance_document",
            resource_id=document.id, action="submit", organization_id=vehicle.organization_id,
-           metadata={"document_type": document.document_type})
+           metadata={"document_type": document.document_type, **object_metadata})
     db.commit()
     return {"id": str(document.id), "document_type": document.document_type, "status": document.status}
 
