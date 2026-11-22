@@ -39,6 +39,11 @@ class CargoDeliveryEvidence(Base):
     retention_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     retention_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     classification_status: Mapped[str] = mapped_column(String(24), nullable=False, default="unclassified", server_default="unclassified")
+    retention_legal_review_reference: Mapped[str | None] = mapped_column(String(160))
+    retention_classified_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
+    retention_classified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retention_dpo_reviewed_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
+    retention_dpo_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     storage_deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deletion_failure_code: Mapped[str | None] = mapped_column(String(80))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -121,4 +126,19 @@ class CargoDeliveryEvidenceAccessGrant(Base):
     reason: Mapped[str] = mapped_column(String(500), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+
+class CargoDeliveryEvidenceRetentionPolicy(Base):
+    __tablename__ = "cargo_delivery_evidence_retention_policies"
+
+    version: Mapped[str] = mapped_column(String(40), primary_key=True)
+    retention_months: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="provisional")
+    legal_validation_reference: Mapped[str | None] = mapped_column(String(160))
+    validated_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
+    dpo_reviewed_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
+    activated_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"))
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
