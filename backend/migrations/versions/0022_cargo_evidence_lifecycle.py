@@ -3,6 +3,7 @@
 Revision ID: 0022_cargo_evidence_lifecycle
 Revises: 0021_carrier_ops_delivery
 """
+# ruff: noqa: I001
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
