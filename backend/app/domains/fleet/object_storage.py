@@ -116,3 +116,68 @@ def verify_compliance_object(
         raise InvalidStoredObject("Evidence object could not be verified in private storage.") from exc
 
     return {"content_type": content_type, "content_length": length}
+
+
+def create_cargo_delivery_upload_intent(
+    *, carrier_organization_id: str, dispatch_id: str, content_type: str, content_length: int,
+) -> dict[str, Any]:
+    """Create a short-lived private upload URL scoped to one carrier dispatch."""
+    if content_type not in ALLOWED_CONTENT_TYPES:
+        raise InvalidStoredObject("Only PDF, JPEG and PNG evidence files are accepted.")
+    if content_length < 1 or content_length > MAX_UPLOAD_BYTES:
+        raise InvalidStoredObject("Evidence file must be between 1 byte and 10 MiB.")
+
+    key = f"cargo-delivery/{carrier_organization_id}/{dispatch_id}/{uuid.uuid4().hex}"
+    url = _client().generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": settings.object_storage_bucket,
+            "Key": key,
+            "ContentType": content_type,
+            "ContentLength": content_length,
+        },
+        ExpiresIn=PRESIGN_TTL_SECONDS,
+    )
+    return {
+        "object_key": key,
+        "upload_url": url,
+        "method": "PUT",
+        "content_type": content_type,
+        "max_bytes": MAX_UPLOAD_BYTES,
+        "expires_in_seconds": PRESIGN_TTL_SECONDS,
+    }
+
+
+def verify_cargo_delivery_object(
+    *, object_key: str, carrier_organization_id: str, dispatch_id: str,
+) -> dict[str, Any]:
+    """Verify a private delivery-evidence object belongs to the exact dispatch."""
+    expected_prefix = f"cargo-delivery/{carrier_organization_id}/{dispatch_id}/"
+    if not object_key.startswith(expected_prefix) or ".." in object_key or object_key.endswith("/"):
+        raise InvalidStoredObject("Evidence object key is not scoped to this carrier dispatch.")
+
+    client = _client()
+    try:
+        head = client.head_object(Bucket=settings.object_storage_bucket, Key=object_key)
+        length = int(head.get("ContentLength", 0))
+        content_type = str(head.get("ContentType", "")).lower()
+        if length < 1 or length > MAX_UPLOAD_BYTES:
+            raise InvalidStoredObject("Stored evidence size is outside the permitted limit.")
+        signature = ALLOWED_CONTENT_TYPES.get(content_type)
+        if signature is None:
+            raise InvalidStoredObject("Stored evidence media type is not permitted.")
+        response = client.get_object(
+            Bucket=settings.object_storage_bucket, Key=object_key, Range="bytes=0-15",
+        )
+        try:
+            sample = response["Body"].read(16)
+        finally:
+            response["Body"].close()
+        if not sample.startswith(signature):
+            raise InvalidStoredObject("Stored evidence file signature does not match its media type.")
+    except InvalidStoredObject:
+        raise
+    except Exception as exc:
+        raise InvalidStoredObject("Evidence object could not be verified in private storage.") from exc
+
+    return {"content_type": content_type, "content_length": length}
