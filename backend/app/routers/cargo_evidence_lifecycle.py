@@ -260,8 +260,8 @@ def review_evidence_hold(
     context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
 ) -> dict:
     require_csrf(request, context)
-    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.hold.manage"):
-        raise HTTPException(status_code=403, detail="DPO hold-oversight permission is required.")
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.hold.review"):
+        raise HTTPException(status_code=403, detail="Independent DPO hold-oversight permission is required.")
     hold = db.scalar(select(CargoDeliveryEvidenceHold).where(
         CargoDeliveryEvidenceHold.id == hold_id,
     ).with_for_update())
@@ -349,8 +349,8 @@ def approve_and_execute_evidence_deletion(
         raise HTTPException(status_code=404, detail="Deletion request not found.")
     if item.status == "completed":
         return {"deletion_request_id": str(item.id), "status": "completed"}
-    if item.status != "requested" or item.requested_by == context.user.id:
-        raise HTTPException(status_code=409, detail="Approval requires a distinct authorized second person.")
+    if item.status not in {"requested", "failed"} or item.requested_by == context.user.id:
+        raise HTTPException(status_code=409, detail="Approval requires a distinct authorized second person and a pending or retryable request.")
     evidence = db.scalar(select(CargoDeliveryEvidence).where(
         CargoDeliveryEvidence.id == item.evidence_id,
     ).with_for_update())
