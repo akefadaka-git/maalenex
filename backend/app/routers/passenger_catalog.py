@@ -16,15 +16,39 @@ router = APIRouter(tags=["passenger-catalog"])
 
 
 def _location_payload(row: Location) -> dict:
+    coordinates_valid = (
+        row.latitude is not None and row.longitude is not None
+        and row.coordinate_source is not None and bool(row.coordinate_source.strip())
+        and -90 <= row.latitude <= 90 and -180 <= row.longitude <= 180
+    )
     return {
         "id": str(row.id),
         "name": row.name,
         "type": row.location_type,
         "coordinates": (
             {"latitude": row.latitude, "longitude": row.longitude, "source": row.coordinate_source}
-            if row.latitude is not None and row.longitude is not None else None
+            if coordinates_valid else None
         ),
     }
+
+
+def _published_route_geometry(route: Route) -> dict | None:
+    geometry = route.geometry
+    if not route.geometry_source or not route.geometry_source.strip():
+        return None
+    if not isinstance(geometry, dict) or geometry.get("type") != "LineString":
+        return None
+    coordinates = geometry.get("coordinates")
+    if not isinstance(coordinates, list) or len(coordinates) < 2:
+        return None
+    for point in coordinates:
+        if (
+            not isinstance(point, (list, tuple)) or len(point) != 2
+            or any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in point)
+            or not -180 <= point[0] <= 180 or not -90 <= point[1] <= 90
+        ):
+            return None
+    return {"type": "LineString", "coordinates": coordinates}
 
 
 @router.get("/catalog/locations")
@@ -74,8 +98,8 @@ def list_public_routes(db: Session = Depends(get_db)) -> list[dict]:
                 }
                 for stop, location in stop_rows
             ],
-            "geometry": route.geometry,
-            "geometry_status": "published" if route.geometry else "not_published",
+            "geometry": _published_route_geometry(route),
+            "geometry_status": "published" if _published_route_geometry(route) else "not_published",
         })
     return results
 

@@ -17,9 +17,11 @@ def upgrade() -> None:
     op.add_column("locations", sa.Column("longitude", sa.Float(), nullable=True))
     op.add_column("locations", sa.Column("coordinate_source", sa.String(length=40), nullable=True))
     op.add_column("routes", sa.Column("geometry", sa.JSON(), nullable=True))
+    op.add_column("routes", sa.Column("geometry_source", sa.String(length=80), nullable=True))
 
 
 def downgrade() -> None:
+    op.drop_column("routes", "geometry_source")
     op.drop_column("routes", "geometry")
     op.drop_column("locations", "coordinate_source")
     op.drop_column("locations", "longitude")

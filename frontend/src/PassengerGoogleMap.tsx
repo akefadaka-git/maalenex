@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-type Language = "am" | "en";
 import type { PassengerLocation, PassengerRoute } from "./passenger-api";
+type Language = "am" | "en";
 
 type Props={locations:PassengerLocation[];routes:PassengerRoute[];originId:string;destinationId:string;language:Language;onSelectLocation:(id:string)=>void};
 type LatLng={lat:number;lng:number};
@@ -24,10 +24,11 @@ function loadGoogleMaps(key:string):Promise<MapsApi>{
 function validPoint(value:unknown):LatLng|null{if(!value||typeof value!=="object")return null;const p=value as {latitude?:unknown;longitude?:unknown};if(typeof p.latitude!=="number"||typeof p.longitude!=="number"||!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude)||Math.abs(p.latitude)>90||Math.abs(p.longitude)>180)return null;return{lat:p.latitude,lng:p.longitude};}
 function geometryPoints(route:PassengerRoute|undefined):LatLng[]{const coords=route?.geometry?.coordinates;if(!Array.isArray(coords))return[];return coords.flatMap(pair=>Array.isArray(pair)&&pair.length===2&&pair.every(n=>typeof n==="number"&&Number.isFinite(n))&&Math.abs(pair[1])<=90&&Math.abs(pair[0])<=180?[{lat:pair[1],lng:pair[0]}]:[]);}
 export function PassengerGoogleMap({locations,routes,originId,destinationId,language,onSelectLocation}:Props){
- const host=useRef<HTMLDivElement>(null);const mapRef=useRef<MapInstance|null>(null);const [status,setStatus]=useState<"loading"|"ready"|"missing-key"|"missing-data"|"offline"|"error">("loading");const [message,setMessage]=useState("");const [gpsMessage,setGpsMessage]=useState("");
+ const host=useRef<HTMLDivElement>(null);const mapRef=useRef<MapInstance|null>(null);const selectLocationRef=useRef(onSelectLocation);const [status,setStatus]=useState<"loading"|"ready"|"missing-key"|"missing-data"|"offline"|"error">("loading");const [message,setMessage]=useState("");const [gpsMessage,setGpsMessage]=useState("");
  const key=(import.meta.env.VITE_GOOGLE_MAPS_API_KEY??"").trim();
  const selectedRoute=routes.find(route=>route.origin.id===originId&&route.destination.id===destinationId)||routes.find(route=>route.origin.id===destinationId&&route.destination.id===originId);
  const routePoints=geometryPoints(selectedRoute);
+ useEffect(()=>{selectLocationRef.current=onSelectLocation;},[onSelectLocation]);
  useEffect(()=>{
   let active=true;const available=locations.map(location=>({location,point:validPoint(location.coordinates)})).filter((item):item is {location:PassengerLocation;point:LatLng}=>item.point!==null);
   if(!key){setStatus("missing-key");setMessage("Google Maps is not configured for this build. A restricted VITE_GOOGLE_MAPS_API_KEY is required.");return()=>{active=false;};}
@@ -38,13 +39,13 @@ export function PassengerGoogleMap({locations,routes,originId,destinationId,lang
    if(!active||!host.current)return;
    const initial=available[0]?.point??routePoints[0];
    const map=new maps.Map(host.current,{center:initial,zoom:8,mapTypeId:"roadmap",streetViewControl:false,mapTypeControl:false,fullscreenControl:true,clickableIcons:false,gestureHandling:"greedy"});mapRef.current=map;
-   const bounds=new maps.LatLngBounds();available.forEach(({location,point})=>{bounds.extend(point);const marker=new maps.Marker({map,position:point,title:location.name,label:location.name});marker.addListener("click",()=>onSelectLocation(location.id));});
+   const bounds=new maps.LatLngBounds();available.forEach(({location,point})=>{bounds.extend(point);const marker=new maps.Marker({map,position:point,title:location.name,label:location.name});marker.addListener("click",()=>selectLocationRef.current(location.id));});
    if(routePoints.length>1){const line=new maps.Polyline({map,path:routePoints,geodesic:true,strokeColor:"#0b8f68",strokeOpacity:.95,strokeWeight:5});void line;routePoints.forEach(point=>bounds.extend(point));}
    if(!bounds.isEmpty())map.fitBounds(bounds);
    setStatus("ready");setMessage("");
   }).catch(error=>{if(active){setStatus("error");setMessage(error instanceof Error?error.message:"Google Maps failed to initialize.");}});
   return()=>{active=false;mapRef.current=null;};
- },[key,locations,routes,originId,destinationId,onSelectLocation,routePoints.length]);
+ },[key,locations,routes,originId,destinationId,routePoints.length]);
  const locate=()=>{setGpsMessage("");if(!navigator.geolocation){setGpsMessage("Location is not supported by this WebView.");return;}navigator.geolocation.getCurrentPosition(position=>{mapRef.current?.panTo({lat:position.coords.latitude,lng:position.coords.longitude});setGpsMessage("Showing your device location. This is not driver tracking.");},error=>{setGpsMessage(error.code===1?"Location permission was denied. You can still select published locations manually.":error.code===2?"Your device location is unavailable.":"Location request timed out. Try again or choose a location manually.");},{enableHighAccuracy:true,timeout:10000,maximumAge:60000});};
  const am=language==="am";
  return <section className="passenger-map" aria-label={am?"የጉዞ ካርታ":"Passenger journey map"}>

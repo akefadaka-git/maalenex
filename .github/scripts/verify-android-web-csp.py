@@ -46,14 +46,14 @@ required = {
     "frame-src": ["'none'"],
     "child-src": ["'none'"],
     "form-action": ["'self'"],
-    "script-src": ["'self'"],
+    "script-src": ["'self'", "https://maps.googleapis.com", "https://maps.gstatic.com"],
     "script-src-attr": ["'none'"],
-    "style-src": ["'self'"],
-    "style-src-attr": ["'none'"],
-    "img-src": ["'self'", "data:"],
-    "font-src": ["'self'"],
+    "style-src": ["'self'", "'unsafe-inline'"],
+    "style-src-attr": ["'unsafe-inline'"],
+    "img-src": ["'self'", "data:", "https://*.googleapis.com", "https://*.gstatic.com", "https://*.google.com", "https://*.googleusercontent.com"],
+    "font-src": ["'self'", "https://fonts.gstatic.com"],
     "media-src": ["'self'"],
-    "worker-src": ["'self'"],
+    "worker-src": ["'self'", "blob:"],
     "manifest-src": ["'self'"],
 }
 for name, expected in required.items():
@@ -61,19 +61,32 @@ for name, expected in required.items():
         raise SystemExit(f"FAIL: CSP directive {name} expected {expected}, got {directives.get(name)}")
 
 connect_sources = directives.get("connect-src", [])
-if not connect_sources or connect_sources[0] != "'self'" or len(connect_sources) > 2:
-    raise SystemExit(f"FAIL: connect-src must contain self and at most one configured API origin: {connect_sources}")
-if len(connect_sources) == 2:
-    api_origin = urlsplit(connect_sources[1])
+google_connect = ["https://*.googleapis.com", "https://*.google.com", "https://*.gstatic.com"]
+if not connect_sources or connect_sources[0] != "'self'" or not all(source in connect_sources for source in google_connect):
+    raise SystemExit(f"FAIL: connect-src must include self and the explicit Google Maps service domains: {connect_sources}")
+api_sources = [source for source in connect_sources[1:] if source not in google_connect]
+if len(api_sources) > 1:
+    raise SystemExit(f"FAIL: at most one configured API origin is allowed: {api_sources}")
+if api_sources:
+    api_origin = urlsplit(api_sources[0])
     local_http = api_origin.scheme == "http" and api_origin.hostname in {"localhost", "127.0.0.1", "::1"}
     if not api_origin.netloc or (api_origin.scheme != "https" and not local_http):
-        raise SystemExit(f"FAIL: API CSP origin must be HTTPS (HTTP only for localhost): {connect_sources[1]}")
+        raise SystemExit(f"FAIL: API CSP origin must be HTTPS (HTTP only for localhost): {api_sources[0]}")
     if api_origin.username or api_origin.password or api_origin.path not in {"", "/"} or api_origin.query or api_origin.fragment:
         raise SystemExit(f"FAIL: API CSP entry must be an origin only: {connect_sources[1]}")
 
 for name, sources in directives.items():
-    if "*" in sources or "'unsafe-inline'" in sources or "'unsafe-eval'" in sources:
-        raise SystemExit(f"FAIL: unsafe CSP source in {name}: {sources}")
+    if "'unsafe-eval'" in sources:
+        raise SystemExit(f"FAIL: unsafe-eval is not permitted in {name}: {sources}")
+    if "*" in sources:
+        raise SystemExit(f"FAIL: unrestricted wildcard is not permitted in {name}: {sources}")
+    if any("*." in source and source not in {
+        "https://*.googleapis.com", "https://*.gstatic.com",
+        "https://*.google.com", "https://*.googleusercontent.com",
+    } for source in sources):
+        raise SystemExit(f"FAIL: non-Google wildcard source in {name}: {sources}")
+    if "'unsafe-inline'" in sources and name not in {"style-src", "style-src-attr"}:
+        raise SystemExit(f"FAIL: unsafe-inline is only permitted for Google Maps generated styles: {name} {sources}")
 print("PASS: exactly one CSP policy is present in packaged index.html")
 for name, sources in directives.items():
     print(f"PASS: CSP {name} = {' '.join(sources)}")

@@ -21,6 +21,7 @@ function csrfToken(cookieName = "mnm_passenger_csrf"): string | undefined {
 }
 
 async function request<T>(path: string, init: RequestInit = {}, csrfCookieName = "mnm_passenger_csrf"): Promise<T> {
+  if (!navigator.onLine) throw new Error("You are offline. Reconnect before requesting current passenger services or changing a booking.");
   if (!API_ROOT) throw new Error("Passenger account service is not configured for this app build.");
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");

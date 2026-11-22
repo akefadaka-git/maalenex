@@ -33,6 +33,7 @@ class Route(Base):
     destination_location_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("locations.id", ondelete="RESTRICT"))
     status: Mapped[str] = mapped_column(String(24), default="draft", index=True)
     geometry: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    geometry_source: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
 
 class RouteStop(Base):

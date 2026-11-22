@@ -1,6 +1,8 @@
 package com.maalenex.moto
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
 import android.os.SystemClock
@@ -14,6 +16,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.graphics.Typeface
 import android.webkit.ConsoleMessage
+import android.webkit.GeolocationPermissions
 import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
@@ -38,6 +41,8 @@ class MainActivity : Activity() {
     private var splashContentReady = false
     private var touchStartScale = Float.NaN
     private var savedZoomRestoreAttempted = false
+    private var pendingGeolocationOrigin: String? = null
+    private var pendingGeolocationCallback: GeolocationPermissions.Callback? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,6 +62,7 @@ class MainActivity : Activity() {
             )
             setBackgroundColor(Color.rgb(7, 26, 28))
             settings.javaScriptEnabled = true
+            settings.geolocationEnabled = true
             settings.domStorageEnabled = false
             settings.allowFileAccess = false
             settings.allowContentAccess = false
@@ -65,6 +71,26 @@ class MainActivity : Activity() {
             settings.builtInZoomControls = true
             settings.displayZoomControls = false
             webChromeClient = object : WebChromeClient() {
+                override fun onGeolocationPermissionsShowPrompt(
+                    origin: String?,
+                    callback: GeolocationPermissions.Callback?
+                ) {
+                    if (callback == null || (origin != APP_ORIGIN && origin != "$APP_ORIGIN/")) {
+                        callback?.invoke(origin, false, false)
+                        return
+                    }
+                    if (hasLocationPermission()) {
+                        callback.invoke(origin, true, false)
+                        return
+                    }
+                    pendingGeolocationOrigin = origin
+                    pendingGeolocationCallback = callback
+                    requestPermissions(
+                        arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION),
+                        LOCATION_PERMISSION_REQUEST
+                    )
+                }
+
                 override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
                     val message = consoleMessage.message()
                     if (message.contains("Content Security Policy", ignoreCase = true) ||
@@ -389,12 +415,35 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun hasLocationPermission(): Boolean =
+        checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != LOCATION_PERMISSION_REQUEST) return
+        val origin = pendingGeolocationOrigin
+        val callback = pendingGeolocationCallback
+        pendingGeolocationOrigin = null
+        pendingGeolocationCallback = null
+        if (origin != null && callback != null) {
+            callback.invoke(origin, grantResults.any { it == PackageManager.PERMISSION_GRANTED }, false)
+        }
+    }
+
     @Deprecated("Use system back navigation on newer Android versions")
     override fun onBackPressed() {
         if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 
     override fun onDestroy() {
+        pendingGeolocationCallback?.invoke(pendingGeolocationOrigin, false, false)
+        pendingGeolocationCallback = null
+        pendingGeolocationOrigin = null
         if (::webView.isInitialized) {
             (webView.parent as? ViewGroup)?.removeView(webView)
             webView.destroy()
@@ -404,6 +453,8 @@ class MainActivity : Activity() {
 
     private companion object {
         const val TAG = "MaaleNexWebView"
+        const val APP_ORIGIN = "https://appassets.androidplatform.net"
+        const val LOCATION_PERMISSION_REQUEST = 6402
         const val SPLASH_MIN_DURATION_MS = 5000L
         const val SPLASH_MAX_WAIT_MS = 12000L
         const val SPLASH_CHECK_INTERVAL_MS = 100L
