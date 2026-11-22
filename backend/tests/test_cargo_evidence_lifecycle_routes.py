@@ -290,3 +290,29 @@ def test_auxiliary_retention_requires_distinct_dpo_review(monkeypatch):
             SimpleNamespace(), actor(classifier), db,
         )
     assert error.value.status_code == 409
+
+
+def test_dpo_erasure_approval_is_limited_to_residual_evidence(monkeypatch):
+    request_id, evidence_id, classifier, dpo_id = uuid4(), uuid4(), uuid4(), uuid4()
+    item = SimpleNamespace(
+        id=request_id, evidence_id=evidence_id, status="pending", request_type="erasure",
+    )
+    evidence = SimpleNamespace(
+        id=evidence_id, retention_classified_by=classifier,
+        accounting_document=False, commercial_correspondence=False,
+        classification_status="ordinary", retention_dpo_reviewed_at=datetime.now(UTC),
+        dpo_deletion_suspended=False, rights_review_status="pending",
+    )
+    db = FakeDB(scalars=[item, evidence, None])
+    monkeypatch.setattr(routes, "_allowed", lambda *args, **kwargs: True)
+    monkeypatch.setattr(routes, "require_csrf", lambda *args, **kwargs: None)
+    monkeypatch.setattr(routes, "_audit", lambda *args, **kwargs: None)
+    result = routes.review_evidence_rights_request(
+        request_id,
+        routes.EvidenceRightsRequestReview(
+            decision="erase", reason="Residual operational evidence no longer required",
+        ),
+        SimpleNamespace(), actor(dpo_id), db,
+    )
+    assert result["decision"] == "erase"
+    assert evidence.rights_review_status == "erasure_approved"
