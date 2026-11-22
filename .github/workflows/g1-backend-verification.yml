@@ -158,6 +158,7 @@ jobs:
           migrations/versions/0023_cargo_evidence_hold_review_alert.py
           migrations/versions/0024_cargo_evidence_legal_retention.py
           migrations/versions/0025_cargo_evidence_rights.py
+          migrations/versions/0026_cargo_evidence_dpo_controls.py
           app/domains/cargo/legal_retention.py
           tests/test_cargo_evidence_legal_retention.py
           tests/test_cargo_evidence_lifecycle_routes.py
