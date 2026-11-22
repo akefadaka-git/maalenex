@@ -13,6 +13,7 @@ class CargoDeliveryEvidence(Base):
     __tablename__ = "cargo_delivery_evidence"
     __table_args__ = (
         UniqueConstraint("object_key", name="uq_cargo_delivery_evidence_object_key"),
+        UniqueConstraint("delivery_proof_id", name="uq_cargo_delivery_evidence_proof"),
         Index("ix_cargo_delivery_evidence_dispatch_state", "dispatch_id", "lifecycle_state"),
         Index("ix_cargo_delivery_evidence_retention", "retention_expires_at", "lifecycle_state"),
     )
