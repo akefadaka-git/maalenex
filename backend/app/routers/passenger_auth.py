@@ -76,8 +76,8 @@ def register(payload: PassengerRegistration, request: Request, response: Respons
     _origin(request)
     identifier = _identifier(payload.login_identifier)
     password = payload.password.get_secret_value()
-    if len(password) < 12 or len(password) > 128:
-        raise HTTPException(status_code=422, detail="Password must contain 12 to 128 characters.")
+    if len(password) < 6 or len(password) > 128:
+        raise HTTPException(status_code=422, detail="Password must contain 6 to 128 characters.")
     try:
         passenger = register_passenger(db, login_identifier=identifier, display_name=payload.display_name, password=password)
         issued = create_passenger_session(db, login_identifier=identifier, password=password, client_ip=request.client.host if request.client else "unknown")
