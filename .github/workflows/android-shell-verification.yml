@@ -1,4 +1,5 @@
 name: MaaleNex Android shell verification
+# Exact-head transport checks validate configured API origin injection and reject insecure remote API URLs.
 
 on:
   pull_request:
