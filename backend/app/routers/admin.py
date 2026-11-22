@@ -617,7 +617,7 @@ def create_seat_layout(
     else:
         seat_rows = [{
             "seat_code": code.strip().upper(), "row_label": None,
-            "column_index": index, "seat_type": "standard", "is_sellable": True,
+            "column_index": index, "x": None, "y": None, "seat_type": "standard", "is_sellable": True,
         } for index, code in enumerate(payload.seat_codes)]
     codes = [item["seat_code"] for item in seat_rows]
     positions = [(item["row_label"], item["column_index"]) for item in seat_rows if item["row_label"] is not None]
@@ -1872,7 +1872,7 @@ def update_draft_seat_layout(
     else:
         seat_rows = [{
             "seat_code": code.strip().upper(), "row_label": None,
-            "column_index": index, "seat_type": "standard", "is_sellable": True,
+            "column_index": index, "x": None, "y": None, "seat_type": "standard", "is_sellable": True,
         } for index, code in enumerate(payload.seat_codes)]
     codes = [item["seat_code"] for item in seat_rows]
     positions = [(item["row_label"], item["column_index"]) for item in seat_rows if item["row_label"] is not None]
