@@ -78,6 +78,11 @@ def deletion_block_reason(evidence, *, now: datetime) -> str | None:
         return "retention_deadline_cannot_be_established"
     if deadline > now:
         return "mandatory_retention_period_not_expired"
-    if getattr(evidence, "rights_request_status", "none") in {"pending", "restricted", "under_review"}:
+    rights_status = getattr(evidence, "rights_request_status", "none")
+    if rights_status in {"pending", "restricted", "under_review"}:
         return "data_subject_rights_request_pending"
+    if rights_status == "eligible_for_erasure":
+        if getattr(evidence, "is_accounting_document", False) or getattr(evidence, "is_commercial_correspondence", False):
+            return "statutory_retention_overrides_erasure_request"
+        return None
     return None
