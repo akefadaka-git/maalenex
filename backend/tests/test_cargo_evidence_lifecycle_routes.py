@@ -109,6 +109,9 @@ def test_retention_deletion_request_fails_closed_without_active_policy(monkeypat
         id=evidence_id, storage_deleted_at=None, retention_policy_version="provisional",
         classification_status="ordinary", retention_dpo_reviewed_at=datetime.now(UTC),
         retention_expires_at=datetime.now(UTC) - timedelta(days=1),
+        accounting_document=False, commercial_correspondence=False,
+        dpia_reference="DPIA-TEST-001", dpo_deletion_suspended=False,
+        rights_review_status="reviewed",
     )
     db = FakeDB(scalars=[evidence, None, None])
     monkeypatch.setattr(routes, "_allowed", lambda *args, **kwargs: True)
@@ -151,7 +154,7 @@ def test_retention_worker_deletes_only_dispatch_scoped_object(monkeypatch):
 
     class DB:
         def __init__(self):
-            self.scalar_values = ["active-v1", None]
+            self.scalar_values = ["active-v1", None, None]
             self.commits = 0
 
         def scalars(self, statement):
