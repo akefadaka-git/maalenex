@@ -19,7 +19,8 @@ from app.domains.audit.service import record_event
 from app.domains.cargo.carrier_operations import CargoDeliveryProof
 from app.domains.cargo.dispatch import CargoDispatch
 from app.domains.cargo.evidence_lifecycle import (
-    CargoDeliveryEvidence, CargoDeliveryEvidenceDeletionRequest, CargoDeliveryEvidenceHold,
+    CargoDeliveryEvidence, CargoDeliveryEvidenceAccessGrant,
+    CargoDeliveryEvidenceDeletionRequest, CargoDeliveryEvidenceHold,
 )
 from app.domains.fleet.object_storage import (
     InvalidStoredObject, StorageNotConfigured, StorageOperationFailed,
@@ -71,6 +72,16 @@ class EvidenceHoldRelease(BaseModel):
 
 class EvidenceDeletionRequestCreate(BaseModel):
     reason: str = Field(min_length=10, max_length=500)
+
+
+class EvidenceDeletionApproval(BaseModel):
+    confirmation: Literal["approve"]
+
+
+class EvidenceAccessGrantCreate(BaseModel):
+    user_id: UUID
+    reason: str = Field(min_length=10, max_length=500)
+    expires_at: datetime
 
 
 def _allowed(db: Session, context: StaffContext, code: str, organization_id: UUID | None = None) -> bool:
@@ -291,7 +302,14 @@ def get_private_evidence_download(
     carrier_allowed = _allowed(
         db, context, "operator.cargo.delivery_proof.evidence.read", evidence.carrier_organization_id,
     )
-    platform_allowed = _allowed(db, context, "platform.cargo.delivery_proof.evidence.read")
+    platform_permission = _allowed(db, context, "platform.cargo.delivery_proof.evidence.read")
+    platform_grant = db.scalar(select(CargoDeliveryEvidenceAccessGrant).where(
+        CargoDeliveryEvidenceAccessGrant.evidence_id == evidence.id,
+        CargoDeliveryEvidenceAccessGrant.user_id == context.user.id,
+        CargoDeliveryEvidenceAccessGrant.revoked_at.is_(None),
+        CargoDeliveryEvidenceAccessGrant.expires_at > datetime.now(UTC),
+    ))
+    platform_allowed = platform_permission and platform_grant is not None
     if not (carrier_allowed or platform_allowed):
         _audit(db, context=context, evidence=evidence, action="access_denied", outcome="denied")
         db.commit()
@@ -321,6 +339,62 @@ def get_private_evidence_download(
     _audit(db, context=context, evidence=evidence, action="access_granted", outcome="success")
     db.commit()
     return {"download_url": url, "expires_in_seconds": DOWNLOAD_TTL_SECONDS}
+
+
+@router.post("/evidence/{evidence_id}/access-grants", status_code=201)
+def grant_case_scoped_evidence_access(
+    evidence_id: UUID, payload: EvidenceAccessGrantCreate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.access.manage"):
+        raise HTTPException(status_code=403, detail="Evidence access-grant administration permission is required.")
+    evidence = db.get(CargoDeliveryEvidence, evidence_id)
+    if evidence is None:
+        raise HTTPException(status_code=404, detail="Evidence record not found.")
+    if payload.expires_at.tzinfo is None or payload.expires_at <= datetime.now(UTC):
+        raise HTTPException(status_code=422, detail="Access grant expiry must be timezone-aware and in the future.")
+    grant = CargoDeliveryEvidenceAccessGrant(
+        evidence_id=evidence.id, user_id=payload.user_id, granted_by=context.user.id,
+        reason=payload.reason, expires_at=payload.expires_at,
+    )
+    db.add(grant)
+    db.flush()
+    record_event(
+        db, event_type="cargo.delivery_evidence.access_granted", actor_type="staff",
+        actor_id=str(context.user.id), resource_type="cargo_delivery_evidence_access_grant",
+        resource_id=str(grant.id), action="grant_access", outcome="success",
+        organization_id=evidence.carrier_organization_id,
+        metadata={"evidence_id": str(evidence.id), "grantee_user_id": str(payload.user_id)},
+    )
+    db.commit()
+    return {"grant_id": str(grant.id), "evidence_id": str(evidence.id), "expires_at": grant.expires_at.isoformat()}
+
+
+@router.delete("/evidence/{evidence_id}/access-grants/{grant_id}")
+def revoke_case_scoped_evidence_access(
+    evidence_id: UUID, grant_id: UUID, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.access.manage"):
+        raise HTTPException(status_code=403, detail="Evidence access-grant administration permission is required.")
+    grant = db.scalar(select(CargoDeliveryEvidenceAccessGrant).where(
+        CargoDeliveryEvidenceAccessGrant.id == grant_id,
+        CargoDeliveryEvidenceAccessGrant.evidence_id == evidence_id,
+    ).with_for_update())
+    if grant is None:
+        raise HTTPException(status_code=404, detail="Evidence access grant not found.")
+    if grant.revoked_at is None:
+        grant.revoked_at = datetime.now(UTC)
+        record_event(
+            db, event_type="cargo.delivery_evidence.access_revoked", actor_type="staff",
+            actor_id=str(context.user.id), resource_type="cargo_delivery_evidence_access_grant",
+            resource_id=str(grant.id), action="revoke_access", outcome="success",
+            metadata={"evidence_id": str(evidence_id), "grantee_user_id": str(grant.user_id)},
+        )
+        db.commit()
+    return {"grant_id": str(grant.id), "status": "revoked"}
 
 
 @router.post("/evidence/{evidence_id}/holds", status_code=201)
@@ -371,7 +445,7 @@ def review_evidence_hold(
     hold.dpo_reviewed_by = context.user.id
     hold.dpo_reviewed_at = datetime.now(UTC)
     evidence = db.get(CargoDeliveryEvidence, hold.evidence_id)
-    _audit(db, context=context, evidence=evidence, action="hold_dpo_reviewed", outcome="success", reason=payload.note)
+    _audit(db, context=context, evidence=evidence, action="hold_dpo_reviewed", outcome="success", reason=f"{payload.outcome}:{payload.note}")
     db.commit()
     return {"hold_id": str(hold.id), "oversight_recorded": True, "outcome": payload.outcome}
 
@@ -435,7 +509,7 @@ def request_evidence_deletion(
 
 @router.post("/evidence/deletion-requests/{request_id}/approve")
 def approve_and_execute_evidence_deletion(
-    request_id: UUID, payload: EvidenceDeletionRequestCreate, request: Request,
+    request_id: UUID, payload: EvidenceDeletionApproval, request: Request,
     context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
 ) -> dict:
     require_csrf(request, context)
