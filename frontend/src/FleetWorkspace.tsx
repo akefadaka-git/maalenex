@@ -11,6 +11,7 @@ type Props = { language: "am" | "en"; organizationIds: string[]; canManage: bool
 function parseSeatRows(value: string, seatType = "standard", isSellable = true) {
   const rows = value.split("\n").map(line => line.trim()).filter(Boolean);
   if (!rows.length || rows.length > 26) return null;
+  const maxColumns = Math.max(...rows.map(line => line.split(/[\\s,]+/).filter(Boolean).length));
   const seats = rows.flatMap((line, rowIndex) => line.split(/[\s,]+/).filter(Boolean).map((token, columnIndex) => {
     const [rawCode, rawType, rawSellability, ...extra] = token.split(":");
     const type = rawType || seatType;
@@ -264,11 +265,25 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
 
           <div className="staff-actions"><button className="primary-action" disabled={busy}>{am ? "ለውጦችን አስቀምጥ" : "Save layout changes"}</button><button type="button" className="secondary-action" onClick={() => setEditingLayoutId("")}>{am ? "ሰርዝ" : "Cancel"}</button></div>
         </form>}</article>)}
-        <div className="seat-layout-preview">
-          {seatRowsGrouped.map(([row, seats]) => <div className="seat-layout-row" key={row}><strong>{row}</strong>{seats.sort((a,b)=>a.column_index-b.column_index).map(seat=><span className="seat-layout-seat" key={seat.id} title={`x:${seat.x}, y:${seat.y} · ${seat.seat_type} · ${seat.is_sellable ? "sellable" : "blocked"}`}>{seat.seat_code}</span>)}</div>)}
-          {(layouts.find(item => item.status === "approved") ?? layouts[0])?.geometry?.markers?.map((marker, index) =>
-            <small key={marker.kind + marker.x + marker.y + index}>{marker.kind.toUpperCase()} · {marker.label || "—"} · x:{marker.x}, y:{marker.y}</small>)}
-        </div>
+        {(() => {
+          const activeLayout = layouts.find(item => item.status === "approved") ?? layouts[0];
+          const geometry = activeLayout?.geometry ?? { width: 100, height: 100, markers: [] };
+          return <div className="seat-layout-preview">
+            <div className="seat-layout-map" style={{ position: "relative", width: "100%", maxWidth: "520px", aspectRatio: `${geometry.width} / ${geometry.height}`, border: "1px solid currentColor", borderRadius: "12px", overflow: "hidden" }}>
+              {activeLayout?.seats.map(seat => <span key={seat.id} className="seat-layout-seat"
+                title={`${seat.seat_code} · ${seat.seat_type} · ${seat.is_sellable ? "sellable" : "blocked"}`}
+                style={{ position: "absolute", left: `${seat.x}%`, top: `${seat.y}%`, transform: "translate(-50%, -50%)", opacity: seat.is_sellable ? 1 : 0.45 }}>
+                {seat.seat_code}
+              </span>)}
+              {geometry.markers.map((marker, index) => <span key={marker.kind + marker.x + marker.y + index}
+                className="seat-layout-marker" title={marker.label || marker.kind}
+                style={{ position: "absolute", left: `${marker.x}%`, top: `${marker.y}%`, transform: "translate(-50%, -50%)", fontSize: "0.7rem", fontWeight: 700 }}>
+                {marker.kind === "door" ? "🚪" : "⋮"}
+              </span>)}
+            </div>
+            {seatRowsGrouped.map(([row, seats]) => <div className="seat-layout-row" key={row}><strong>{row}</strong>{seats.sort((a,b)=>a.column_index-b.column_index).map(seat=><span className="seat-layout-seat" key={seat.id}>{seat.seat_code}</span>)}</div>)}
+          </div>;
+        })()}
       </section>}
     </>}
     <p className="compliance-note">{am ? "ተሽከርካሪዎችና መቀመጫዎች በኦፕሬተር ድርጅት ይገደባሉ። የመቀመጫ አቀማመጥ መጽደቅ ብቻውን ጉዞ ወይም ትኬት አያነቃም።" : "Fleet records and seat layouts are organization-scoped. Layout approval alone does not create trips, enable ticketing or authorize commercial operation."}</p>
