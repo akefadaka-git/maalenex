@@ -100,7 +100,7 @@ jobs:
           app/domains/fleet/models.py
           app/domains/fleet/object_storage.py
           tests/test_fleet_object_storage.py
-          tests/test_fleet_object_storage_minio.py
+          tests/test_fleet_object_storage_s3.py
           app/domains/trips/models.py
           migrations/versions/0016_fleet_compliance_and_geometry.py
           app/main.py
