@@ -150,6 +150,46 @@ jobs:
         run: python -m pytest -q
       - name: Apply baseline migration to empty database
         run: python -m alembic upgrade head
+      - name: Exercise HTTPS passenger API session and CORS flow
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout "$tmp/api.key" -out "$tmp/api.crt" -days 1 -subj "/CN=localhost" >/dev/null 2>&1
+          SECURE_COOKIES=true python -m uvicorn app.main:app --host 127.0.0.1 --port 8443 --ssl-keyfile "$tmp/api.key" --ssl-certfile "$tmp/api.crt" > "$tmp/api.log" 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" 2>/dev/null || true; wait "$api_pid" 2>/dev/null || true; cat "$tmp/api.log"' EXIT
+          api="https://127.0.0.1:8443"
+          origin="https://appassets.androidplatform.net"
+          for attempt in $(seq 1 30); do
+            if curl --insecure --fail --silent "$api/api/v1/ready" >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --insecure --fail --silent "$api/api/v1/ready" >/dev/null
+          curl --insecure --silent --show-error -D "$tmp/cors.headers" -o /dev/null -X OPTIONS "$api/api/v1/passenger/auth/register" \
+            -H "Origin: $origin" -H "Access-Control-Request-Method: POST" \
+            -H "Access-Control-Request-Headers: content-type"
+          grep -iq "^access-control-allow-origin: $origin" "$tmp/cors.headers"
+          grep -iq "^access-control-allow-credentials: true" "$tmp/cors.headers"
+          curl --insecure --fail --silent --show-error -D "$tmp/register.headers" \
+            -c "$tmp/cookies.txt" -H "Origin: $origin" -H "Content-Type: application/json" \
+            -d '{"login_identifier":"api-smoke@example.test","display_name":"API Smoke Passenger","password":"pass1234"}' \
+            "$api/api/v1/passenger/auth/register" > "$tmp/register.json"
+          grep -iq "mnm_passenger_session=.*HttpOnly.*SameSite=none.*Secure" "$tmp/register.headers"
+          grep -iq "mnm_passenger_csrf=.*SameSite=none.*Secure" "$tmp/register.headers"
+          csrf="$(awk '$6 == "mnm_passenger_csrf" { print $7 }' "$tmp/cookies.txt")"
+          test -n "$csrf"
+          curl --insecure --fail --silent --show-error -b "$tmp/cookies.txt" -c "$tmp/cookies.txt" \
+            -H "Origin: $origin" -H "Content-Type: application/json" -H "X-CSRF-Token: $csrf" \
+            -X PATCH -d '{"display_name":"API Smoke Passenger Updated"}' \
+            "$api/api/v1/passenger/auth/profile" > "$tmp/profile.json"
+          python -c "import json; assert json.load(open('$tmp/profile.json'))['display_name'] == 'API Smoke Passenger Updated'"
+          curl --insecure --fail --silent --show-error -b "$tmp/cookies.txt" \
+            -H "Origin: $origin" "$api/api/v1/passenger/auth/sessions/current" > "$tmp/session.json"
+          python -c "import json; assert json.load(open('$tmp/session.json'))['login_identifier'] == 'api-smoke@example.test'"
+          echo "PASS: HTTPS readiness, exact-origin credentialed CORS, Secure/SameSite=None cookies, registration, CSRF-protected profile update and authenticated session retrieval"
       - name: Check Alembic metadata parity
         run: python -m alembic check
       - name: Test full migration downgrade and clean re-upgrade
