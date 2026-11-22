@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
@@ -208,7 +208,7 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
         f"/api/v1/vehicles/{vehicle_id}/seat-layouts",
         json={"seats": [
             {"seat_code": "A1", "row_label": "A", "column_index": 0, "seat_type": "standard"},
-            {"seat_code": "A2", "row_label": "A", "column_index": 1, "seat_type": "accessible"},
+            {"seat_code": "A2", "row_label": "A", "column_index": 1, "seat_type": "accessible", "is_sellable": False},
         ]},
     )
     assert layout_response.status_code == 201, layout_response.text
@@ -233,7 +233,7 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
     )
     assert trip_response.status_code == 201, trip_response.text
     trip_id = trip_response.json()["id"]
-    assert trip_response.json()["seat_count"] == 2
+    assert trip_response.json()["seat_count"] == 1
     edited_departure = datetime.now(UTC) + timedelta(days=3)
     edited = client.patch(
         f"/api/v1/trips/{trip_id}",
@@ -245,7 +245,7 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
         },
     )
     assert edited.status_code == 200, edited.text
-    assert edited.json()["seat_count"] == 2
+    assert edited.json()["seat_count"] == 1
     submitted = client.post(f"/api/v1/trips/{trip_id}/submit")
     assert submitted.status_code == 200, submitted.text
 
@@ -314,6 +314,7 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
         assert db.get(Route, UUID(route_id)).status == "published"
         assert db.get(Vehicle, UUID(vehicle_id)).review_status == "approved"
         assert db.get(SeatLayoutVersion, UUID(layout_id)).status == "approved"
+        assert db.scalar(select(func.count(TripSeat.id)).where(TripSeat.trip_id == UUID(trip_id))) == 1
         assert db.get(Trip, UUID(trip_id)).status == "published"
         assert db.scalar(select(FareVersion).where(
             FareVersion.id == UUID(version_id),
