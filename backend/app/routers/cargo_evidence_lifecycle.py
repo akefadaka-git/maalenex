@@ -300,10 +300,22 @@ def get_private_evidence_download(
         raise HTTPException(status_code=410, detail="Evidence has been deleted.")
     if evidence.lifecycle_state != "attached":
         raise HTTPException(status_code=409, detail="Evidence is not attached to an accepted delivery record.")
+    dispatch = db.get(CargoDispatch, evidence.dispatch_id)
+    if dispatch is None or dispatch.carrier_organization_id != evidence.carrier_organization_id:
+        raise HTTPException(status_code=409, detail="Evidence ownership relationship is inconsistent.")
     try:
+        verify_cargo_delivery_object(
+            object_key=evidence.object_key,
+            carrier_organization_id=str(evidence.carrier_organization_id),
+            dispatch_id=str(evidence.dispatch_id),
+        )
         url = create_cargo_delivery_download_url(
             object_key=evidence.object_key, expires_in_seconds=DOWNLOAD_TTL_SECONDS,
         )
+    except StorageNotConfigured as exc:
+        raise HTTPException(status_code=503, detail="Private evidence storage is not configured.") from exc
+    except InvalidStoredObject as exc:
+        raise HTTPException(status_code=410, detail="Evidence object is unavailable or invalid.") from exc
     except StorageOperationFailed as exc:
         raise HTTPException(status_code=503, detail="Private evidence storage is temporarily unavailable.") from exc
     _audit(db, context=context, evidence=evidence, action="access_granted", outcome="success")
