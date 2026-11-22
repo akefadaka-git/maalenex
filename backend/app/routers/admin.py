@@ -714,7 +714,10 @@ def review_vehicle_compliance_evidence(
         raise HTTPException(status_code=404, detail="Compliance evidence not found.")
     if document.status != "pending":
         raise HTTPException(status_code=409, detail="Only pending compliance evidence can be reviewed.")
-    if payload.decision == "approved" and document.expires_at and document.expires_at <= datetime.now(UTC):
+    expires_at = document.expires_at
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    if payload.decision == "approved" and expires_at and expires_at <= datetime.now(UTC):
         raise HTTPException(status_code=409, detail="Expired evidence cannot be approved.")
     vehicle = db.get(Vehicle, document.vehicle_id)
     document.status = payload.decision
