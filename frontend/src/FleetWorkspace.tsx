@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   approveFleetSeatLayout, createFleetSeatLayout, createFleetVehicle, getFleetReviewHistory, getFleetVehicles,
-  getVehicleSeatLayouts, reviewFleetComplianceEvidence, reviewFleetVehicle, submitFleetComplianceEvidence,
+  getVehicleSeatLayouts, reviewFleetComplianceEvidence, reviewFleetVehicle, uploadFleetComplianceEvidence,
   updateDraftFleetSeatLayout, updateFleetVehicle,
   type FleetReviewHistory, type FleetSeatLayout, type FleetVehicle, type SeatLayoutGeometry,
 } from "./staff-api";
@@ -67,7 +67,7 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
   const [editingGeometryText, setEditingGeometryText] = useState('{"width":100,"height":100,"markers":[]}');
   const [reviewHistory, setReviewHistory] = useState<FleetReviewHistory | null>(null);
   const [documentType, setDocumentType] = useState("registration");
-  const [evidenceReference, setEvidenceReference] = useState("");
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   const [issuedAt, setIssuedAt] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [loading, setLoading] = useState(true);
@@ -216,25 +216,31 @@ export function FleetWorkspace({ language, organizationIds, canManage, canReview
           {selectedVehicle.review_status !== "approved" && <small>{am ? "የመቀመጫ አቀማመጥ ለመፍጠር ተሽከርካሪው መጽደቅ አለበት።" : "Vehicle must be approved before creating a seat layout."}</small>}
         </form>}
         {canManageSelected && <section className="staff-module">
-          <h4>{am ? "የሕጋዊ ሰነድ ማስረጃ ያስገቡ" : "Register compliance evidence"}</h4>
-          <p className="compliance-note">{am ? "የተፈቀደ የሰነድ ማከማቻ ቁልፍ ያስገቡ። ይህ ቅጽ ፋይሉን አይጭንም።" : "Enter an opaque object key issued by the approved document store. This form registers evidence metadata; it does not upload file bytes."}</p>
+          <h4>{am ? "የተሽከርካሪ ሰነድ ይጫኑ" : "Upload fleet compliance evidence"}</h4>
+          <p className="compliance-note">{am ? "PDF፣ JPEG ወይም PNG ፋይል ወደ የግል ማከማቻ ይጫናል፤ ከዚያ ለግምገማ ይላካል።" : "Synthetic test documents only. Files are uploaded to private object storage and verified before entering the review queue."}</p>
           <form className="role-assignment-form" onSubmit={event => {
             event.preventDefault();
-            void run(() => submitFleetComplianceEvidence(selectedVehicle.id, {
-              document_type: documentType, evidence_reference: evidenceReference.trim(),
+            if (!evidenceFile) return;
+            void run(() => uploadFleetComplianceEvidence(selectedVehicle.id, evidenceFile, {
+              document_type: documentType,
               issued_at: issuedAt ? new Date(issuedAt).toISOString() : null,
               expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
-            }), am ? "ማስረጃው ለግምገማ ተልኳል።" : "Compliance evidence submitted for review.");
-            setEvidenceReference("");
+            }), am ? "ሰነዱ ተጭኖ ለግምገማ ተልኳል።" : "Evidence uploaded, verified and submitted for review.");
+            setEvidenceFile(null);
           }}>
             <label>{am ? "የሰነድ አይነት" : "Document type"}<select value={documentType} onChange={event => setDocumentType(event.target.value)}>
               <option value="registration">Registration</option><option value="insurance">Insurance</option>
               <option value="roadworthiness">Roadworthiness</option><option value="operating_permit">Operating permit</option><option value="other">Other</option>
             </select></label>
-            <label>{am ? "የማከማቻ ቁልፍ" : "Evidence object key"}<input required minLength={8} maxLength={255} value={evidenceReference} onChange={event => setEvidenceReference(event.target.value)} placeholder="fleet-compliance/operator/vehicle/document-id" /></label>
+            <label>{am ? "ፋይል (እስከ 10 MiB)" : "Evidence file (max 10 MiB)"}
+              <input required type="file" accept="application/pdf,image/jpeg,image/png"
+                onChange={event => setEvidenceFile(event.target.files?.[0] ?? null)} />
+            </label>
             <label>{am ? "የተሰጠበት ቀን" : "Issue date"}<input type="date" value={issuedAt} onChange={event => setIssuedAt(event.target.value)} /></label>
             <label>{am ? "የሚያበቃበት ቀን" : "Expiry date"}<input type="date" value={expiresAt} onChange={event => setExpiresAt(event.target.value)} /></label>
-            <button className="primary-action" disabled={busy || !evidenceReference.trim()}>{am ? "ማስረጃ ላክ" : "Submit evidence"}</button>
+            <button className="primary-action" disabled={busy || !evidenceFile || evidenceFile.size > 10 * 1024 * 1024 || !["application/pdf", "image/jpeg", "image/png"].includes(evidenceFile.type)}>
+              {am ? "ሰነድ ጫን እና ለግምገማ ላክ" : "Upload and submit for review"}
+            </button>
           </form>
         </section>}
         {reviewHistory && <section className="staff-module">
