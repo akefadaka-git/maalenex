@@ -2,8 +2,8 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from uuid import uuid4
 
-import pytest
 from fastapi import HTTPException
+import pytest
 
 from app.jobs import cargo_evidence_cleanup
 from app.routers import cargo_evidence_lifecycle as routes
