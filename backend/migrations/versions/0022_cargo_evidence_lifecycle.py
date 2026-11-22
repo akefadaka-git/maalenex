@@ -24,8 +24,8 @@ def upgrade() -> None:
         sa.Column("object_key", sa.String(512), nullable=False),
         sa.Column("content_type", sa.String(120)),
         sa.Column("content_length", sa.Integer()),
-        sa.Column("upload_intent_created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("upload_intent_expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("upload_intent_created_at", sa.DateTime(timezone=True)),
+        sa.Column("upload_intent_expires_at", sa.DateTime(timezone=True)),
         sa.Column("verified_at", sa.DateTime(timezone=True)),
         sa.Column("attached_at", sa.DateTime(timezone=True)),
         sa.Column("lifecycle_state", sa.String(32), nullable=False, server_default="pending"),
@@ -74,6 +74,23 @@ def upgrade() -> None:
     )
     op.create_index("ix_cargo_evidence_deletion_status", "cargo_delivery_evidence_deletion_requests", ["status", "created_at"])
     connection = op.get_bind()
+    # Preserve legacy proof rows without inventing historical upload/verification times.
+    legacy_rows = connection.execute(sa.text(
+        "SELECT p.id, p.dispatch_id, d.carrier_organization_id, p.evidence_reference "
+        "FROM cargo_delivery_proofs p JOIN cargo_dispatches d ON d.id = p.dispatch_id"
+    )).mappings().all()
+    from uuid import NAMESPACE_URL, uuid5
+    for row in legacy_rows:
+        evidence_id = uuid5(NAMESPACE_URL, f"maalenex:cargo-delivery-evidence:legacy:{row['id']}")
+        connection.execute(sa.text(
+            "INSERT INTO cargo_delivery_evidence "
+            "(id, carrier_organization_id, dispatch_id, delivery_proof_id, object_key, "
+            "lifecycle_state, classification_status, created_at, updated_at) "
+            "VALUES (:id, :carrier, :dispatch, :proof, :object_key, 'attached', 'unclassified', "
+            "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT (object_key) DO NOTHING"
+        ), {"id": evidence_id, "carrier": row["carrier_organization_id"],
+            "dispatch": row["dispatch_id"], "proof": row["id"], "object_key": row["evidence_reference"]})
+
     permissions = {
         "operator.cargo.delivery_proof.evidence.read": "Read private delivery evidence for own carrier dispatches",
         "platform.cargo.delivery_proof.evidence.read": "Read private delivery evidence for explicitly authorized cases",
