@@ -119,9 +119,14 @@ export function FareWorkspace({ language, organizationIds, currentUserId, canPro
       <h4>{am ? "የዋጋ መዝገብ" : "Fare register"}</h4>
       {fares.map(fare => <article className="staff-module" key={fare.id}>
         <div className="staff-heading"><div><strong>{fare.route_code}{fare.trip_id ? " · " + formatDate(fare.trip_departure_at) : ""}</strong><small>{fare.organization_name} · {fare.status}</small></div></div>
-        {fare.versions.map(version => <div className="staff-user-row" key={version.id}>
+        {fare.versions.map((version, index) => {
+          const previousVersion = fare.versions[index + 1];
+          const change = previousVersion ? version.amount_minor_units - previousVersion.amount_minor_units : null;
+          return <div className="staff-user-row" key={version.id}>
           <div><strong>v{version.version_number} · {formatMoney(version.amount_minor_units)}</strong>
-            <small>{formatDate(version.effective_from)} → {formatDate(version.effective_to)}</small></div>
+            <small>{formatDate(version.effective_from)} → {formatDate(version.effective_to)}</small>
+            {previousVersion && <small>{am ? `ለውጥ ከ v${previousVersion.version_number}: ` : `Change vs v${previousVersion.version_number}: `}{change !== null && change > 0 ? "+" : ""}{formatMoney(change ?? 0)}</small>}
+          </div>
           {status(version.status)}
           {canPropose && organizationIds.includes(fare.organization_id) && version.status === "draft" && version.proposed_by === currentUserId &&
             <button className="text-link" disabled={busy} onClick={() => void run(() => submitFareVersion(fare.id, version.id), am ? "ዋጋው ለግምገማ ተልኳል።" : "Fare submitted for review.")}>{am ? "ለግምገማ ላክ" : "Submit"}</button>}
@@ -131,7 +136,8 @@ export function FareWorkspace({ language, organizationIds, currentUserId, canPro
           </>}
           {canPublish && version.status === "approved" && version.approved_by !== currentUserId &&
             <button className="text-link" disabled={busy} onClick={() => void run(() => publishFareVersion(fare.id, version.id), am ? "ዋጋው ታትሟል።" : "Fare published.")}>{am ? "አትም" : "Publish"}</button>}
-        </div>)}
+        </div>;
+        })}
       </article>)}
       {canApprove && fares.some(fare => fare.versions.some(v => v.status === "submitted" && v.proposed_by !== currentUserId)) &&
         <label>{am ? "የግምገማ ምክንያት" : "Review reason"}<input minLength={3} maxLength={500} value={reviewReason} onChange={event => setReviewReason(event.target.value)} /></label>}
