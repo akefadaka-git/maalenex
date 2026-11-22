@@ -657,8 +657,8 @@ def create_trip(
     terminal = db.get(Terminal, payload.boarding_terminal_id)
     vehicle = db.get(Vehicle, payload.vehicle_id)
     layout = db.get(SeatLayoutVersion, payload.seat_layout_version_id)
-    if operator is None or operator.status != "approved":
-        raise HTTPException(status_code=409, detail="Operator is not approved.")
+    if operator is None or operator.organization_type != "operator" or operator.status != "approved":
+        raise HTTPException(status_code=409, detail="An approved operator organization is required.")
     if route is None or route.status != "published":
         raise HTTPException(status_code=409, detail="Route is not published.")
     if terminal is None or terminal.status != "published" or terminal.location_id != route.origin_location_id:
