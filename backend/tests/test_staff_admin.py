@@ -35,6 +35,12 @@ def test_staff_admin_routes_are_registered():
         "/api/v1/trips/{trip_id}/approve",
         "/api/v1/trips/{trip_id}/publish",
         "/api/v1/trips/{trip_id}/manifest",
+        "/api/v1/operators/{organization_id}/fare/options",
+        "/api/v1/operators/{organization_id}/fares",
+        "/api/v1/admin/fares",
+        "/api/v1/fares/{fare_id}/versions/{version_id}/submit",
+        "/api/v1/fares/{fare_id}/versions/{version_id}/review",
+        "/api/v1/fares/{fare_id}/versions/{version_id}/publish",
     }.issubset(paths)
 
 
@@ -246,3 +252,68 @@ def test_trip_lifecycle_mutations_require_staff_session():
     for path in paths:
         response = client.post(path, json={}) if path.endswith("/trips") or path.endswith("/submit") or path.endswith("/approve") or path.endswith("/publish") else client.get(path)
         assert response.status_code == 401
+
+
+def test_fare_read_routes_require_staff_session():
+    client = TestClient(app)
+    paths = (
+        "/api/v1/operators/00000000-0000-0000-0000-000000000001/fare/options",
+        "/api/v1/operators/00000000-0000-0000-0000-000000000001/fares",
+        "/api/v1/admin/fares",
+    )
+    for path in paths:
+        assert client.get(path).status_code == 401
+
+
+def test_fare_lifecycle_mutations_require_staff_session():
+    client = TestClient(app)
+    paths = (
+        "/api/v1/operators/00000000-0000-0000-0000-000000000001/fares",
+        "/api/v1/fares/00000000-0000-0000-0000-000000000001/versions/00000000-0000-0000-0000-000000000002/submit",
+        "/api/v1/fares/00000000-0000-0000-0000-000000000001/versions/00000000-0000-0000-0000-000000000002/review",
+        "/api/v1/fares/00000000-0000-0000-0000-000000000001/versions/00000000-0000-0000-0000-000000000002/publish",
+    )
+    for path in paths:
+        response = client.post(path, json={})
+        assert response.status_code == 401
+
+
+def test_operator_fare_permission_is_organization_scoped(monkeypatch):
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    import pytest
+    from fastapi import HTTPException
+
+    from app.routers import admin
+
+    organization_id = uuid4()
+    calls = []
+
+    def deny_permission(_db, **kwargs):
+        calls.append(kwargs)
+        return False
+
+    monkeypatch.setattr(admin, "has_permission", deny_permission)
+    context = SimpleNamespace(user=SimpleNamespace(id=uuid4()))
+    with pytest.raises(HTTPException) as error:
+        admin._authorize(object(), context, "operator.fare.propose", organization_id)
+    assert error.value.status_code == 403
+    assert calls[0]["permission_code"] == "operator.fare.propose"
+    assert calls[0]["organization_id"] == organization_id
+
+
+def test_fare_roles_receive_propose_approve_and_publish_permissions():
+    import importlib.util
+    from pathlib import Path
+
+    migration_path = Path(__file__).parents[1] / "migrations" / "versions" / "0015_scheduler_operations_rbac.py"
+    spec = importlib.util.spec_from_file_location("scheduler_operations_rbac_fares", migration_path)
+    assert spec is not None and spec.loader is not None
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    assert "operator.fare.propose" in migration.ROLE_GRANTS["operator_fare_manager"]
+    assert {"platform.fare.approve", "platform.fare.publish"}.issubset(
+        set(migration.ROLE_GRANTS["platform_fare_manager"])
+    )
