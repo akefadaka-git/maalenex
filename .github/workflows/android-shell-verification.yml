@@ -51,6 +51,18 @@ jobs:
 
       - name: Verify packaged WebView CSP contract
         run: python3 .github/scripts/verify-android-web-csp.py frontend/dist/index.html
+      - name: Verify configured HTTPS API origin and reject insecure remote origins
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          VITE_API_BASE_URL=https://api.example.invalid npm run build -- --outDir /tmp/maalenex-api-csp-check
+          python3 ../.github/scripts/verify-android-web-csp.py /tmp/maalenex-api-csp-check/index.html
+          if VITE_API_BASE_URL=http://api.example.invalid npm run build -- --outDir /tmp/maalenex-insecure-api-csp-check; then
+            echo "FAIL: insecure remote API origin was accepted"
+            exit 1
+          fi
+          echo "PASS: insecure remote API origin rejected"
 
       - name: Set up Java 17
         uses: actions/setup-java@v5
