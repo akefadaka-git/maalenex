@@ -1691,3 +1691,100 @@ def update_draft_seat_layout(
     db.commit()
     return {"id": str(layout.id), "version_number": layout.version_number,
             "seat_count": len(seat_rows), "status": layout.status}
+
+
+def _trip_payload(db: Session, trips: list[Trip]) -> list[dict]:
+    results = []
+    for trip in trips:
+        route = db.get(Route, trip.route_id)
+        terminal = db.get(Terminal, trip.boarding_terminal_id)
+        vehicle = db.get(Vehicle, trip.vehicle_id)
+        operator = db.get(Organization, trip.organization_id)
+        seat_count = db.scalar(select(func.count(TripSeat.id)).where(TripSeat.trip_id == trip.id)) or 0
+        results.append({
+            "id": str(trip.id), "organization_id": str(trip.organization_id),
+            "organization_name": operator.display_name if operator else "Unknown operator",
+            "route_id": str(trip.route_id), "route_code": route.code if route else "Unknown route",
+            "boarding_terminal_id": str(trip.boarding_terminal_id),
+            "boarding_terminal_name": terminal.name if terminal else "Unknown terminal",
+            "vehicle_id": str(trip.vehicle_id),
+            "vehicle_reference": vehicle.vehicle_reference if vehicle else "Unknown vehicle",
+            "seat_layout_version_id": str(trip.seat_layout_version_id),
+            "departure_at": trip.departure_at.isoformat(),
+            "arrival_estimate_at": trip.arrival_estimate_at.isoformat() if trip.arrival_estimate_at else None,
+            "status": trip.status, "seat_count": seat_count,
+            "published_at": trip.published_at.isoformat() if trip.published_at else None,
+        })
+    return results
+
+
+@router.get("/operators/{organization_id}/dispatch/options")
+def get_operator_dispatch_options(
+    organization_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    _authorize(db, context, "operator.trip.manage", organization_id)
+    operator = db.get(Organization, organization_id)
+    if operator is None or operator.organization_type != "operator" or operator.status != "approved":
+        raise HTTPException(status_code=409, detail="An approved operator organization is required.")
+    routes = db.scalars(select(Route).where(Route.status == "published").order_by(Route.code).limit(300)).all()
+    published_locations = select(Location.id).where(Location.status == "published")
+    terminals = db.scalars(select(Terminal).where(
+        Terminal.status == "published", Terminal.location_id.in_(published_locations)
+    ).order_by(Terminal.name).limit(300)).all()
+    vehicles = db.scalars(select(Vehicle).where(
+        Vehicle.organization_id == organization_id, Vehicle.status == "active",
+        Vehicle.review_status == "approved",
+    ).order_by(Vehicle.vehicle_reference).limit(200)).all()
+    vehicle_ids = [vehicle.id for vehicle in vehicles]
+    layouts = db.scalars(select(SeatLayoutVersion).where(
+        SeatLayoutVersion.vehicle_id.in_(vehicle_ids), SeatLayoutVersion.status == "approved"
+    ).order_by(SeatLayoutVersion.vehicle_id, SeatLayoutVersion.version_number.desc())).all() if vehicle_ids else []
+    layout_counts = dict(db.execute(
+        select(VehicleSeat.seat_layout_version_id, func.count(VehicleSeat.id))
+        .where(VehicleSeat.seat_layout_version_id.in_([item.id for item in layouts]),
+               VehicleSeat.is_sellable.is_(True))
+        .group_by(VehicleSeat.seat_layout_version_id)
+    ).all()) if layouts else {}
+    layouts_by_vehicle: dict[UUID, list[dict]] = {}
+    for layout in layouts:
+        layouts_by_vehicle.setdefault(layout.vehicle_id, []).append({
+            "id": str(layout.id), "version_number": layout.version_number,
+            "seat_count": layout_counts.get(layout.id, 0),
+        })
+    return {
+        "routes": [{
+            "id": str(route.id), "code": route.code,
+            "origin_location_id": str(route.origin_location_id),
+            "destination_location_id": str(route.destination_location_id),
+        } for route in routes],
+        "terminals": [{
+            "id": str(terminal.id), "location_id": str(terminal.location_id),
+            "name": terminal.name,
+        } for terminal in terminals],
+        "vehicles": [{
+            "id": str(vehicle.id), "vehicle_reference": vehicle.vehicle_reference,
+            "seat_layouts": layouts_by_vehicle.get(vehicle.id, []),
+        } for vehicle in vehicles],
+    }
+
+
+@router.get("/operators/{organization_id}/trips")
+def list_operator_trips(
+    organization_id: UUID, context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "operator.trip.manage", organization_id)
+    trips = db.scalars(select(Trip).where(
+        Trip.organization_id == organization_id
+    ).order_by(Trip.departure_at.desc(), Trip.id).limit(300)).all()
+    return _trip_payload(db, trips)
+
+
+@router.get("/admin/dispatch/trips")
+def list_platform_dispatch_trips(
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.trip.approve")
+    trips = db.scalars(select(Trip).order_by(Trip.departure_at.desc(), Trip.id).limit(500)).all()
+    return _trip_payload(db, trips)
