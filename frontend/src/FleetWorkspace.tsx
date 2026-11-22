@@ -25,9 +25,12 @@ function parseSeatRows(value: string, seatType = "standard", isSellable = true) 
       is_sellable: sellability ? sellability === "sellable" : isSellable,
     };
   }));
-  return seats.length > 0 && seats.length <= 60 && seats.every(Boolean) &&
-    rows.every(line => line.split(/[\\s,]+/).filter(Boolean).length <= 21)
-    ? seats : null;
+  if (
+    seats.length === 0 || seats.length > 60 ||
+    !seats.every((seat): seat is NonNullable<typeof seat> => seat !== null) ||
+    !rows.every(line => line.split(/[\s,]+/).filter(Boolean).length <= 21)
+  ) return null;
+  return seats;
 }
 
 function formatSeatRows(layout: FleetSeatLayout) {
