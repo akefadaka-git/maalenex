@@ -735,11 +735,11 @@ def request_evidence_deletion(
     if _active_hold(db, evidence.id):
         raise HTTPException(status_code=409, detail="Active legal hold prevents deletion.")
     policy = _active_policy(db, evidence.retention_policy_version)
-    if (evidence.classification_status != "ordinary" or evidence.retention_dpo_reviewed_at is None
-            or evidence.retention_expires_at is None or policy is None):
-        raise HTTPException(status_code=409, detail="Legal classification, independent DPO review or activated retention policy is missing; deletion fails closed.")
-    if evidence.retention_expires_at > datetime.now(UTC):
-        raise HTTPException(status_code=409, detail="Evidence is still within its retention period.")
+    block_reason = deletion_block_reason(evidence, now=datetime.now(UTC))
+    if block_reason:
+        raise HTTPException(status_code=409, detail=f"Evidence deletion fails closed: {block_reason}.")
+    if policy is None:
+        raise HTTPException(status_code=409, detail="An independently validated and activated retention policy is required; deletion fails closed.")
     item = CargoDeliveryEvidenceDeletionRequest(
         evidence_id=evidence.id, requested_by=context.user.id,
         reason=payload.reason, status="requested",
@@ -774,10 +774,11 @@ def approve_and_execute_evidence_deletion(
     if _active_hold(db, evidence.id):
         raise HTTPException(status_code=409, detail="Active legal hold prevents deletion.")
     policy = _active_policy(db, evidence.retention_policy_version)
-    if (evidence.classification_status != "ordinary" or evidence.retention_dpo_reviewed_at is None
-            or policy is None or evidence.retention_expires_at is None
-            or evidence.retention_expires_at > datetime.now(UTC)):
-        raise HTTPException(status_code=409, detail="Legal classification, independent DPO review, activated policy or expiry eligibility is missing; deletion fails closed.")
+    block_reason = deletion_block_reason(evidence, now=datetime.now(UTC))
+    if block_reason:
+        raise HTTPException(status_code=409, detail=f"Evidence deletion fails closed: {block_reason}.")
+    if policy is None:
+        raise HTTPException(status_code=409, detail="An independently validated and activated retention policy is required; deletion fails closed.")
     item.approved_by = context.user.id
     item.approved_at = datetime.now(UTC)
     item.executed_by = context.user.id
