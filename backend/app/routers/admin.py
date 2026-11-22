@@ -1694,28 +1694,35 @@ def update_draft_seat_layout(
 
 
 def _trip_payload(db: Session, trips: list[Trip]) -> list[dict]:
-    results = []
-    for trip in trips:
-        route = db.get(Route, trip.route_id)
-        terminal = db.get(Terminal, trip.boarding_terminal_id)
-        vehicle = db.get(Vehicle, trip.vehicle_id)
-        operator = db.get(Organization, trip.organization_id)
-        seat_count = db.scalar(select(func.count(TripSeat.id)).where(TripSeat.trip_id == trip.id)) or 0
-        results.append({
-            "id": str(trip.id), "organization_id": str(trip.organization_id),
-            "organization_name": operator.display_name if operator else "Unknown operator",
-            "route_id": str(trip.route_id), "route_code": route.code if route else "Unknown route",
-            "boarding_terminal_id": str(trip.boarding_terminal_id),
-            "boarding_terminal_name": terminal.name if terminal else "Unknown terminal",
-            "vehicle_id": str(trip.vehicle_id),
-            "vehicle_reference": vehicle.vehicle_reference if vehicle else "Unknown vehicle",
-            "seat_layout_version_id": str(trip.seat_layout_version_id),
-            "departure_at": trip.departure_at.isoformat(),
-            "arrival_estimate_at": trip.arrival_estimate_at.isoformat() if trip.arrival_estimate_at else None,
-            "status": trip.status, "seat_count": seat_count,
-            "published_at": trip.published_at.isoformat() if trip.published_at else None,
-        })
-    return results
+    if not trips:
+        return []
+    route_ids = {item.route_id for item in trips}
+    terminal_ids = {item.boarding_terminal_id for item in trips}
+    vehicle_ids = {item.vehicle_id for item in trips}
+    organization_ids = {item.organization_id for item in trips}
+    trip_ids = [item.id for item in trips]
+    routes = {item.id: item for item in db.scalars(select(Route).where(Route.id.in_(route_ids))).all()}
+    terminals = {item.id: item for item in db.scalars(select(Terminal).where(Terminal.id.in_(terminal_ids))).all()}
+    vehicles = {item.id: item for item in db.scalars(select(Vehicle).where(Vehicle.id.in_(vehicle_ids))).all()}
+    organizations = {item.id: item for item in db.scalars(select(Organization).where(Organization.id.in_(organization_ids))).all()}
+    seat_counts = dict(db.execute(
+        select(TripSeat.trip_id, func.count(TripSeat.id))
+        .where(TripSeat.trip_id.in_(trip_ids)).group_by(TripSeat.trip_id)
+    ).all())
+    return [{
+        "id": str(trip.id), "organization_id": str(trip.organization_id),
+        "organization_name": organizations[trip.organization_id].display_name if trip.organization_id in organizations else "Unknown operator",
+        "route_id": str(trip.route_id), "route_code": routes[trip.route_id].code if trip.route_id in routes else "Unknown route",
+        "boarding_terminal_id": str(trip.boarding_terminal_id),
+        "boarding_terminal_name": terminals[trip.boarding_terminal_id].name if trip.boarding_terminal_id in terminals else "Unknown terminal",
+        "vehicle_id": str(trip.vehicle_id),
+        "vehicle_reference": vehicles[trip.vehicle_id].vehicle_reference if trip.vehicle_id in vehicles else "Unknown vehicle",
+        "seat_layout_version_id": str(trip.seat_layout_version_id),
+        "departure_at": trip.departure_at.isoformat(),
+        "arrival_estimate_at": trip.arrival_estimate_at.isoformat() if trip.arrival_estimate_at else None,
+        "status": trip.status, "seat_count": seat_counts.get(trip.id, 0),
+        "published_at": trip.published_at.isoformat() if trip.published_at else None,
+    } for trip in trips]
 
 
 @router.get("/operators/{organization_id}/dispatch/options")
