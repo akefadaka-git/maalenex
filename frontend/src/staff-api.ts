@@ -317,3 +317,47 @@ export function publishDispatchTrip(tripId: string): Promise<{ id: string; statu
 export function getTripManifest(tripId: string): Promise<TripManifest> {
   return request<TripManifest>(`/trips/${encodeURIComponent(tripId)}/manifest`);
 }
+
+
+export type FareOptions = {
+  routes: Array<{ id: string; code: string }>;
+  trips: Array<{ id: string; route_id: string; route_code: string; departure_at: string; status: string }>;
+};
+export type FareVersionRecord = {
+  id: string; version_number: number; amount_minor_units: number; currency_code: string;
+  effective_from: string; effective_to: string | null; status: string; proposed_by: string;
+  approved_by: string | null; published_by: string | null; published_at: string | null;
+};
+export type FareRecord = {
+  id: string; organization_id: string; organization_name: string; route_id: string;
+  route_code: string; trip_id: string | null; trip_departure_at: string | null;
+  status: string; versions: FareVersionRecord[];
+};
+export function getFareOptions(organizationId: string): Promise<FareOptions> {
+  return request<FareOptions>(`/operators/${encodeURIComponent(organizationId)}/fare/options`);
+}
+export function getOperatorFares(organizationId: string): Promise<FareRecord[]> {
+  return request<FareRecord[]>(`/operators/${encodeURIComponent(organizationId)}/fares`);
+}
+export function getPlatformFares(): Promise<FareRecord[]> {
+  return request<FareRecord[]>("/admin/fares");
+}
+export function createFareProposal(organizationId: string, input: {
+  route_id: string; trip_id: string | null; amount_minor_units: number;
+  effective_from: string; effective_to: string | null;
+}): Promise<{ id: string; fare_id: string; version_number: number; status: string }> {
+  return request(`/operators/${encodeURIComponent(organizationId)}/fares`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+export function submitFareVersion(fareId: string, versionId: string): Promise<{ id: string; status: string }> {
+  return request(`/fares/${encodeURIComponent(fareId)}/versions/${encodeURIComponent(versionId)}/submit`, { method: "POST" });
+}
+export function reviewFareVersion(fareId: string, versionId: string, decision: "approved" | "rejected", reason: string): Promise<unknown> {
+  return request(`/fares/${encodeURIComponent(fareId)}/versions/${encodeURIComponent(versionId)}/review`, {
+    method: "POST", body: JSON.stringify({ decision, reason }),
+  });
+}
+export function publishFareVersion(fareId: string, versionId: string): Promise<{ id: string; status: string }> {
+  return request(`/fares/${encodeURIComponent(fareId)}/versions/${encodeURIComponent(versionId)}/publish`, { method: "POST" });
+}
