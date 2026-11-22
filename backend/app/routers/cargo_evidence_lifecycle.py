@@ -526,7 +526,34 @@ def classify_evidence_retention(
         raise HTTPException(status_code=404, detail="Evidence record not found.")
     if evidence.lifecycle_state not in {"attached", "held"} or evidence.retention_started_at is None:
         raise HTTPException(status_code=409, detail="Evidence must be attached to a closed delivery before classification.")
-    evidence.classification_status = f"{payload.classification}_pending_dpo"
+    if not (payload.is_accounting_document or payload.is_commercial_correspondence or payload.is_ordinary_operational_evidence):
+        raise HTTPException(status_code=422, detail="At least one legal evidence classification is required.")
+    if payload.is_accounting_document and payload.accounting_document_date is None:
+        raise HTTPException(status_code=422, detail="Accounting-document preparation/last-entry date is required.")
+    if payload.is_commercial_correspondence and payload.commercial_correspondence_date is None:
+        raise HTTPException(status_code=422, detail="Commercial correspondence date is required.")
+    if payload.contains_sensitive_personal_data and not payload.contains_personal_data:
+        raise HTTPException(status_code=422, detail="Sensitive personal data must also be marked as personal data.")
+    if payload.is_ordinary_operational_evidence and (not payload.operational_legal_basis or not payload.operational_retention_justification):
+        raise HTTPException(status_code=422, detail="Residual operational evidence requires a documented legal basis and retention justification.")
+    for source_date in (payload.accounting_document_date, payload.commercial_correspondence_date):
+        if source_date is not None and (source_date.tzinfo is None or source_date.utcoffset() is None):
+            raise HTTPException(status_code=422, detail="Legal retention source dates must include a timezone offset.")
+    evidence.is_accounting_document = payload.is_accounting_document
+    evidence.is_commercial_correspondence = payload.is_commercial_correspondence
+    evidence.is_ordinary_operational_evidence = payload.is_ordinary_operational_evidence
+    evidence.contains_personal_data = payload.contains_personal_data
+    evidence.contains_sensitive_personal_data = payload.contains_sensitive_personal_data
+    evidence.accounting_document_date = payload.accounting_document_date
+    evidence.commercial_correspondence_date = payload.commercial_correspondence_date
+    evidence.operational_retention_started_at = evidence.retention_started_at or evidence.attached_at
+    evidence.operational_legal_basis = payload.operational_legal_basis
+    evidence.operational_retention_justification = payload.operational_retention_justification
+    evidence.sensitive_data_handling_review_reference = payload.sensitive_data_handling_review_reference
+    evidence.classification_complete = False
+    evidence.classification_status = "multi_class_pending_dpo"
+    evidence.legal_retention_until = None
+    evidence.retention_expires_at = None
     evidence.retention_legal_review_reference = payload.legal_review_reference
     evidence.retention_classified_by = context.user.id
     evidence.retention_classified_at = datetime.now(UTC)
