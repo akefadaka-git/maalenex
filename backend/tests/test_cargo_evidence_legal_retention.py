@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 from app.domains.cargo.legal_retention import deletion_block_reason, effective_retention_deadline
@@ -164,13 +164,15 @@ def test_orphan_cleanup_requires_active_policy_and_never_deletes_without_it(monk
         def commit(self):
             return None
 
+    deletion_calls = []
     monkeypatch.setattr(
         cargo_evidence_cleanup, "delete_cargo_delivery_object",
-        lambda **kwargs: pytest.fail("Orphan object deletion ran without an active retention policy."),
+        lambda **kwargs: deletion_calls.append(kwargs),
     )
     monkeypatch.setattr(cargo_evidence_cleanup, "record_event", lambda *args, **kwargs: None)
     result = cargo_evidence_cleanup.cleanup_expired_unattached_evidence(
-        DB(), now=datetime(2026, 11, 22, tzinfo=UTC), grace_period=__import__("datetime").timedelta(days=1),
+        DB(), now=datetime(2026, 11, 22, tzinfo=UTC), grace_period=timedelta(days=1),
     )
     assert result["deleted"] == 0
     assert result["held"] == 1
+    assert deletion_calls == []
