@@ -29,7 +29,7 @@ CSRF_COOKIE = "mnm_passenger_csrf"
 class PassengerRegistration(BaseModel):
     login_identifier: str = Field(min_length=5, max_length=254)
     display_name: str = Field(min_length=2, max_length=120)
-    password: SecretStr
+    password: SecretStr = Field(min_length=6, max_length=128)
 
 class PassengerLogin(BaseModel):
     login_identifier: str = Field(min_length=5, max_length=254)
