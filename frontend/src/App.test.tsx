@@ -281,6 +281,9 @@ describe("MaaleNex full-platform interface foundation", () => {
           { id: "destination-id", name: "Jinka", type: "town" },
         ] } as Response;
       }
+      if (url.endsWith("/catalog/routes")) {
+        return { ok: true, status: 200, json: async () => [] } as Response;
+      }
       if (url.includes("/trips/search?")) {
         return { ok: true, status: 200, json: async () => [trip] } as Response;
       }
