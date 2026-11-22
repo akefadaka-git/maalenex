@@ -25,6 +25,16 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+    reviewed = bind.execute(sa.text(
+        "SELECT count(*) FROM cargo_delivery_evidence "
+        "WHERE audit_retention_classified_by IS NOT NULL "
+        "OR audit_retention_reviewed_by IS NOT NULL "
+        "OR tombstone_retention_classified_by IS NOT NULL "
+        "OR tombstone_retention_reviewed_by IS NOT NULL"
+    )).scalar_one()
+    if reviewed:
+        raise RuntimeError("Refusing to downgrade populated audit/tombstone retention review records.")
     for name in (
         "tombstone_retention_reviewed_at", "audit_retention_reviewed_at",
         "tombstone_retention_reviewed_by", "tombstone_retention_classified_by",
