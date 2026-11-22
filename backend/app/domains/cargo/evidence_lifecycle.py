@@ -99,3 +99,26 @@ def add_calendar_months(value: datetime, months: int) -> datetime:
     year = value.year + month_index // 12
     month = month_index % 12 + 1
     return value.replace(year=year, month=month, day=min(value.day, monthrange(year, month)[1]))
+
+
+
+class CargoDeliveryEvidenceAccessGrant(Base):
+    __tablename__ = "cargo_delivery_evidence_access_grants"
+    __table_args__ = (
+        Index("ix_cargo_evidence_access_user_active", "user_id", "revoked_at", "expires_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    evidence_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("cargo_delivery_evidence.id", ondelete="RESTRICT"), nullable=False,
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"), nullable=False,
+    )
+    granted_by: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("staff_users.id", ondelete="RESTRICT"), nullable=False,
+    )
+    reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
