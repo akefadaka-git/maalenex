@@ -16,7 +16,8 @@ def add_calendar_months(value: datetime, months: int) -> datetime:
 
 
 def add_calendar_years(value: datetime, years: int) -> datetime:
-    return value.replace(year=value.year + years, day=min(value.day, 29 if value.month == 2 else value.day))
+    year = value.year + years
+    return value.replace(year=year, day=min(value.day, monthrange(year, value.month)[1]))
 
 
 def effective_retention_deadline(evidence) -> datetime | None:
