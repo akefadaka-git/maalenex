@@ -305,6 +305,14 @@ export function createDispatchTrip(organizationId: string, input: {
     method: "POST", body: JSON.stringify(input),
   });
 }
+export function updateDispatchTrip(tripId: string, input: {
+  route_id: string; boarding_terminal_id: string; vehicle_id: string; seat_layout_version_id: string;
+  departure_at: string; arrival_estimate_at: string | null;
+}): Promise<{ id: string; status: string; seat_count: number }> {
+  return request(`/trips/${encodeURIComponent(tripId)}`, {
+    method: "PATCH", body: JSON.stringify(input),
+  });
+}
 export function submitDispatchTrip(tripId: string): Promise<{ id: string; status: string }> {
   return request(`/trips/${encodeURIComponent(tripId)}/submit`, { method: "POST" });
 }
