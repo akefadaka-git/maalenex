@@ -118,7 +118,7 @@ def operations_client(request, monkeypatch):
     monkeypatch.setattr(
         admin, "create_compliance_upload_intent",
         lambda **kwargs: {
-            "object_key": f"fleet-compliance/{kwargs["organization_id"]}/{kwargs["vehicle_id"]}/synthetic-fixture",
+            "object_key": f"fleet-compliance/{kwargs.get('organization_id')}/{kwargs.get('vehicle_id')}/synthetic-fixture",
             "upload_url": "https://storage.invalid/synthetic-fixture",
             "method": "PUT", "content_type": kwargs["content_type"],
             "max_bytes": 10 * 1024 * 1024, "expires_in_seconds": 300,
