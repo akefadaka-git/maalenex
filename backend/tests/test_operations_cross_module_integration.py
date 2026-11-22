@@ -14,10 +14,10 @@ from app.db.session import get_db
 from app.domains.audit.models import AuditEvent
 from app.domains.catalog.models import Location, Route, RouteStop, Terminal
 from app.domains.fares.models import Fare, FareApproval, FareVersion
-from app.domains.fleet.models import SeatLayoutVersion, Vehicle, VehicleSeat
+from app.domains.fleet.models import SeatLayoutVersion, Vehicle, VehicleComplianceDocument, VehicleSeat
 from app.domains.identity.models import Permission, Role, RoleAssignment, RolePermission, User
 from app.domains.organizations.models import Organization
-from app.domains.trips.models import Schedule, Trip, TripSeat
+from app.domains.trips.models import Schedule, Trip, TripOperationalException, TripSeat
 from app.main import app
 from app.routers import admin
 
@@ -38,7 +38,7 @@ def operations_client(request, monkeypatch):
         User.__table__, Role.__table__, Permission.__table__, RolePermission.__table__,
         RoleAssignment.__table__, Organization.__table__, Location.__table__,
         Terminal.__table__, Route.__table__, RouteStop.__table__, Vehicle.__table__,
-        SeatLayoutVersion.__table__, VehicleSeat.__table__, Schedule.__table__, Trip.__table__,
+        SeatLayoutVersion.__table__, VehicleSeat.__table__, VehicleComplianceDocument.__table__, Schedule.__table__, Trip.__table__, TripOperationalException.__table__,
         TripSeat.__table__, Fare.__table__, FareVersion.__table__,
         FareApproval.__table__, AuditEvent.__table__,
     ]
@@ -204,12 +204,41 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
     assert vehicle_review.status_code == 200, vehicle_review.text
 
     selected["value"] = users["operator"]
+    evidence = client.post(
+        f"/api/v1/vehicles/{vehicle_id}/compliance-documents",
+        json={
+            "document_type": "insurance",
+            "evidence_reference": f"fleet-compliance/operator-a/{uuid4().hex}",
+            "issued_at": datetime.now(UTC).isoformat(),
+            "expires_at": (datetime.now(UTC) + timedelta(days=365)).isoformat(),
+        },
+    )
+    assert evidence.status_code == 201, evidence.text
+    evidence_id = evidence.json()["id"]
+    selected["value"] = users["fleet_reviewer"]
+    evidence_review = client.post(
+        f"/api/v1/compliance-documents/{evidence_id}/review",
+        json={"decision": "approved", "reason": "Synthetic insurance evidence verified"},
+    )
+    assert evidence_review.status_code == 200, evidence_review.text
+    history = client.get(f"/api/v1/vehicles/{vehicle_id}/history")
+    assert history.status_code == 200, history.text
+    assert history.json()["documents"][0]["status"] == "approved"
+    assert any(item["event_type"] == "fleet.compliance.reviewed" for item in history.json()["events"])
+
+    selected["value"] = users["operator"]
     layout_response = client.post(
         f"/api/v1/vehicles/{vehicle_id}/seat-layouts",
-        json={"seats": [
-            {"seat_code": "A1", "row_label": "A", "column_index": 0, "seat_type": "standard"},
-            {"seat_code": "A2", "row_label": "A", "column_index": 1, "seat_type": "accessible", "is_sellable": False},
-        ]},
+        json={
+            "geometry": {"width": 100, "height": 100, "markers": [
+                {"kind": "door", "x": 0, "y": 10, "label": "Front door"},
+                {"kind": "aisle", "x": 50, "y": 50},
+            ]},
+            "seats": [
+                {"seat_code": "A1", "row_label": "A", "column_index": 0, "x": 10, "y": 20, "seat_type": "standard"},
+                {"seat_code": "A2", "row_label": "A", "column_index": 1, "x": 30, "y": 20, "seat_type": "accessible", "is_sellable": False},
+            ],
+        },
     )
     assert layout_response.status_code == 201, layout_response.text
     layout_id = layout_response.json()["id"]
@@ -217,6 +246,10 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
     selected["value"] = users["fleet_reviewer"]
     layout_approval = client.post(f"/api/v1/seat-layouts/{layout_id}/approve")
     assert layout_approval.status_code == 200, layout_approval.text
+    layout_detail = client.get(f"/api/v1/vehicles/{vehicle_id}/seat-layouts")
+    assert layout_detail.status_code == 200, layout_detail.text
+    assert layout_detail.json()[0]["geometry"]["markers"][0]["kind"] == "door"
+    assert layout_detail.json()[0]["seats"][0]["x"] == 10
 
     # Dispatch: create, submit and approve a trip from the published catalog and approved fleet.
     selected["value"] = users["operator"]
@@ -246,12 +279,25 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
     )
     assert edited.status_code == 200, edited.text
     assert edited.json()["seat_count"] == 1
+    exception = client.post(
+        f"/api/v1/trips/{trip_id}/exceptions",
+        json={"category": "late_departure", "severity": "high", "description": "Synthetic road closure delay"},
+    )
+    assert exception.status_code == 201, exception.text
+    exception_id = exception.json()["id"]
+    assert client.get(f"/api/v1/trips/{trip_id}/exceptions").status_code == 200
     submitted = client.post(f"/api/v1/trips/{trip_id}/submit")
     assert submitted.status_code == 200, submitted.text
 
     selected["value"] = users["trip_manager"]
     approved = client.post(f"/api/v1/trips/{trip_id}/approve")
     assert approved.status_code == 200, approved.text
+    resolved_exception = client.post(
+        f"/api/v1/trip-exceptions/{exception_id}/resolve",
+        json={"resolution": "Synthetic replacement vehicle arranged"},
+    )
+    assert resolved_exception.status_code == 200, resolved_exception.text
+    assert resolved_exception.json()["status"] == "resolved"
 
     # Publication must fail closed until an effective published ETB fare exists.
     blocked_publish = client.post(f"/api/v1/trips/{trip_id}/publish")
@@ -302,6 +348,11 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
     )
     assert published_fare.status_code == 200, published_fare.text
     assert published_fare.json()["status"] == "published"
+    selected["value"] = users["fare_reviewer"]
+    fare_register = client.get("/api/v1/admin/fares")
+    assert fare_register.status_code == 200, fare_register.text
+    fare_record = next(item for item in fare_register.json() if item["id"] == fare_id)
+    assert fare_record["versions"][0]["approval_history"][0]["reason"] == "Synthetic fare approval"
 
     # Only the trip-publishing role may publish after the effective ETB fare exists.
     selected["value"] = users["trip_manager"]
@@ -322,8 +373,9 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
         assert db.scalar(select(Fare).where(Fare.id == UUID(fare_id))).status == "published"
         event_types = set(db.scalars(select(AuditEvent.event_type)))
         assert {
-            "catalog.route.published", "fleet.vehicle.reviewed",
-            "fleet.seat_layout.approved", "trip.created", "trip.submitted",
+            "catalog.route.published", "fleet.vehicle.reviewed", "fleet.compliance.submitted",
+            "fleet.compliance.reviewed", "fleet.seat_layout.approved", "trip.created", "trip.exception.reported",
+            "trip.exception.resolved", "trip.submitted",
             "trip.draft.updated", "trip.approved", "fare.version.proposed", "fare.version.submitted",
             "fare.version.reviewed", "fare.version.published", "trip.published",
         }.issubset(event_types)
