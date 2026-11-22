@@ -642,6 +642,8 @@ def review_evidence_retention_classification(
     for retention_date in (payload.tombstone_retention_until, payload.audit_retention_until):
         if retention_date.tzinfo is None or retention_date.utcoffset() is None:
             raise HTTPException(status_code=422, detail="Metadata retention dates must include timezone offsets.")
+        if retention_date <= now:
+            raise HTTPException(status_code=422, detail="Metadata retention deadlines must be in the future.")
     evidence.operational_dpia_reference = payload.operational_dpia_reference
     if payload.sensitive_data_handling_review_reference:
         evidence.sensitive_data_handling_review_reference = payload.sensitive_data_handling_review_reference
