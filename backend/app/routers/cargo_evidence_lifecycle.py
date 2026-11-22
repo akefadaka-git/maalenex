@@ -706,14 +706,25 @@ def assess_evidence_rights_request(
         CargoDeliveryEvidence.id == item.evidence_id,
     ).with_for_update())
     if payload.outcome == "eligible_for_erasure":
+        if item.request_type != "erasure":
+            raise HTTPException(status_code=422, detail="Only an erasure request can receive erasure eligibility.")
+        if _active_hold(db, evidence.id) is not None:
+            raise HTTPException(status_code=409, detail="An active legal hold prevents erasure eligibility.")
+        prior_rights_status = evidence.rights_request_status
+        evidence.rights_request_status = "eligible_for_erasure"
         block_reason = deletion_block_reason(evidence, now=datetime.now(UTC))
         if block_reason:
+            evidence.rights_request_status = prior_rights_status
             raise HTTPException(status_code=409, detail=f"Erasure cannot be approved: {block_reason}.")
     item.status = payload.outcome
     item.assessed_by = context.user.id
     item.assessed_at = datetime.now(UTC)
     item.assessment_note = payload.note
-    evidence.rights_request_status = "pending" if payload.outcome == "under_review" else "none"
+    evidence.rights_request_status = (
+        "pending" if payload.outcome == "under_review"
+        else "eligible_for_erasure" if payload.outcome == "eligible_for_erasure"
+        else "none"
+    )
     _audit(db, context=context, evidence=evidence, action="rights_request_assessed", outcome="success")
     db.commit()
     return {"rights_request_id": str(item.id), "status": item.status}
