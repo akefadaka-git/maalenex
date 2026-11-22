@@ -2,6 +2,7 @@ name: MaaleNex NEXUS UI verification (exact head)
 # Wallet slice verification: run frontend tests, typecheck and production build on the exact PR head.
 # Passenger wallet: run exact-head frontend, typecheck and production build verification.
 # Verification coverage includes My Bookings, ownership-safe cancellation, and scheduled hold expiry.
+# P1 exact-head UI coverage includes fleet evidence and geometry, dispatch exceptions and fare version history.
 
 on:
   pull_request:
