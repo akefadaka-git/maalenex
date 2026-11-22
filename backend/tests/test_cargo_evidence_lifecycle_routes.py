@@ -138,7 +138,14 @@ def test_deletion_approval_requires_a_distinct_second_person(monkeypatch):
 
 def test_retention_worker_deletes_only_dispatch_scoped_object(monkeypatch):
     evidence = SimpleNamespace(
-        id=uuid4(), lifecycle_state="attached", classification_status="ordinary",
+        id=uuid4(), lifecycle_state="attached", classification_status="classified",
+        classification_complete=True, is_accounting_document=False,
+        is_commercial_correspondence=False, is_ordinary_operational_evidence=True,
+        operational_retention_started_at=datetime.now(UTC) - timedelta(days=900),
+        operational_legal_basis="contract",
+        operational_retention_justification="Documented operational delivery retention purpose",
+        operational_dpia_reference="DPIA-SYNTHETIC-001",
+        contains_sensitive_personal_data=False, rights_request_status="none",
         retention_dpo_reviewed_at=datetime.now(UTC), retention_expires_at=datetime.now(UTC),
         retention_policy_version="active-v1", carrier_organization_id=uuid4(),
         dispatch_id=uuid4(), object_key="cargo-delivery/carrier/dispatch/object",
