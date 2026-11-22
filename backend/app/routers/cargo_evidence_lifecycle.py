@@ -119,6 +119,13 @@ class EvidenceDeletionSuspension(BaseModel):
     reason: str = Field(min_length=10, max_length=500)
 
 
+class EvidenceAuxiliaryRetention(BaseModel):
+    audit_expires_at: datetime
+    tombstone_expires_at: datetime
+    audit_justification: str = Field(min_length=10, max_length=500)
+    tombstone_justification: str = Field(min_length=10, max_length=500)
+
+
 class EvidenceAccessGrantCreate(BaseModel):
     user_id: UUID
     reason: str = Field(min_length=10, max_length=500)
@@ -783,7 +790,12 @@ def review_evidence_rights_request(
     item.decision_reason = payload.reason
     item.reviewed_by = context.user.id
     item.reviewed_at = datetime.now(UTC)
-    evidence.rights_review_status = "reviewed"
+    other_pending = db.scalar(select(CargoDeliveryEvidenceRightsRequest.id).where(
+        CargoDeliveryEvidenceRightsRequest.evidence_id == evidence.id,
+        CargoDeliveryEvidenceRightsRequest.id != item.id,
+        CargoDeliveryEvidenceRightsRequest.status == "pending",
+    ).limit(1))
+    evidence.rights_review_status = "pending" if other_pending is not None else "reviewed"
     _audit(db, context=context, evidence=evidence, action="rights_request_reviewed", outcome="success",
            reason=f"{payload.decision}:{payload.reason}")
     db.commit()
@@ -808,3 +820,64 @@ def set_evidence_deletion_suspension(
            reason=payload.reason)
     db.commit()
     return {"evidence_id": str(evidence.id), "deletion_suspended": evidence.dpo_deletion_suspended}
+
+
+@router.post("/evidence/{evidence_id}/auxiliary-retention")
+def set_evidence_auxiliary_retention(
+    evidence_id: UUID, payload: EvidenceAuxiliaryRetention, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.retention.manage"):
+        raise HTTPException(status_code=403, detail="Legal/Compliance audit-retention classification permission is required.")
+    evidence = db.scalar(select(CargoDeliveryEvidence).where(
+        CargoDeliveryEvidence.id == evidence_id,
+    ).with_for_update())
+    if evidence is None:
+        raise HTTPException(status_code=404, detail="Evidence record not found.")
+    now = datetime.now(UTC)
+    if (payload.audit_expires_at.tzinfo is None or payload.tombstone_expires_at.tzinfo is None
+            or payload.audit_expires_at <= now or payload.tombstone_expires_at <= now):
+        raise HTTPException(status_code=422, detail="Audit and tombstone retention dates must be timezone-aware and in the future.")
+    evidence.audit_retention_expires_at = payload.audit_expires_at
+    evidence.tombstone_retention_expires_at = payload.tombstone_expires_at
+    evidence.audit_retention_justification = payload.audit_justification
+    evidence.tombstone_retention_justification = payload.tombstone_justification
+    evidence.audit_retention_classified_by = context.user.id
+    evidence.tombstone_retention_classified_by = context.user.id
+    evidence.audit_retention_reviewed_by = None
+    evidence.audit_retention_reviewed_at = None
+    evidence.tombstone_retention_reviewed_by = None
+    evidence.tombstone_retention_reviewed_at = None
+    _audit(db, context=context, evidence=evidence, action="auxiliary_retention_submitted", outcome="success")
+    db.commit()
+    return {"evidence_id": str(evidence.id), "status": "pending_dpo_review"}
+
+
+@router.post("/evidence/{evidence_id}/auxiliary-retention/dpo-review")
+def review_evidence_auxiliary_retention(
+    evidence_id: UUID, payload: EvidenceRetentionReview, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.retention.review"):
+        raise HTTPException(status_code=403, detail="Independent DPO auxiliary-retention review permission is required.")
+    evidence = db.scalar(select(CargoDeliveryEvidence).where(
+        CargoDeliveryEvidence.id == evidence_id,
+    ).with_for_update())
+    if evidence is None:
+        raise HTTPException(status_code=404, detail="Evidence record not found.")
+    if (evidence.audit_retention_classified_by is None
+            or evidence.audit_retention_classified_by == context.user.id
+            or evidence.tombstone_retention_classified_by == context.user.id
+            or evidence.audit_retention_expires_at is None
+            or evidence.tombstone_retention_expires_at is None):
+        raise HTTPException(status_code=409, detail="Independent classification and complete audit/tombstone retention proposals are required.")
+    evidence.audit_retention_reviewed_by = context.user.id
+    evidence.audit_retention_reviewed_at = datetime.now(UTC)
+    evidence.tombstone_retention_reviewed_by = context.user.id
+    evidence.tombstone_retention_reviewed_at = datetime.now(UTC)
+    _audit(db, context=context, evidence=evidence, action="auxiliary_retention_dpo_reviewed",
+           outcome="success", reason=payload.note)
+    db.commit()
+    return {"evidence_id": str(evidence.id), "dpo_reviewed": True}
