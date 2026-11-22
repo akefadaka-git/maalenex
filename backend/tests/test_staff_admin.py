@@ -15,6 +15,13 @@ def test_staff_admin_routes_are_registered():
         "/api/v1/catalog/locations",
         "/api/v1/catalog/terminals",
         "/api/v1/catalog/routes",
+        "/api/v1/catalog/routes/{route_id}/stops",
+        "/api/v1/catalog/locations/{location_id}",
+        "/api/v1/catalog/terminals/{terminal_id}",
+        "/api/v1/catalog/routes/{route_id}",
+        "/api/v1/catalog/locations/{location_id}/archive",
+        "/api/v1/catalog/terminals/{terminal_id}/archive",
+        "/api/v1/catalog/routes/{route_id}/archive",
     }.issubset(paths)
 
 
@@ -39,3 +46,29 @@ def test_catalog_lists_require_staff_session():
     ):
         response = client.get(path)
         assert response.status_code == 401
+
+
+def test_catalog_permission_checks_fail_closed(monkeypatch):
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    import pytest
+    from fastapi import HTTPException
+
+    from app.routers import admin
+
+    checked = []
+
+    def deny_permission(_db, **kwargs):
+        checked.append(kwargs["permission_code"])
+        return False
+
+    monkeypatch.setattr(admin, "has_permission", deny_permission)
+    context = SimpleNamespace(user=SimpleNamespace(id=uuid4()))
+
+    for permission in ("platform.catalog.manage", "platform.catalog.publish"):
+        with pytest.raises(HTTPException) as error:
+            admin._authorize(object(), context, permission)
+        assert error.value.status_code == 403
+
+    assert checked == ["platform.catalog.manage", "platform.catalog.publish"]
