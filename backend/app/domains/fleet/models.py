@@ -5,13 +5,13 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
-    func,
     Integer,
     JSON,
     String,
-    text,
-    UniqueConstraint,
     Uuid,
+    UniqueConstraint,
+    func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
