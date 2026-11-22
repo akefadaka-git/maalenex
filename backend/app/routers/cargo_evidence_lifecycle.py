@@ -581,12 +581,33 @@ def review_evidence_retention_classification(
         raise HTTPException(status_code=409, detail="No pending Legal/Compliance classification requires DPO review.")
     if evidence.retention_classified_by == context.user.id:
         raise HTTPException(status_code=409, detail="The Legal/Compliance classifier cannot provide independent DPO review.")
-    classification = evidence.classification_status.removesuffix("_pending_dpo")
-    evidence.classification_status = classification
+    if evidence.is_ordinary_operational_evidence and not payload.operational_dpia_reference:
+        raise HTTPException(status_code=409, detail="A documented DPIA reference is required for the 24-month residual operational category.")
+    if evidence.contains_sensitive_personal_data and not (payload.sensitive_data_handling_review_reference or evidence.sensitive_data_handling_review_reference):
+        raise HTTPException(status_code=409, detail="Sensitive-data handling review evidence is required.")
+    if payload.tombstone_retention_until is None or payload.audit_retention_until is None or payload.metadata_retention_justification is None:
+        raise HTTPException(status_code=409, detail="Tombstone and audit-log retention periods require an independent documented justification.")
+    now = datetime.now(UTC)
+    for retention_date in (payload.tombstone_retention_until, payload.audit_retention_until):
+        if retention_date.tzinfo is None or retention_date.utcoffset() is None:
+            raise HTTPException(status_code=422, detail="Metadata retention dates must include timezone offsets.")
+    evidence.operational_dpia_reference = payload.operational_dpia_reference
+    if payload.sensitive_data_handling_review_reference:
+        evidence.sensitive_data_handling_review_reference = payload.sensitive_data_handling_review_reference
+    evidence.tombstone_retention_until = payload.tombstone_retention_until
+    evidence.audit_retention_until = payload.audit_retention_until
+    evidence.retention_metadata_justification = payload.metadata_retention_justification
+    deadline = effective_retention_deadline(evidence)
+    if deadline is None:
+        raise HTTPException(status_code=409, detail="A complete category-specific retention deadline could not be established.")
+    evidence.legal_retention_until = deadline
+    evidence.retention_expires_at = deadline
+    evidence.classification_status = "classified"
+    evidence.classification_complete = True
     evidence.retention_dpo_reviewed_by = context.user.id
-    evidence.retention_dpo_reviewed_at = datetime.now(UTC)
+    evidence.retention_dpo_reviewed_at = now
     _audit(db, context=context, evidence=evidence, action="retention_classification_dpo_reviewed",
-           outcome="success", reason=f"{classification}:{payload.note}")
+           outcome="success", reason=f"multi_class:{payload.note}")
     db.commit()
     return {"evidence_id": str(evidence.id), "classification_status": evidence.classification_status,
             "dpo_reviewed": True}
