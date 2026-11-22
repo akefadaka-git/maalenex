@@ -9,7 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domains.audit.service import record_event
-from app.domains.cargo.evidence_lifecycle import CargoDeliveryEvidence, CargoDeliveryEvidenceHold
+from app.domains.cargo.evidence_lifecycle import (
+    CargoDeliveryEvidence, CargoDeliveryEvidenceHold, CargoDeliveryEvidenceRetentionPolicy,
+)
 from app.domains.fleet.object_storage import (
     StorageNotConfigured, StorageOperationFailed, delete_cargo_delivery_object,
 )
@@ -69,3 +71,64 @@ def cleanup_expired_unattached_evidence(
         )
     db.commit()
     return {"examined": len(candidates), "deleted": deleted, "failed": failed, "held": held}
+
+
+
+def process_expired_retention_evidence(
+    db: Session, *, now: datetime, batch_size: int = 100,
+) -> dict[str, int]:
+    """Delete expired evidence only under a separately activated, legally reviewed policy."""
+    if now.tzinfo is None or not 1 <= batch_size <= 1000:
+        raise ValueError("A timezone-aware clock and bounded batch size are required.")
+    candidates = db.scalars(
+        select(CargoDeliveryEvidence)
+        .where(
+            CargoDeliveryEvidence.lifecycle_state == "attached",
+            CargoDeliveryEvidence.classification_status == "ordinary",
+            CargoDeliveryEvidence.retention_dpo_reviewed_at.is_not(None),
+            CargoDeliveryEvidence.retention_expires_at.is_not(None),
+            CargoDeliveryEvidence.retention_expires_at <= now,
+            CargoDeliveryEvidence.storage_deleted_at.is_(None),
+        )
+        .order_by(CargoDeliveryEvidence.retention_expires_at)
+        .limit(batch_size)
+        .with_for_update(skip_locked=True)
+    ).all()
+    deleted = 0
+    failed = 0
+    blocked = 0
+    for evidence in candidates:
+        policy = db.scalar(select(CargoDeliveryEvidenceRetentionPolicy.version).where(
+            CargoDeliveryEvidenceRetentionPolicy.version == evidence.retention_policy_version,
+            CargoDeliveryEvidenceRetentionPolicy.status == "active",
+        ))
+        active_hold = db.scalar(select(CargoDeliveryEvidenceHold.id).where(
+            CargoDeliveryEvidenceHold.evidence_id == evidence.id,
+            CargoDeliveryEvidenceHold.released_at.is_(None),
+        ).limit(1))
+        if policy is None or active_hold is not None:
+            blocked += 1
+            continue
+        try:
+            delete_cargo_delivery_object(object_key=evidence.object_key)
+        except (StorageOperationFailed, StorageNotConfigured):
+            evidence.lifecycle_state = "deletion_failed"
+            evidence.deletion_failure_code = "storage_unavailable"
+            failed += 1
+            outcome = "failure"
+        else:
+            evidence.lifecycle_state = "deleted"
+            evidence.storage_deleted_at = now
+            evidence.deletion_failure_code = None
+            deleted += 1
+            outcome = "success"
+        record_event(
+            db, event_type="cargo.delivery_evidence.retention_deletion",
+            actor_type="system", actor_id=None,
+            resource_type="cargo_delivery_evidence", resource_id=str(evidence.id),
+            action="retention_delete", outcome=outcome,
+            organization_id=evidence.carrier_organization_id,
+            metadata={"evidence_id": str(evidence.id), "dispatch_id": str(evidence.dispatch_id)},
+        )
+    db.commit()
+    return {"examined": len(candidates), "deleted": deleted, "failed": failed, "blocked": blocked}
