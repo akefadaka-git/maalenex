@@ -117,11 +117,15 @@ class VehicleCreate(BaseModel):
     vehicle_reference: str = Field(min_length=2, max_length=80)
 
 
+class VehicleUpdate(BaseModel):
+    vehicle_reference: str = Field(min_length=2, max_length=80)
+
+
 class SeatDefinition(BaseModel):
     seat_code: str = Field(min_length=1, max_length=16)
     row_label: str | None = Field(default=None, max_length=12)
     column_index: int = Field(ge=0, le=20)
-    seat_type: str = Field(default="standard", min_length=1, max_length=24)
+    seat_type: Literal["standard", "premium", "accessible"] = "standard"
     is_sellable: bool = True
 
 
@@ -1600,3 +1604,90 @@ def list_vehicle_seat_layouts(
             } for seat in seats],
         })
     return results
+
+
+@router.patch("/vehicles/{vehicle_id}")
+def update_fleet_vehicle(
+    vehicle_id: UUID, payload: VehicleUpdate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    vehicle = db.scalar(select(Vehicle).where(Vehicle.id == vehicle_id).with_for_update())
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
+    if vehicle.status != "draft" or vehicle.review_status != "pending":
+        raise HTTPException(status_code=409, detail="Only pending vehicle drafts can be edited.")
+    reference = payload.vehicle_reference.strip()
+    duplicate = db.scalar(select(Vehicle.id).where(
+        Vehicle.organization_id == vehicle.organization_id,
+        Vehicle.vehicle_reference == reference, Vehicle.id != vehicle.id,
+    ).limit(1))
+    if duplicate:
+        raise HTTPException(status_code=409, detail="Vehicle reference already exists for this operator.")
+    vehicle.vehicle_reference = reference
+    _audit(db, context=context, event="fleet.vehicle.updated", resource_type="vehicle",
+           resource_id=vehicle.id, action="update", organization_id=vehicle.organization_id)
+    db.commit()
+    return {"id": str(vehicle.id), "vehicle_reference": vehicle.vehicle_reference,
+            "status": vehicle.status, "review_status": vehicle.review_status}
+
+
+@router.put("/seat-layouts/{layout_id}")
+def update_draft_seat_layout(
+    layout_id: UUID, payload: SeatLayoutCreate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    _require_mutation(request, context)
+    layout = db.scalar(select(SeatLayoutVersion).where(
+        SeatLayoutVersion.id == layout_id
+    ).with_for_update())
+    if layout is None:
+        raise HTTPException(status_code=404, detail="Seat layout not found.")
+    vehicle = db.get(Vehicle, layout.vehicle_id)
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    _authorize(db, context, "operator.fleet.manage", vehicle.organization_id)
+    if layout.status != "draft":
+        raise HTTPException(status_code=409, detail="Only draft seat layouts can be edited.")
+    if vehicle.status != "active" or vehicle.review_status != "approved":
+        raise HTTPException(status_code=409, detail="Vehicle must remain approved to edit its seat layout.")
+    if bool(payload.seat_codes) == bool(payload.seats):
+        raise HTTPException(status_code=422, detail="Provide either seat_codes or structured seats.")
+    if payload.seats:
+        seat_rows = [{
+            "seat_code": item.seat_code.strip().upper(),
+            "row_label": item.row_label.strip().upper() if item.row_label else None,
+            "column_index": item.column_index, "seat_type": item.seat_type,
+            "is_sellable": item.is_sellable,
+        } for item in payload.seats]
+    else:
+        seat_rows = [{
+            "seat_code": code.strip().upper(), "row_label": None,
+            "column_index": index, "seat_type": "standard", "is_sellable": True,
+        } for index, code in enumerate(payload.seat_codes)]
+    codes = [item["seat_code"] for item in seat_rows]
+    positions = [(item["row_label"], item["column_index"]) for item in seat_rows if item["row_label"] is not None]
+    if any(not code or len(code) > 16 for code in codes) or len(set(codes)) != len(codes):
+        raise HTTPException(status_code=422, detail="Seat codes must be unique and 1–16 characters.")
+    if len(set(positions)) != len(positions):
+        raise HTTPException(status_code=422, detail="Seat positions must be unique within each row.")
+    for seat in db.scalars(select(VehicleSeat).where(
+        VehicleSeat.seat_layout_version_id == layout.id
+    ).with_for_update()):
+        db.delete(seat)
+    db.flush()
+    db.add_all([
+        VehicleSeat(
+            seat_layout_version_id=layout.id, seat_code=item["seat_code"],
+            row_label=item["row_label"], position_metadata={"column_index": item["column_index"]},
+            seat_type=item["seat_type"], is_sellable=item["is_sellable"],
+        ) for item in seat_rows
+    ])
+    _audit(db, context=context, event="fleet.seat_layout.updated",
+           resource_type="seat_layout_version", resource_id=layout.id,
+           action="update", organization_id=vehicle.organization_id,
+           metadata={"seat_count": len(seat_rows)})
+    db.commit()
+    return {"id": str(layout.id), "version_number": layout.version_number,
+            "seat_count": len(seat_rows), "status": layout.status}
