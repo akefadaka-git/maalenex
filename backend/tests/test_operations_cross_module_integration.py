@@ -237,7 +237,8 @@ def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_cl
     assert expired_review.status_code == 409
     history = client.get(f"/api/v1/vehicles/{vehicle_id}/history")
     assert history.status_code == 200, history.text
-    assert history.json()["documents"][0]["status"] == "approved"
+    assert any(item["status"] == "approved" for item in history.json()["documents"])
+    assert any(item["status"] == "expired" for item in history.json()["documents"])
     assert any(item["event_type"] == "fleet.compliance.reviewed" for item in history.json()["events"])
 
     selected["value"] = users["operator"]
