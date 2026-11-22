@@ -15,7 +15,7 @@ Set these variables only in a local development/test runtime:
 - `OBJECT_STORAGE_SECRET_ACCESS_KEY=<test-secret>`
 
 Never commit credentials, expose them to the frontend, or use a public bucket.
-The endpoint must be a Cloudflare `*.r2.cloudflarestorage.com` HTTPS endpoint;
+Configure the private bucket CORS policy to allow the exact web-app origin, PUT, and the Content-Type request header; do not use a wildcard origin with credentials. The endpoint must be a Cloudflare `*.r2.cloudflarestorage.com` HTTPS endpoint;
 the only HTTP exception is localhost for local tests. This PR creates no bucket,
 credentials, production endpoint or paid service.
 
