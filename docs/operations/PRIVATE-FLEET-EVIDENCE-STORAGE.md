@@ -39,6 +39,8 @@ retention, access, malware-scanning/quarantine and data-protection controls are
 separately approved. Malware scanning is not implemented and remains a
 pre-production requirement.
 
-The implementation uses the S3 API abstraction. Local S3-compatible storage is
-the CI/test target. R2 is not contacted unless a runtime explicitly enables it
-and supplies credentials. No live R2 credentials or paid activation are included.
+The implementation uses the S3 API abstraction. Automated tests use a mocked S3
+client; developers can point the same adapter at a local S3-compatible service.
+CI does not provision an object-storage service. R2 is not contacted unless a
+runtime explicitly enables it and supplies credentials. No live R2 credentials
+or paid activation are included.
