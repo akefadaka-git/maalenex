@@ -8,6 +8,7 @@ from app.routers.admin import router as admin_router
 from app.routers.auth import router as auth_router
 from app.routers.bookings import router as bookings_router
 from app.routers.cargo import router as cargo_router
+from app.routers.cargo_dispatch import router as cargo_dispatch_router
 from app.routers.health import router as health_router
 from app.routers.passenger_auth import router as passenger_auth_router
 from app.routers.passenger_catalog import router as passenger_catalog_router
@@ -41,6 +42,7 @@ app.include_router(admin_router, prefix=settings.api_prefix)
 app.include_router(staff_admin_router, prefix=settings.api_prefix)
 app.include_router(bookings_router, prefix=settings.api_prefix)
 app.include_router(cargo_router, prefix=settings.api_prefix)
+app.include_router(cargo_dispatch_router, prefix=settings.api_prefix)
 app.include_router(passenger_catalog_router, prefix=settings.api_prefix)
 app.include_router(passenger_auth_router, prefix=settings.api_prefix)
 app.include_router(passenger_support_router, prefix=settings.api_prefix)
