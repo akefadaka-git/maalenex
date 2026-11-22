@@ -123,6 +123,7 @@ def test_cargo_download_url_rejects_unbounded_lifetime(fake_s3, ttl):
     with pytest.raises(ValueError):
         object_storage.create_cargo_delivery_download_url(
             object_key="cargo-delivery/carrier-a/dispatch-a/object-1",
+            carrier_organization_id="carrier-a", dispatch_id="dispatch-a",
             expires_in_seconds=ttl,
         )
 
@@ -178,3 +179,17 @@ def test_provisional_retention_uses_calendar_months_and_month_end():
 
     assert add_calendar_months(datetime(2026, 1, 31, tzinfo=UTC), 1) == datetime(2026, 2, 28, tzinfo=UTC)
     assert add_calendar_months(datetime(2024, 2, 29, tzinfo=UTC), 24) == datetime(2026, 2, 28, tzinfo=UTC)
+
+
+
+def test_cargo_download_and_delete_reject_cross_dispatch_keys(fake_s3):
+    key = "cargo-delivery/carrier-a/dispatch-b/object-1"
+    with pytest.raises(object_storage.InvalidStoredObject):
+        object_storage.create_cargo_delivery_download_url(
+            object_key=key, carrier_organization_id="carrier-a",
+            dispatch_id="dispatch-a", expires_in_seconds=30,
+        )
+    with pytest.raises(object_storage.InvalidStoredObject):
+        object_storage.delete_cargo_delivery_object(
+            object_key=key, carrier_organization_id="carrier-a", dispatch_id="dispatch-a",
+        )
