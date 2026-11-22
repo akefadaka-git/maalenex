@@ -169,7 +169,7 @@ def _audit(db: Session, *, context: StaffContext, evidence: CargoDeliveryEvidenc
         actor_id=str(context.user.id), resource_type="cargo_delivery_evidence",
         resource_id=str(evidence.id), action=action, outcome=outcome,
         organization_id=evidence.carrier_organization_id, reason_code=reason[:100] if reason else None,
-        metadata={"evidence_id": str(evidence.id), "dispatch_id": str(evidence.dispatch_id)},
+        metadata={"evidence_id": str(evidence.id)},
     )
 
 
@@ -285,7 +285,7 @@ def submit_lifecycle_delivery_proof(
         actor_id=str(context.user.id), resource_type="cargo_delivery_proof",
         resource_id=str(proof.id), action="submit", outcome="success",
         organization_id=dispatch.carrier_organization_id,
-        metadata={"dispatch_id": str(dispatch.id), "evidence_id": str(evidence.id)},
+        metadata={"evidence_id": str(evidence.id)},
     )
     _audit(db, context=context, evidence=evidence, action="attached", outcome="success")
     db.commit()
