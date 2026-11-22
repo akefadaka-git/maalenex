@@ -110,6 +110,7 @@ def update_carrier_operations(
     item.service_area = payload.service_area
     item.operating_notes = payload.operating_notes
     item.updated_by = context.user.id
+    db.flush()
     record_event(db, event_type="cargo.carrier.operations.updated", actor_type="staff",
                  actor_id=str(context.user.id), resource_type="carrier_operational_profile",
                  resource_id=str(item.id), action="update", outcome="success",
@@ -129,6 +130,9 @@ def set_carrier_status(
     if not _allowed(db, context, "platform.carrier.operations.manage"):
         raise HTTPException(status_code=403, detail="Platform carrier-operations permission is required.")
     validate_carrier_status(payload.operational_status)
+    organization = db.get(Organization, organization_id)
+    if organization is None or organization.organization_type != "operator" or organization.status != "approved":
+        raise HTTPException(status_code=409, detail="An approved operator organization is required.")
     item = db.scalar(select(CarrierOperationalProfile).where(
         CarrierOperationalProfile.organization_id == organization_id
     ).with_for_update())
@@ -181,6 +185,7 @@ def submit_delivery_proof(
         occurred_at=payload.occurred_at, submitted_by=context.user.id,
     )
     db.add(proof)
+    db.flush()
     record_event(db, event_type="cargo.delivery_proof.submitted", actor_type="staff",
                  actor_id=str(context.user.id), resource_type="cargo_delivery_proof",
                  resource_id=str(proof.id), action="submit", outcome="success",
@@ -267,6 +272,7 @@ def create_cargo_exception(
         description=payload.description, reported_by=context.user.id,
     )
     db.add(item)
+    db.flush()
     record_event(db, event_type="cargo.exception.opened", actor_type="staff",
                  actor_id=str(context.user.id), resource_type="cargo_exception_case",
                  resource_id=str(item.id), action="open", outcome="success",
