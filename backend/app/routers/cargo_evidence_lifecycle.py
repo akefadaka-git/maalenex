@@ -511,6 +511,28 @@ def review_evidence_hold(
     return {"hold_id": str(hold.id), "oversight_recorded": True, "outcome": payload.outcome}
 
 
+@router.post("/evidence/holds/{hold_id}/release-review")
+def review_evidence_hold_release(
+    hold_id: UUID, payload: EvidenceHoldReleaseReview, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.hold.review"):
+        raise HTTPException(status_code=403, detail="Independent DPO hold-release review permission is required.")
+    hold = db.scalar(select(CargoDeliveryEvidenceHold).where(
+        CargoDeliveryEvidenceHold.id == hold_id,
+    ).with_for_update())
+    if hold is None or hold.released_at is not None:
+        raise HTTPException(status_code=404, detail="Active legal hold not found.")
+    if hold.issued_by == context.user.id:
+        raise HTTPException(status_code=409, detail="Hold issuer cannot independently review hold release.")
+    hold.release_reviewed_by = context.user.id
+    hold.release_reviewed_at = datetime.now(UTC)
+    hold.release_review_note = payload.note
+    db.commit()
+    return {"hold_id": str(hold.id), "release_reviewed": True}
+
+
 @router.post("/evidence/holds/{hold_id}/release")
 def release_evidence_hold(
     hold_id: UUID, payload: EvidenceHoldRelease, request: Request,
@@ -524,8 +546,8 @@ def release_evidence_hold(
     ).with_for_update())
     if hold is None or hold.released_at is not None:
         raise HTTPException(status_code=404, detail="Active legal hold not found.")
-    if hold.dpo_reviewed_at is None:
-        raise HTTPException(status_code=409, detail="DPO oversight must be recorded before hold release.")
+    if hold.release_reviewed_at is None or hold.release_reviewed_by in {None, context.user.id, hold.issued_by}:
+        raise HTTPException(status_code=409, detail="A distinct DPO release review is required before Legal/Compliance can release the hold.")
     hold.released_by = context.user.id
     hold.released_at = datetime.now(UTC)
     hold.release_note = payload.note
@@ -640,6 +662,59 @@ def review_evidence_retention_classification(
     db.commit()
     return {"evidence_id": str(evidence.id), "classification_status": evidence.classification_status,
             "dpo_reviewed": True}
+
+
+@router.post("/evidence/{evidence_id}/rights-requests", status_code=201)
+def register_evidence_rights_request(
+    evidence_id: UUID, payload: EvidenceRightsRequestCreate, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.retention.manage"):
+        raise HTTPException(status_code=403, detail="Legal/Compliance rights-request triage permission is required.")
+    evidence = db.get(CargoDeliveryEvidence, evidence_id)
+    if evidence is None:
+        raise HTTPException(status_code=404, detail="Evidence record not found.")
+    item = CargoDeliveryEvidenceRightsRequest(
+        evidence_id=evidence.id, request_type=payload.request_type,
+        request_reference=payload.request_reference, status="pending",
+    )
+    db.add(item)
+    evidence.rights_request_status = "pending"
+    db.flush()
+    _audit(db, context=context, evidence=evidence, action="rights_request_registered", outcome="success")
+    db.commit()
+    return {"rights_request_id": str(item.id), "status": item.status}
+
+
+@router.post("/evidence/rights-requests/{request_id}/assessment")
+def assess_evidence_rights_request(
+    request_id: UUID, payload: EvidenceRightsRequestAssessment, request: Request,
+    context: StaffContext = Depends(current_staff_context), db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    if not _allowed(db, context, "platform.cargo.delivery_proof.evidence.retention.manage"):
+        raise HTTPException(status_code=403, detail="Legal/Compliance rights-request triage permission is required.")
+    item = db.scalar(select(CargoDeliveryEvidenceRightsRequest).where(
+        CargoDeliveryEvidenceRightsRequest.id == request_id,
+    ).with_for_update())
+    if item is None:
+        raise HTTPException(status_code=404, detail="Rights request not found.")
+    evidence = db.scalar(select(CargoDeliveryEvidence).where(
+        CargoDeliveryEvidence.id == item.evidence_id,
+    ).with_for_update())
+    if payload.outcome == "eligible_for_erasure":
+        block_reason = deletion_block_reason(evidence, now=datetime.now(UTC))
+        if block_reason:
+            raise HTTPException(status_code=409, detail=f"Erasure cannot be approved: {block_reason}.")
+    item.status = payload.outcome
+    item.assessed_by = context.user.id
+    item.assessed_at = datetime.now(UTC)
+    item.assessment_note = payload.note
+    evidence.rights_request_status = "pending" if payload.outcome == "under_review" else "none"
+    _audit(db, context=context, evidence=evidence, action="rights_request_assessed", outcome="success")
+    db.commit()
+    return {"rights_request_id": str(item.id), "status": item.status}
 
 
 @router.post("/evidence/{evidence_id}/deletion-requests", status_code=201)
