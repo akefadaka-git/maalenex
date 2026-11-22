@@ -3,7 +3,7 @@ import {
   archiveCatalogRecord, createCatalogLocation, createCatalogRoute, createCatalogTerminal,
   getCatalogSnapshot, publishCatalogLocation, publishCatalogRoute, publishCatalogTerminal,
   replaceCatalogRouteStops, updateCatalogLocation, updateCatalogRoute, updateCatalogTerminal,
-  type CatalogRoute, type CatalogRouteStop, type CatalogSnapshot,
+  type CatalogRoute, type CatalogSnapshot,
 } from "./staff-api";
 
 type Props = { language: "am" | "en"; canPublish: boolean };
