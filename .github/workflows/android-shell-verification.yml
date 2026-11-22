@@ -12,7 +12,7 @@ on:
       - ".github/workflows/android-shell-verification.yml"
       - ".github/workflows/g1-backend-verification.yml"
   pull_request:
-    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards, fix/passenger-password-minimum-six]
+    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards]
     paths:
       - "android/**"
       - "frontend/**"
