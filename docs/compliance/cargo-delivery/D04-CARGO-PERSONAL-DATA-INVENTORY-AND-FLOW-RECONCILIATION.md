@@ -242,3 +242,20 @@ The principal source blobs are listed in D03 Section 9. Additional source files 
 D04 may be closed only after this source-level inventory is reconciled to the release candidate, actual UI/mobile and external integrations, executed service-line/partner contracts, hosting and processor evidence, published notices, approved lawful bases, retention/access configuration and actual/forecast operational volumes. The resulting inventory must be signed/versioned and used as the authoritative input to the completed D03 DPIA and D02 Article 40 assessment.
 
 **Current D04 status: PARTIAL — source fields and candidate backend flows mapped; live configuration, processors/locations, operational volumes and complete legal/operational reconciliation remain MISSING or UNVERIFIED.**
+
+
+## 8. Owner-approved provisional operating-volume scenario — 23 November 2026
+
+The Project Owner approved a provisional planning scenario, documented in [Cargo Operational-Volume Planning Baseline](CARGO-OPERATIONAL-VOLUME-PLANNING-BASELINE.md):
+
+| Metric | Initial launch | Year 2 | Year 3 |
+|---|---:|---:|---:|
+| Average deliveries per operating day | 10 | 30 | 75 |
+| Peak deliveries per operating day | 20 | 60 | 150 |
+| Operating days per month | 26 | 26 | 26 |
+| Approximate average-basis deliveries per month | 260 | 780 | 1,950 |
+| Approximate average-basis deliveries per year | 3,120 | 9,360 | 23,400 |
+
+**Classification:** OWNER-APPROVED PROVISIONAL PLANNING ASSUMPTIONS — NOT ACTUAL VOLUMES, NOT A LEGAL THRESHOLD. The scenario covers combined hybrid-service-line activity; no SL-01/SL-02 split has been approved. It does not establish unique data-subject counts, tracking-event or coordinate frequency/duration, file-upload volumes/content, partner/courier counts or geographic reach.
+
+This planning record improves the forecast evidence position but does not replace measured operational evidence or the additional data dimensions listed in section 7. Article 40 cannot be decided from delivery counts alone. D04 remains PARTIAL / NOT VERIFIED-CLOSED; runtime, actual processing, interfaces, integrations, processors/locations, contracts, notices, lawful bases and measured volumes remain open.
