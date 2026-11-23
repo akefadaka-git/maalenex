@@ -40,6 +40,10 @@ D01 is refined into two legally distinct ECA workstreams; the recovered historic
 
 **Owner decision recorded:** C — Hybrid operating model. **Entity dependency:** Owner confirms MaaleNex Technologies PLC is not yet incorporated; incorporation is in process and TIN is not yet available. Application filing must wait for verified legal-entity formation and TIN. Split the service into (a) MaaleNex-operated deliveries and (b) independent partner-operated deliveries. For (a), ECA domestic express-courier licensing is the presumptive requirement and must be evidenced before operations. For (b), verify each partner's current licence and obtain written ECA/counsel confirmation of MaaleNex's platform/intermediary licensing boundary. The actual service-line allocation is not yet evidenced. PDP registration remains a separate workstream; applicant entity and TIN are not yet available because incorporation is in process; controller/processor roles are also not yet verified. D01 remains **PARTIAL** as an assessment and **UNRESOLVED** as a compliance gate; no processing or courier operations may be treated as authorised.
 
+### D01 pre-filing preparation record
+
+The Owner approved hybrid model C. The two service lines, partner licence verification controls and purpose-based controller/processor allocation are documented in [D01 Hybrid Service-Line, Partner Licence and Data-Role Map](D01-HYBRID-SERVICE-LINE-AND-DATA-ROLE-MAP.md). This is a planning record only. Actual partners/licences are not supplied or verified; contracts and operating facts are not yet reconciled; MaaleNex incorporation/TIN remain pending; and PDP/courier filing or operating authority is not established. The map identifies D03 DPIA and D04 inventory/flow reconciliation as dependencies. D01 remains PARTIAL as pre-filing assessment and UNRESOLVED as a compliance gate.
+
 ## 3. Reconciliation notes — do not silently harmonise
 
 The two status columns represent different evidence snapshots and reviewer scopes:
