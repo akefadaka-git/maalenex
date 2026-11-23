@@ -55,13 +55,13 @@ This limb requires all of the following to be examined:
 
 | Feature / activity | Monitoring relevance | Current evidence position |
 |---|---|---|
-| Booking and consignment status events | Repeated observation of delivery progress; may be operational tracking, but scale and intensity matter | Expected design feature; actual frequency, user volumes and retention NOT VERIFIED |
-| Rider GPS/location tracking | Potential continuous or granular monitoring of workers/riders and possibly delivery journeys | Whether enabled, sampling frequency, precision, live visibility, duration and coverage NOT VERIFIED |
-| Customer/recipient tracking links | May permit repeated observation of recipient or consignment interactions; determine whether it tracks a person or only a consignment | Functionality and analytics instrumentation NOT VERIFIED |
-| Proof-of-delivery timestamps, signatures, photos or geolocation | Records specific delivery events; usually event-based, but repeated high-volume collection may contribute to scale | Actual fields, frequency, scale and access NOT VERIFIED |
-| Dispatch, performance scoring or rider ranking | Could involve systematic evaluation/monitoring of workers, especially if continuous or automated | No performance-scoring/profiling implementation evidence reviewed |
-| Fraud, risk, route or behaviour analytics | Could involve profiling or systematic monitoring depending on inputs, persistence and decisions | Algorithms, features, decision effects and human review NOT VERIFIED |
-| Customer support and complaint history | May build longitudinal profiles if linked and analysed across time | Data model, analytics and use NOT VERIFIED |
+| Consignment and dispatch lifecycle events | Repeated observation of delivery progress; potentially relevant to monitoring | IMPLEMENTED in staged backend PRs #45–#47; event counts, operational frequency and volumes NOT PROVIDED |
+| Coordinate-bearing tracking events | Potential monitoring of courier/vehicle/consignment location where coordinates are linked to a person | Optional latitude/longitude pair on discrete staff-submitted events; no continuous GPS polling or sampling configuration found in inspected cargo branches; source/subject/frequency/duration NOT VERIFIED |
+| Public/customer tracking links | Could enable repeated observation of recipient/customer interactions | No public tracking-link endpoint found in inspected cargo backend branches; separate frontend/integration behavior NOT VERIFIED |
+| Delivery proof and private evidence | Receiver name, evidence reference, optional notes and occurrence timestamp; linked private PDF/JPEG/PNG evidence may contain additional personal data | Implemented in staged PRs #47–#49; actual file contents, upload volumes and any signature/photo/coordinate content NOT VERIFIED |
+| Dispatch, performance scoring or rider ranking | Dispatch assignment/status records staff and carrier actions; scoring/ranking would increase worker-monitoring impact | Dispatch implemented in PR #46; no automatic performance-scoring or rider-ranking implementation found in inspected cargo branches |
+| Fraud, risk, route or behaviour analytics | May involve profiling depending on data, purpose and decisions | No cargo-specific automated analytics/profiling implementation found in inspected PR #45–#51 branches; separate services/manual processes NOT VERIFIED |
+| Delivery exceptions and resolution | Exception codes, descriptions, resolution codes/notes and staff IDs can form linked histories | Implemented in PR #47; support-system linkage, longitudinal analysis and actual volumes NOT VERIFIED |
 
 ### Scale assessment dimensions
 
@@ -76,7 +76,7 @@ Record and substantiate, at minimum:
 8. Whether monitoring is intrinsic to the service's core business or only an incidental, limited support function.
 9. Whether MaaleNex and partner processing together create a materially broader monitoring operation; assess each entity's actual role rather than aggregating by assumption.
 
-**Preliminary result:** UNDETERMINED. Tracking and dispatch features are plausible monitoring activities, but the current evidence does not establish that MaaleNex's core activities require regular and systematic monitoring on a large scale. Equally, the lack of measured scale is not evidence that the threshold is absent.
+**Preliminary result:** UNDETERMINED. Source review confirms dispatch and discrete tracking events, including optional coordinates, but no continuous GPS polling or public tracking endpoint in the inspected cargo branches. Whether repeated coordinate-bearing events constitute regular and systematic monitoring depends on their actual source, subject, frequency, duration, operational necessity and scale. No measured or approved forecast volumes are available. The lack of measured scale is not evidence that the threshold is absent.
 
 ## 4. Limb C — large-scale processing of sensitive personal data
 
@@ -107,7 +107,7 @@ If sensitive personal data is processed, record:
 - Whether partners, cloud providers or other processors receive it.
 - Whether the data is collected by design, optional, exceptional or prohibited.
 
-**Preliminary result:** UNDETERMINED. No evidence reviewed establishes that sensitive personal data is intentionally collected or processed at large scale. The planned platform feature set and actual data fields have not yet been reconciled to the DPIA and D04 inventory. Absence of a located record is not proof that such processing does not occur.
+**Preliminary result:** UNDETERMINED. The source review identifies open-content channels (PDF/JPEG/PNG evidence and free-text descriptions/notes) that may contain sensitive information, plus a sensitive-data flag defaulting to false. No large-scale sensitive-data processing is established, but the prior “no special-category data” assumption has not been validated against actual file contents, classification practice or volumes. Absence of a located record is not proof that such processing does not occur.
 
 ## 5. Provisional trigger matrix
 
@@ -124,11 +124,11 @@ If sensitive personal data is processed, record:
 | Evidence ID | Required record | Owner / source | Status |
 |---|---|---|---|
 | D02-E01 | Government-body customer/contract and processing arrangement register | Project Owner / commercial pipeline | NOT PROVIDED |
-| D02-E02 | Cargo platform feature and configuration inventory (GPS, tracking, proof-of-delivery, analytics, scoring, fraud) | Product/engineering | NOT RECONCILED |
-| D02-E03 | Monitoring data-flow and event taxonomy, including frequency, precision, retention and access | Engineering / D04 | NOT PROVIDED |
-| D02-E04 | Measured or responsibly forecast subject/event volumes by category and geography | Operations/product analytics | NOT PROVIDED |
-| D02-E05 | Sensitive-data statutory category-to-field/inference assessment | Legal/DPO adviser with product and engineering | NOT PROVIDED |
-| D02-E06 | D03 DPIA report and its scope/version, including tracking and sensitive-data analysis | Project Owner / DPIA author | EXISTENCE ASSERTED IN HISTORICAL RECONCILIATION; exact report NOT RECOVERED / NOT VERIFIED |
+| D02-E02 | Cargo platform feature and configuration inventory (GPS, tracking, proof-of-delivery, analytics, scoring, fraud) | Product/engineering | PARTIAL — staged backend source mapped in D03/D04; runtime config and other integrations NOT VERIFIED |
+| D02-E03 | Monitoring data-flow and event taxonomy, including frequency, precision, retention and access | Engineering / D04 | PARTIAL — discrete event schema and optional coordinate fields mapped; source, frequency, duration and live access NOT PROVIDED |
+| D02-E04 | Measured or responsibly forecast subject/event volumes by category and geography | Operations/product analytics | NOT PROVIDED — no production metrics or Owner-approved forecast located |
+| D02-E05 | Sensitive-data statutory category-to-field/inference assessment | Legal/DPO adviser with product and engineering | PARTIAL — fields and open-content channels mapped; actual content, classification and scale NOT VERIFIED |
+| D02-E06 | D03 DPIA report and its scope/version, including tracking and sensitive-data analysis | Project Owner / DPIA author | PARTIAL — recovered C06-only DPIA confirmation is not the full DPIA; complete report/screening record NOT RECOVERED / NOT VERIFIED |
 | D02-E07 | Partner data-role and data-sharing arrangements for SL-01/SL-02 | Commercial/legal | PRE-FILING MAP EXISTS; executed agreements NOT PROVIDED |
 | D02-E08 | Written Article 40 threshold determination, assumptions, reviewer identity and date | Qualified Ethiopian privacy counsel / designated reviewer | NOT OBTAINED |
 
@@ -176,4 +176,38 @@ D02 may be closed only when:
 6. If any limb is triggered, a qualified DPO is appointed/designated, conflict/independence and resources are assessed, and contact publication/Authority communication are evidenced.
 7. If no limb is triggered, the evidence-based rationale and reassessment events are documented; no blanket future exemption is claimed.
 
-**Current D02 status: IN PROGRESS — government-body limb not triggered on current evidence; monitoring and sensitive-data limbs undetermined. No DPO appointment conclusion is made.**
+**Current D02 status: IN PROGRESS — government-body limb not triggered on current evidence; monitoring and sensitive-data limbs remain undetermined after source-level feature reconciliation. Operational configuration, actual/forecast volumes and sensitive-content classification remain missing. No DPO appointment conclusion is made.**
+
+
+## 11. Source-level implementation reconciliation — 23 November 2026
+
+The source-level reconciliation is recorded in:
+- [D03 DPIA Source-to-Implementation Reconciliation](D03-DPIA-SOURCE-TO-IMPLEMENTATION-RECONCILIATION.md)
+- [D04 Cargo Personal-Data Inventory and Processing-Flow Reconciliation](D04-CARGO-PERSONAL-DATA-INVENTORY-AND-FLOW-RECONCILIATION.md)
+
+### Confirmed in staged cargo backend branches
+
+- PR #45 implements consignment records containing sender name, recipient name, destination, free-text description, optional weight, status, assigned organisation, staff creator and lifecycle timestamps.
+- PR #46 implements dispatch records and append-only tracking events. A tracking event accepts a bounded event type, optional description, optional latitude/longitude pair and occurrence timestamp. The API is staff-authenticated and permission-scoped to assigned carriers/platform dispatchers; occurrence times are bounded to the previous 30 days and not materially in the future.
+- No continuous GPS polling, periodic device-location sampling, live map feed or public tracking-link endpoint was found in the inspected cargo branches. This is a source-scope finding, not proof that no separate app or integration exists.
+- PR #47 implements carrier profiles, delivery proof (received-by name, evidence reference, optional notes, occurrence time and staff submit/review identifiers) and exception records with descriptions and resolution notes.
+- PR #48 supports private, dispatch-scoped PDF/JPEG/PNG evidence uploads, maximum 10 MiB, with a 300-second presigned upload intent and object type/size/signature verification.
+- PR #49 and PR #51 add evidence lifecycle, retention, legal-basis, privacy-notice, transfer, sensitive-data, rights-request and DPO-review metadata.
+- PR #51 audit records retain actor/resource/action metadata while redacting specified sensitive metadata keys. This does not make the audit record anonymous.
+
+### Runtime configuration and deployment boundary
+
+The inspected configuration defaults `synthetic_data_only=true`, `scheduler_enabled=false` and `object_storage_enabled=false`. Development/test configuration requires synthetic-only mode. The cargo feature increments are staged in unmerged pull requests; PR #51 reports no hosted migration, deployment, production policy activation, deletion or scheduler activation. These defaults and PR statements do not replace inspection of a live runtime configuration, but no live cargo processing environment or production dataset was evidenced.
+
+### Sensitive-data qualification
+
+The earlier reviewer statement that no special-category data is processed was an assumption. The current schema contains open-content fields and private uploaded files that could incidentally contain sensitive information. The PR #51 sensitive-data flag defaults to false; no content-classification process or representative file review was evidenced. No biometric identification, facial recognition or automated profiling implementation was found in the inspected cargo branches. Therefore limb C remains undetermined, not ruled out.
+
+### Operational scale
+
+No measured production volumes or Owner-approved forecast was found. Unique senders, recipients, couriers, partner staff, active carriers, deliveries, tracking events, coordinate-bearing events, proof records, file uploads/bytes, exceptions, geographic reach, monitoring duration and event frequency are all MISSING. Test/CI fixtures are synthetic and are not operational volume evidence. D03/D04 specify the exact dataset required.
+
+### Effect on Article 40 conclusion
+
+The source review makes the feature and field analysis more concrete but does not supply the scale, runtime or actual processing evidence needed to decide whether monitoring is regular/systematic on a large scale or whether sensitive personal data is processed on a large scale. No numeric threshold is invented. D02 remains OPEN; no DPO-required or DPO-not-required conclusion is made.
+
