@@ -73,3 +73,9 @@ No reviewer transmission is performed by this repository change.
 
 
 - [D02–D04 forecast-to-source reconciliation](D02-D04-FORECAST-TO-SOURCE-RECONCILIATION.md) — source-level tracking and coordinate design, delivery-proof/file-content exposure, calculated event and role-entry envelopes, unique-person counting limitations and Article 40 status.
+
+## A2 client and integration inspection / controlled tracking specification — 23 November 2026
+
+The A2 read-only review did not locate a Cargo-specific mobile/web client in the reviewed repository or in the Cargo PR #45–#49 changed-file sets. The passenger Google Maps/WebView geolocation flow is a separate passenger feature and is not evidence of courier/driver tracking. The Cargo backend remains event-based with optional caller-supplied coordinates and no code-level event/rate ceiling in the inspected route. R2 remains disabled by default; no live Cargo vendor/runtime integration was verified.
+
+The proposed coordinate collection, event-frequency, and pseudonymous subject-counting controls are recorded in [CARGO-TRACKING-COLLECTION-AND-SUBJECT-COUNTING-SPEC-v1.0.md](CARGO-TRACKING-COLLECTION-AND-SUBJECT-COUNTING-SPEC-v1.0.md). It is a PROPOSED A2 control baseline for Owner review, not active policy or implementation authorization. D02 monitoring and sensitive-data limbs remain UNDETERMINED; D03/D04 remain PARTIAL.
