@@ -251,6 +251,12 @@ async def receive_telemetry(request: Request, db: Session = Depends(get_db)) -> 
     signature = request.headers.get("X-MITP-Signature", "")
     if not device_identifier or not request_timestamp or not signature:
         raise HTTPException(status_code=401, detail="Device authentication headers are required.")
+    client_host = request.client.host if request.client else ""
+    if request.url.scheme != "https" and client_host not in {"127.0.0.1", "localhost", "::1", "testclient"}:
+        raise HTTPException(status_code=400, detail="HTTPS is required for non-loopback telemetry clients.")
+    content_length = request.headers.get("content-length")
+    if content_length and content_length.isdigit() and int(content_length) > 4096:
+        raise HTTPException(status_code=413, detail="Telemetry payload exceeds 4096 bytes.")
     body = await request.body()
     if len(body) > 4096:
         raise HTTPException(status_code=413, detail="Telemetry payload exceeds 4096 bytes.")
