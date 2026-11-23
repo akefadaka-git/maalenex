@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+cd frontend
+adb wait-for-device
+
+booted=""
+for attempt in $(seq 1 120); do
+  booted="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+  if [[ "$booted" == "1" ]]; then
+    break
+  fi
+  sleep 5
+done
+
+if [[ "$booted" != "1" ]]; then
+  adb logcat -d -t 2000 > /tmp/maalenex-emulator-boot.log || true
+  cat /tmp/maalenex-emulator-boot.log
+  echo "Android emulator did not become ready within 10 minutes." >&2
+  exit 1
+fi
+
+# Wait for Android's package manager binder service; sys.boot_completed can
+# become 1 before system services are ready on a cold hosted-runner boot.
+package_service_ready=""
+for attempt in $(seq 1 24); do
+  if adb shell cmd package list packages >/dev/null 2>&1; then
+    package_service_ready="yes"
+    break
+  fi
+  adb reconnect offline >/dev/null 2>&1 || true
+  adb wait-for-device
+  sleep 5
+done
+if [[ "$package_service_ready" != "yes" ]]; then
+  adb logcat -d -t 3000 > maalenex-emulator-logcat.txt || true
+  echo "Android package manager did not become ready after boot." >&2
+  exit 1
+fi
+
+installed=""
+for attempt in $(seq 1 4); do
+  if adb install -r android/app/build/outputs/apk/debug/app-debug.apk; then
+    installed="yes"
+    break
+  fi
+  echo "APK install attempt $attempt failed; reconnecting and waiting for package service." >&2
+  adb reconnect offline >/dev/null 2>&1 || true
+  adb wait-for-device
+  sleep 10
+  adb shell cmd package list packages >/dev/null 2>&1 || true
+done
+if [[ "$installed" != "yes" ]]; then
+  adb logcat -d -t 3000 > maalenex-emulator-logcat.txt || true
+  echo "APK installation failed after four attempts." >&2
+  exit 1
+fi
+
+adb shell monkey -p com.maalenex.app 1
+
+# Allow the Capacitor WebView and Android activity to settle before inspection.
+sleep 20
+foreground=""
+for attempt in $(seq 1 12); do
+  foreground="$(adb shell dumpsys activity activities 2>/dev/null || true)"
+  if grep -E 'mResumedActivity|topResumedActivity' <<<"$foreground" | grep -q 'com.maalenex.app'; then
+    break
+  fi
+  sleep 5
+done
+if ! grep -E 'mResumedActivity|topResumedActivity' <<<"$foreground" | grep -q 'com.maalenex.app'; then
+  echo "MaaleNex did not remain in the foreground." >&2
+  adb logcat -d -t 3000 > maalenex-emulator-logcat.txt || true
+  exit 1
+fi
+
+# UIAutomator can briefly return a null root while the launcher/WebView settles.
+dumped=""
+for attempt in $(seq 1 6); do
+  if adb shell uiautomator dump /sdcard/maalenex-window.xml >/dev/null 2>&1 &&
+     adb pull /sdcard/maalenex-window.xml ./maalenex-window.xml >/dev/null 2>&1 &&
+     test -s ./maalenex-window.xml; then
+    dumped="yes"
+    break
+  fi
+  sleep 5
+done
+if [[ "$dumped" != "yes" ]]; then
+  adb logcat -d -t 3000 > maalenex-emulator-logcat.txt || true
+  echo "Android UI hierarchy could not be captured after six attempts." >&2
+  exit 1
+fi
+
+grep -q "MAALENEX" ./maalenex-window.xml
+adb exec-out screencap -p > maalenex-emulator.png
+
+if adb logcat -d -t 3000 -s AndroidRuntime:E | grep -q 'FATAL EXCEPTION'; then
+  adb logcat -d -t 3000 -s AndroidRuntime:E
+  exit 1
+fi
+
+test -s maalenex-window.xml
+test -s maalenex-emulator.png
+echo "Android emulator install, launch, foreground, UI hierarchy, screenshot, and fatal-exception checks passed."
