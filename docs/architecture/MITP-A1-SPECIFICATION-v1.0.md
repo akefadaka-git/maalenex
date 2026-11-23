@@ -414,11 +414,11 @@ A1 can be closed only when the Owner:
 3. Reviews the unresolved register and accepts its items for evidence-based A2 assessment.
 4. Explicitly authorizes A1 closure and A2 read-only reconciliation.
 
-**Current controlled status: OPEN — OWNER REVIEW.**
+**Current controlled status: VERIFIED-CLOSED — A1 scope only (see §21).**
 
 **Owner decisions incorporated:** D01 mandatory installed GPS; D02 road-facing camera only; D03 self-hosted road maps plus approved satellite imagery; D04 review only.
 
-**No A2/A3/A4/A5, procurement, merge or deployment authorization is implied.**
+**A2 read-only authorization is explicitly recorded in §21. No A3/A4/A5, procurement, merge or deployment authorization is implied.**
 
 
 ## 21. Owner approval and A1 closure record
