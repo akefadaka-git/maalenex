@@ -1,5 +1,6 @@
-from datetime import datetime, timezone
 import secrets
+from datetime import UTC, datetime
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -23,6 +24,8 @@ from app.domains.tracking.service import (
 from app.routers.auth import current_staff_context, require_csrf
 
 router = APIRouter(prefix="/tracking", tags=["vehicle-tracking"])
+StaffContextDep = Annotated[StaffContext, Depends(current_staff_context)]
+DatabaseSession = Annotated[Session, Depends(get_db)]
 
 
 class DeviceRegistration(BaseModel):
@@ -68,9 +71,9 @@ def _require_encryption_key() -> str:
 
 @router.get("/devices")
 def list_devices(
+    context: StaffContextDep,
+    db: DatabaseSession,
     limit: int = 100,
-    context: StaffContext = Depends(current_staff_context),
-    db: Session = Depends(get_db),
 ) -> list[dict]:
     _authorize(db, context, "platform.tracking.read")
     devices = db.scalars(
@@ -181,7 +184,7 @@ def end_device_assignment(
     ).with_for_update())
     if assignment is None:
         raise HTTPException(status_code=409, detail="Device has no active vehicle assignment.")
-    assignment.unassigned_at = datetime.now(timezone.utc)
+    assignment.unassigned_at = datetime.now(UTC)
     assignment.unassigned_by = context.user.id
     if device.status == "active":
         device.status = "pending"
