@@ -21,14 +21,15 @@ services:
     restart: unless-stopped
 
   mitp-vector-tiles:
-    image: ghcr.io/maplibre/martin:v1.16.1
+    image: ghcr.io/maplibre/martin:1.16.1
     depends_on:
       mitp-map-db:
         condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://mitp_reader:${MITP_MAP_READER_PASSWORD}@mitp-map-db:5432/mitp_maps
     command:
       - --listen-addresses
       - 0.0.0.0:3000
-      - postgresql://mitp_reader:${MITP_MAP_READER_PASSWORD}@mitp-map-db:5432/mitp_maps
     ports:
       - "127.0.0.1:3000:3000"
     restart: unless-stopped
