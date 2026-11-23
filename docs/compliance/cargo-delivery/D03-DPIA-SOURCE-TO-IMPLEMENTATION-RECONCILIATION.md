@@ -219,3 +219,8 @@ Unique sender/recipient/receiver identities cannot be deduplicated from the curr
 The A2 read-only client/integration inspection and proposed tracking controls are recorded in [CARGO-TRACKING-COLLECTION-AND-SUBJECT-COUNTING-SPEC-v1.0.md]. The reviewed Cargo PR #45–#49 branches are backend-only and no Cargo client was located; the passenger Google Maps geolocation feature is separate. The specification proposes event-bound one-shot coordinates, server-enforced event/frequency limits, minimised precision and keyed pseudonymous subject counting. It is a design proposal only; no implementation or live configuration was changed.
 
 D03 remains **PARTIAL / NOT VERIFIED-CLOSED**. The complete DPIA, actual client/runtime evidence, actual operational volumes, sensitive-file classification, risk scoring and qualified reviewer/Owner decisions remain outstanding.
+
+
+## A2 mobility tracking requirement addendum — 23 November 2026
+
+The additional customer/vehicle-owner live-trip tracking requirement and source findings are documented in [A2-VEHICLE-TRIP-TRACKING-REQUIREMENT-RECONCILIATION.md](A2-VEHICLE-TRIP-TRACKING-REQUIREMENT-RECONCILIATION.md). The current passenger app uses static published route geometry and a one-shot passenger-device location action; its booking view shows scheduled ETA only. No live designated-vehicle tracking client or endpoint was evidenced. The proposed 30-second moving / 2-minute stationary cadence is a design candidate only, not an approved DPIA control or implementation setting. D03 remains **PARTIAL / NOT VERIFIED-CLOSED**.
