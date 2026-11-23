@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.session import get_db
 from app.domains.audit.service import record_event
 from app.domains.fleet.models import Vehicle
@@ -15,7 +16,7 @@ from app.domains.identity.authorization import has_permission
 from app.domains.identity.service import StaffContext
 from app.domains.tracking.models import TrackingDevice, VehicleDeviceAssignment
 from app.domains.tracking.schemas import TelemetryPayload
-from app.domains.tracking.security import credential_digest
+from app.domains.tracking.security import encrypt_credential
 from app.domains.tracking.service import (
     TelemetryRejected, ingest_telemetry, latest_vehicle_position,
 )
@@ -26,6 +27,14 @@ router = APIRouter(prefix="/tracking", tags=["vehicle-tracking"])
 
 class DeviceRegistration(BaseModel):
     device_identifier: str = Field(min_length=3, max_length=80, pattern=r"^[A-Za-z0-9._-]+$")
+
+
+class AssignmentRequest(BaseModel):
+    vehicle_id: UUID
+
+
+class DeviceStatusRequest(BaseModel):
+    status: str = Field(pattern=r"^(suspended|revoked)$")
 
 
 def _authorize(db: Session, context: StaffContext, permission: str) -> None:
@@ -44,6 +53,15 @@ def _audit(db: Session, context: StaffContext, event_type: str, device_id: UUID,
     )
 
 
+def _require_encryption_key() -> str:
+    if settings.mitp_encryption_key is None:
+        raise HTTPException(
+            status_code=503,
+            detail="MITP_DEVICE_ENCRYPTION_KEY must be configured before device credentials can be issued.",
+        )
+    return settings.mitp_encryption_key
+
+
 @router.post("/devices", status_code=status.HTTP_201_CREATED)
 def register_device(
     payload: DeviceRegistration, request: Request,
@@ -52,10 +70,11 @@ def register_device(
 ) -> dict:
     require_csrf(request, context)
     _authorize(db, context, "platform.tracking.manage")
+    encryption_key = _require_encryption_key()
     raw_credential = secrets.token_urlsafe(48)
     device = TrackingDevice(
         device_identifier=payload.device_identifier,
-        credential_digest=credential_digest(raw_credential),
+        credential_ciphertext=encrypt_credential(raw_credential, encryption_key),
         status="pending",
         created_by=context.user.id,
     )
@@ -78,18 +97,14 @@ def register_device(
 
 @router.post("/devices/{device_id}/assignments", status_code=status.HTTP_201_CREATED)
 def assign_device(
-    device_id: UUID, payload: dict, request: Request,
+    device_id: UUID, payload: AssignmentRequest, request: Request,
     context: StaffContext = Depends(current_staff_context),
     db: Session = Depends(get_db),
 ) -> dict:
     require_csrf(request, context)
     _authorize(db, context, "platform.tracking.manage")
-    try:
-        vehicle_id = UUID(str(payload.get("vehicle_id", "")))
-    except ValueError:
-        raise HTTPException(status_code=422, detail="A valid vehicle_id is required.")
     device = db.scalar(select(TrackingDevice).where(TrackingDevice.id == device_id).with_for_update())
-    vehicle = db.scalar(select(Vehicle).where(Vehicle.id == vehicle_id).with_for_update())
+    vehicle = db.scalar(select(Vehicle).where(Vehicle.id == payload.vehicle_id).with_for_update())
     if device is None or device.status not in {"pending", "active"}:
         raise HTTPException(status_code=404, detail="Assignable device not found.")
     if vehicle is None or vehicle.status != "active" or vehicle.review_status != "approved":
@@ -125,11 +140,12 @@ def rotate_device_credential(
 ) -> dict:
     require_csrf(request, context)
     _authorize(db, context, "platform.tracking.manage")
+    encryption_key = _require_encryption_key()
     device = db.scalar(select(TrackingDevice).where(TrackingDevice.id == device_id).with_for_update())
     if device is None or device.status == "revoked":
         raise HTTPException(status_code=404, detail="Rotatable device not found.")
     raw_credential = secrets.token_urlsafe(48)
-    device.credential_digest = credential_digest(raw_credential)
+    device.credential_ciphertext = encrypt_credential(raw_credential, encryption_key)
     device.credential_version += 1
     _audit(db, context, "tracking.device.credential_rotated", device.id, "rotate",
            {"credential_version": device.credential_version})
@@ -140,22 +156,19 @@ def rotate_device_credential(
 
 @router.post("/devices/{device_id}/status")
 def change_device_status(
-    device_id: UUID, payload: dict, request: Request,
+    device_id: UUID, payload: DeviceStatusRequest, request: Request,
     context: StaffContext = Depends(current_staff_context),
     db: Session = Depends(get_db),
 ) -> dict:
     require_csrf(request, context)
     _authorize(db, context, "platform.tracking.manage")
-    new_status = payload.get("status")
-    if new_status not in {"suspended", "revoked"}:
-        raise HTTPException(status_code=422, detail="Status must be suspended or revoked.")
     device = db.scalar(select(TrackingDevice).where(TrackingDevice.id == device_id).with_for_update())
     if device is None:
         raise HTTPException(status_code=404, detail="Device not found.")
     if device.status == "revoked":
         raise HTTPException(status_code=409, detail="Revoked devices cannot be reactivated.")
-    device.status = new_status
-    if new_status == "revoked":
+    device.status = payload.status
+    if payload.status == "revoked":
         assignment = db.scalar(select(VehicleDeviceAssignment).where(
             VehicleDeviceAssignment.device_id == device.id,
             VehicleDeviceAssignment.unassigned_at.is_(None),
@@ -163,21 +176,21 @@ def change_device_status(
         if assignment is not None:
             assignment.unassigned_at = datetime.now(timezone.utc)
             assignment.unassigned_by = context.user.id
-    _audit(db, context, f"tracking.device.{new_status}", device.id, new_status)
+    _audit(db, context, f"tracking.device.{payload.status}", device.id, payload.status)
     db.commit()
     return {"device_id": str(device.id), "status": device.status}
 
 
 @router.post("/telemetry", status_code=status.HTTP_202_ACCEPTED)
-async def receive_telemetry(
-    request: Request, db: Session = Depends(get_db),
-) -> dict:
+async def receive_telemetry(request: Request, db: Session = Depends(get_db)) -> dict:
     device_identifier = request.headers.get("X-MITP-Device-ID", "")
     request_timestamp = request.headers.get("X-MITP-Timestamp", "")
     signature = request.headers.get("X-MITP-Signature", "")
     if not device_identifier or not request_timestamp or not signature:
         raise HTTPException(status_code=401, detail="Device authentication headers are required.")
     body = await request.body()
+    if len(body) > 4096:
+        raise HTTPException(status_code=413, detail="Telemetry payload exceeds 4096 bytes.")
     try:
         payload = TelemetryPayload.model_validate_json(body)
         item = ingest_telemetry(
@@ -188,9 +201,10 @@ async def receive_telemetry(
         db.commit()
     except TelemetryRejected as exc:
         db.rollback()
-        raise HTTPException(status_code=401 if exc.reason in {
-            "device_not_active", "invalid_device_signature"
-        } else 409, detail=exc.reason)
+        status_code = 503 if exc.reason == "device_security_not_configured" else (
+            401 if exc.reason in {"device_not_active", "invalid_device_signature"} else 409
+        )
+        raise HTTPException(status_code=status_code, detail=exc.reason)
     except ValueError:
         db.rollback()
         raise HTTPException(status_code=422, detail="Invalid telemetry payload.")
