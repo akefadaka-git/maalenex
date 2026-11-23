@@ -60,7 +60,7 @@ def test_ingestion_binds_telemetry_to_the_registered_vehicle_and_rejects_replay(
         body = json.dumps({
             "sequence": 1, "recorded_at": now.isoformat(),
             "latitude": 6.25, "longitude": 36.88, "speed_kph": 20,
-            "heading_degrees": 90, "accuracy_meters": 5, "synthetic": True,
+            "heading_degrees": 90, "accuracy_meters": 5, "synthetic": True, "synthetic": True,
         }, separators=(",", ":")).encode()
         payload = TelemetryPayload.model_validate_json(body)
         timestamp = str(int(now.timestamp()))
@@ -113,7 +113,7 @@ def test_ingestion_rejects_tampered_body_signature(monkeypatch):
         body = json.dumps({
             "sequence": 1, "recorded_at": now.isoformat(),
             "latitude": 6.25, "longitude": 36.88, "speed_kph": 20,
-            "heading_degrees": 90, "accuracy_meters": 5,
+            "heading_degrees": 90, "accuracy_meters": 5, "synthetic": True,
         }, separators=(",", ":")).encode()
         payload = TelemetryPayload.model_validate_json(body)
         timestamp = str(int(now.timestamp()))
