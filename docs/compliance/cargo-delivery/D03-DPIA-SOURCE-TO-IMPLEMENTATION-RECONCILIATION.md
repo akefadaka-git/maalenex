@@ -174,9 +174,9 @@ No numeric “large scale” threshold is prescribed in this record. The forecas
 | `backend/app/routers/cargo_carrier_operations.py` | PR #47 | `de8b00cc625838f2e42ba1455cfcb38f98ebb1d6` | Proof submission/review and exception operations |
 | `backend/app/domains/fleet/object_storage.py` | PR #48 / `feat/cargo-delivery-evidence-storage-v1` | `5c612e050bd965904b6013f66405cc93963cf811` | Private upload types, size and scope |
 | `backend/app/domains/cargo/evidence_lifecycle.py` | PR #49 / `feat/cargo-evidence-legal-retention-remediation-v1` | `3de847294781b845bddd1e52b5d453e60ec92ea9` | Evidence lifecycle and initial classification fields |
-| `backend/app/domains/cargo/evidence_lifecycle.py` | PR #51 branch / `fix/cargo-evidence-legal-retention-c01-c08` | `022feb4e3d45a1174eaf8b1ed24689b2749d0e65` | Corrective personal/sensitive-data, legal-basis, transfer and DPO metadata |
+| `backend/app/domains/cargo/evidence_lifecycle.py` | PR #51 branch / `feat/cargo-evidence-legal-retention-remediation-v1` | `022feb4e3d45a1174eaf8b1ed24689b2749d0e65` | Corrective personal/sensitive-data, legal-basis, transfer and DPO metadata |
 | `backend/app/domains/audit/models.py` | PR #51 branch | `a87acb1a78be538272ed8ebe386fb484521f3ec1` | Audit-event fields |
-| `backend/app/domains/audit/service.py` | PR #51 branch | `219fbfb6341dd928cc96f2dcd0a5bf23443e955c` | Audit metadata redaction |
+| `backend/app/domains/audit/service.py` | PR #51 branch | `a5b5be2882d799de0f4a16c48246299acb70559d` | Audit metadata redaction |
 | `backend/app/core/config.py` | cargo evidence governance branch | `ce49e4bf571b47fd2222d0ca630eb18b01bc9831` | Synthetic-only, scheduler and object-storage defaults |
 | `backend/app/jobs/scheduler_worker.py` | PR #49 evidence branch | `f23a6750d541372e26da7e6225d18e43efb0c43f` | Scheduler fail-closed disabled behavior |
 | `backend/app/domains/identity/models.py` | PR #46 branch | `d487c9dfd682523b4bf0a40ea3a4586af0991cd6` | Staff identity references |
@@ -188,7 +188,7 @@ No numeric “large scale” threshold is prescribed in this record. The forecas
 | ID | Required evidence/action | Current status |
 |---|---|---|
 | D03-01 | Recover the actual complete DPIA, screening record, version, author and scope | MISSING / NOT RECOVERED |
-| D03-02 | Confirm the DPIA explicitly covers the PR #45–51 feature set and the hybrid SL-01/SL-02 model | PARTIAL — source features mapped here; full DPIA reconciliation pending |
+| D03-02 | Confirm the DPIA explicitly covers the relevant PR #45–#49 and #51 feature set and the hybrid SL-01/SL-02 model | PARTIAL — source features mapped here; full DPIA reconciliation pending |
 | D03-03 | Complete end-to-end D04 data inventory and data-flow map | PARTIAL — source fields mapped; processors, live destinations and actual configuration unknown |
 | D03-04 | Obtain measured volumes and complete subject/event/monitoring metrics; reconcile the approved delivery-only forecast | PARTIAL — provisional delivery scenario recorded; measured volumes and other dimensions MISSING |
 | D03-05 | Determine the source, purpose, frequency, duration and subject of every coordinate-bearing event | MISSING |
