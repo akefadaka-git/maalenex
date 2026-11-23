@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -27,9 +27,9 @@ def ingest_telemetry(
     payload: TelemetryPayload,
     now: datetime | None = None,
 ) -> VehicleTelemetry:
-    current = now or datetime.now(timezone.utc)
+    current = now or datetime.now(UTC)
     try:
-        sent_at = datetime.fromtimestamp(int(request_timestamp), tz=timezone.utc)
+        sent_at = datetime.fromtimestamp(int(request_timestamp), tz=UTC)
     except (ValueError, OverflowError, OSError):
         raise TelemetryRejected("invalid_request_timestamp")
     if abs((current - sent_at).total_seconds()) > 300:
@@ -72,7 +72,7 @@ def ingest_telemetry(
     if recent_count >= 120:
         raise TelemetryRejected("device_rate_limit_exceeded")
 
-    recorded_at = payload.recorded_at.astimezone(timezone.utc)
+    recorded_at = payload.recorded_at.astimezone(UTC)
     if recorded_at > current + timedelta(seconds=60):
         raise TelemetryRejected("telemetry_timestamp_in_future")
     if recorded_at < current - timedelta(hours=24):
