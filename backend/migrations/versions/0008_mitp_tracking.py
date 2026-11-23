@@ -65,6 +65,7 @@ def upgrade() -> None:
         sa.Column("speed_kph", sa.Numeric(6, 2), nullable=False),
         sa.Column("heading_degrees", sa.Numeric(6, 2), nullable=False),
         sa.Column("accuracy_meters", sa.Numeric(7, 2), nullable=False),
+        sa.Column("is_synthetic", sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.UniqueConstraint("device_id", "sequence", name="uq_vehicle_telemetry_device_sequence"),
     )
     op.create_index("ix_vehicle_telemetry_device_id", "vehicle_telemetry", ["device_id"])
