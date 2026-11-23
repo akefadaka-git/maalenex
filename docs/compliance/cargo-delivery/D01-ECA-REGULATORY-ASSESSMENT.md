@@ -86,7 +86,7 @@ No MaaleNex-specific registration certificate, application receipt, ECA correspo
 | ECA controller/processor role determination | NOT RECOVERED |
 | Domestic courier service licence | NOT LOCATED / NOT VERIFIED |
 | Written ECA/counsel determination that courier licence is not required | NOT LOCATED / NOT VERIFIED |
-| Applicant legal entity / TIN evidence | NOT VERIFIED in this D01 evidence set |
+| Applicant legal entity / TIN evidence | NOT AVAILABLE — Owner confirms PLC incorporation is in process and not yet completed; TIN not yet issued/available |
 
 ## 6. Owner decision — hybrid operating model confirmed
 
@@ -100,12 +100,12 @@ No MaaleNex-specific registration certificate, application receipt, ECA correspo
 
 The hybrid decision does **not** establish which delivery types, geographic routes, customer contracts or riders fall into each service line. Those facts must be mapped before a final licensing classification. A partner's licence does not automatically cover MaaleNex's separately operated deliveries.
 
-The PDP data-handler registration assessment remains a separate requirement across both service lines. The next Owner-level fact needed is the identity/status of the legal applicant and its TIN; no application or fee payment is authorised by this assessment.
+The PDP data-handler registration assessment remains a separate requirement across both service lines. The Owner confirmed on 23 November 2026 that MaaleNex Technologies PLC is not yet incorporated and that incorporation is in process; a company TIN is therefore not yet available. Record legal-entity formation and TIN issuance as a prerequisite to filing, while continuing pre-filing service-line and data-role preparation. No application or fee payment is authorised. Until incorporation and TIN issuance are complete, maintain the application pack as a pre-filing workstream and do not submit it in the proposed PLC's name.
 
 ## 7. Closure criteria
 
 D01 may be closed only when all applicable items are evidenced:
-1. Exact legal applicant/operator entity and TIN confirmed.
+1. Legal applicant exists and is evidenced by completed incorporation; exact registered legal name and TIN are confirmed. The Owner reports incorporation is currently in process and not yet complete.
 2. Controller/processor/both roles and processing purposes confirmed.
 3. ECA PDP registration completed and current certificate verified, or a reasoned formal legal/ECA determination establishes a specific lawful exception.
 4. Courier operating model classified.
