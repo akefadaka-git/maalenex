@@ -76,7 +76,7 @@ Record and substantiate, at minimum:
 8. Whether monitoring is intrinsic to the service's core business or only an incidental, limited support function.
 9. Whether MaaleNex and partner processing together create a materially broader monitoring operation; assess each entity's actual role rather than aggregating by assumption.
 
-**Preliminary result:** UNDETERMINED. Source review confirms dispatch and discrete tracking events, including optional coordinates, but no continuous GPS polling or public tracking endpoint in the inspected cargo branches. Whether repeated coordinate-bearing events constitute regular and systematic monitoring depends on their actual source, subject, frequency, duration, operational necessity and scale. No measured or approved forecast volumes are available. The lack of measured scale is not evidence that the threshold is absent.
+**Preliminary result:** UNDETERMINED. Source review confirms dispatch and discrete tracking events, including optional coordinates, but no continuous GPS polling or public tracking endpoint in the inspected cargo branches. Whether repeated coordinate-bearing events constitute regular and systematic monitoring depends on their actual source, subject, frequency, duration, operational necessity and scale. No measured production volumes are available. The Owner-approved provisional delivery forecast is now recorded, but it does not quantify unique data subjects, actual tracking-event frequency, coordinate-bearing events, monitoring duration or sensitive-file volumes. The lack of measured scale is not evidence that the threshold is absent.
 
 ## 4. Limb C — large-scale processing of sensitive personal data
 
@@ -126,7 +126,7 @@ If sensitive personal data is processed, record:
 | D02-E01 | Government-body customer/contract and processing arrangement register | Project Owner / commercial pipeline | NOT PROVIDED |
 | D02-E02 | Cargo platform feature and configuration inventory (GPS, tracking, proof-of-delivery, analytics, scoring, fraud) | Product/engineering | PARTIAL — staged backend source mapped in D03/D04; runtime config and other integrations NOT VERIFIED |
 | D02-E03 | Monitoring data-flow and event taxonomy, including frequency, precision, retention and access | Engineering / D04 | PARTIAL — discrete event schema and optional coordinate fields mapped; source, frequency, duration and live access NOT PROVIDED |
-| D02-E04 | Measured or responsibly forecast subject/event volumes by category and geography | Operations/product analytics | NOT PROVIDED — no production metrics or Owner-approved forecast located |
+| D02-E04 | Measured or responsibly forecast subject/event volumes by category and geography | Operations/product analytics | PARTIAL — provisional delivery-volume scenario approved; production metrics and unique-subject/event/coordinate forecasts NOT PROVIDED |
 | D02-E05 | Sensitive-data statutory category-to-field/inference assessment | Legal/DPO adviser with product and engineering | PARTIAL — fields and open-content channels mapped; actual content, classification and scale NOT VERIFIED |
 | D02-E06 | D03 DPIA report and its scope/version, including tracking and sensitive-data analysis | Project Owner / DPIA author | PARTIAL — recovered C06-only DPIA confirmation is not the full DPIA; complete report/screening record NOT RECOVERED / NOT VERIFIED |
 | D02-E07 | Partner data-role and data-sharing arrangements for SL-01/SL-02 | Commercial/legal | PRE-FILING MAP EXISTS; executed agreements NOT PROVIDED |
@@ -176,7 +176,7 @@ D02 may be closed only when:
 6. If any limb is triggered, a qualified DPO is appointed/designated, conflict/independence and resources are assessed, and contact publication/Authority communication are evidenced.
 7. If no limb is triggered, the evidence-based rationale and reassessment events are documented; no blanket future exemption is claimed.
 
-**Current D02 status: IN PROGRESS — government-body limb not triggered on current evidence; monitoring and sensitive-data limbs remain undetermined after source-level feature reconciliation. Operational configuration, actual/forecast volumes and sensitive-content classification remain missing. No DPO appointment conclusion is made.**
+**Current D02 status: IN PROGRESS — government-body limb not triggered on current evidence; monitoring and sensitive-data limbs remain undetermined after source-level feature reconciliation. Client/runtime configuration, measured operational volumes, deduplicated subject counts, tracking/coordinate metrics and sensitive-content classification remain missing; the provisional delivery forecast is recorded but is not a complete scale dataset. No DPO appointment conclusion is made.**
 
 
 ## 11. Source-level implementation reconciliation — 23 November 2026
@@ -205,7 +205,7 @@ The earlier reviewer statement that no special-category data is processed was an
 
 ### Operational scale
 
-No measured production volumes or Owner-approved forecast was found. Unique senders, recipients, couriers, partner staff, active carriers, deliveries, tracking events, coordinate-bearing events, proof records, file uploads/bytes, exceptions, geographic reach, monitoring duration and event frequency are all MISSING. Test/CI fixtures are synthetic and are not operational volume evidence. D03/D04 specify the exact dataset required.
+No measured production volumes were found. The Owner has since approved a provisional delivery-volume scenario, recorded in CARGO-OPERATIONAL-VOLUME-PLANNING-BASELINE.md and reconciled in D02-D04-FORECAST-TO-SOURCE-RECONCILIATION.md. It provides delivery counts only. Unique senders, recipients, couriers, partner staff, active carriers, actual deliveries, actual tracking events, coordinate-bearing events, proof records, file uploads/bytes, exceptions, geographic reach, monitoring duration and event frequency remain MISSING or UNVERIFIED. Test/CI fixtures are synthetic and are not operational volume evidence. D03/D04 specify the remaining dataset.
 
 ### Effect on Article 40 conclusion
 
