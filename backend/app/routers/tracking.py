@@ -237,7 +237,7 @@ def change_device_status(
             VehicleDeviceAssignment.unassigned_at.is_(None),
         ).with_for_update())
         if assignment is not None:
-            assignment.unassigned_at = datetime.now(timezone.utc)
+            assignment.unassigned_at = datetime.now(UTC)
             assignment.unassigned_by = context.user.id
     _audit(db, context, f"tracking.device.{payload.status}", device.id, payload.status)
     db.commit()
