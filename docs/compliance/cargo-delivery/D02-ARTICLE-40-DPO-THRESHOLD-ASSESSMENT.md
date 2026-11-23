@@ -227,3 +227,12 @@ See [D02–D04 Forecast-to-Source Reconciliation](D02-D04-FORECAST-TO-SOURCE-REC
 The consignment schema requires sender and recipient name strings. Delivery proof can add a receiver name and optional free-text notes; uploaded evidence accepts PDF/JPEG/PNG up to 10 MiB. File verification checks type/signature/size, not content. Evidence classification begins unclassified; the sensitive-data flag defaults false, which is not proof of absence. Unique natural-person counts are not computable because cargo names are not linked to stable person identifiers and courier/driver identifiers and actual rosters were not supplied.
 
 The forecast yields two required named role entries per consignment and up to one additional receiver-name entry per proof, but these are role appearances, not deduplicated unique people. Tracking baseline arithmetic and the role-entry envelope are documented in the reconciliation addendum. The monitoring and sensitive-data limbs remain **UNDETERMINED**; no DPO-required or DPO-not-required conclusion is made.
+
+
+## A2 client and integration inspection / proposed tracking controls — 23 November 2026
+
+The A2 repository inspection found no Cargo-specific mobile/web client in the reviewed main tree or PR #45–#49 changed-file sets. The passenger Google Maps/WebView feature is separate: it uses a user-initiated one-shot passenger geolocation action and is not driver tracking. The Android shell declares coarse/fine location permissions, but the inspected manifest contains no background-location permission. These passenger facts do not establish Cargo collection behaviour; any separate Cargo or partner app remains unverified.
+
+The proposed event-bound coordinate policy, event ceilings, precision/source requirements and pseudonymous subject-count method are specified in [CARGO-TRACKING-COLLECTION-AND-SUBJECT-COUNTING-SPEC-v1.0.md]. These proposed limits are not implemented or active. The current backend has no event ceiling/rate limit; this is a source-level risk, not a statement of actual event volume.
+
+**Article 40 disposition unchanged:** government-body limb not triggered on current evidence; regular/systematic large-scale monitoring and large-scale sensitive-data limbs remain **UNDETERMINED**. The proposed specification does not establish a DPO-required or DPO-not-required conclusion. D02 remains OPEN.
