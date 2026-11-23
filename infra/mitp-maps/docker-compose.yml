@@ -28,7 +28,6 @@ services:
     command:
       - --listen-addresses
       - 0.0.0.0:3000
-      - --postgres-connection-string
       - postgresql://mitp_reader:${MITP_MAP_READER_PASSWORD}@mitp-map-db:5432/mitp_maps
     ports:
       - "127.0.0.1:3000:3000"
