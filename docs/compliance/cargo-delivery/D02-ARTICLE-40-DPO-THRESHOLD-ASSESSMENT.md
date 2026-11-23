@@ -236,3 +236,8 @@ The A2 repository inspection found no Cargo-specific mobile/web client in the re
 The proposed event-bound coordinate policy, event ceilings, precision/source requirements and pseudonymous subject-count method are specified in [CARGO-TRACKING-COLLECTION-AND-SUBJECT-COUNTING-SPEC-v1.0.md]. These proposed limits are not implemented or active. The current backend has no event ceiling/rate limit; this is a source-level risk, not a statement of actual event volume.
 
 **Article 40 disposition unchanged:** government-body limb not triggered on current evidence; regular/systematic large-scale monitoring and large-scale sensitive-data limbs remain **UNDETERMINED**. The proposed specification does not establish a DPO-required or DPO-not-required conclusion. D02 remains OPEN.
+
+
+## A2 mobility live-trip tracking requirement — 23 November 2026
+
+A separate user-stated requirement now calls for verified vehicle owners and customers who ordered fleet/ride services to track the designated vehicle from trip start through destination, including ETA and actual arrival. Source reconciliation is recorded in [A2-VEHICLE-TRIP-TRACKING-REQUIREMENT-RECONCILIATION.md](A2-VEHICLE-TRIP-TRACKING-REQUIREMENT-RECONCILIATION.md). The reviewed passenger client does not expose live vehicle location; the Cargo API is not a customer-facing live feed. If implemented at scale, active-trip telemetry may constitute regular and systematic monitoring of identifiable drivers and possibly passengers/owners. Article 40 monitoring remains **UNDETERMINED** pending actual configuration and measured scale. This does not establish DPO required or not required.
