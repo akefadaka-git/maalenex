@@ -1,7 +1,7 @@
 # D01 — ECA Regulatory Assessment and Resolution Plan
 
 **Item:** D01 — ECA registration / authorisation  
-**Status:** PARTIAL — Owner selected hybrid operating model; service-line allocation, applicant identity and regulatory evidence remain outstanding  
+**Status:** PARTIAL — hybrid service lines, partner licence checks and provisional data roles mapped; applicant identity and regulatory evidence remain outstanding  
 **Assessment date:** 23 November 2026  
 **Scope:** MaaleNex Cargo Delivery  
 **No authorisation implied:** This assessment does not authorise personal-data processing, courier operations, external submissions or production activation.
@@ -102,7 +102,11 @@ The hybrid decision does **not** establish which delivery types, geographic rout
 
 The PDP data-handler registration assessment remains a separate requirement across both service lines. The Owner confirmed on 23 November 2026 that MaaleNex Technologies PLC is not yet incorporated and that incorporation is in process; a company TIN is therefore not yet available. Record legal-entity formation and TIN issuance as a prerequisite to filing, while continuing pre-filing service-line and data-role preparation. No application or fee payment is authorised. Until incorporation and TIN issuance are complete, maintain the application pack as a pre-filing workstream and do not submit it in the proposed PLC's name.
 
-## 7. Closure criteria
+## 7. Pre-filing service-line and data-role map
+
+The Owner-approved hybrid operating model has been decomposed into two service lines, a per-partner licence-verification checklist, and a purpose-based controller/processor allocation. The detailed controlled working record is [D01 Hybrid Service-Line, Partner Licence and Data-Role Map](D01-HYBRID-SERVICE-LINE-AND-DATA-ROLE-MAP.md). It distinguishes MaaleNex-operated deliveries from independent partner-operated deliveries; maps platform, direct-delivery, partner execution, onboarding, payment and compliance processing purposes; and records the incorporation/TIN, D03/D04, partner evidence and written ECA/counsel determination dependencies. This is pre-filing preparation only: no partner is represented as verified, no registration or licence is held or inferred, and no service line is authorised to operate.
+
+## 8. Closure criteria
 
 D01 may be closed only when all applicable items are evidenced:
 1. Legal applicant exists and is evidenced by completed incorporation; exact registered legal name and TIN are confirmed. The Owner reports incorporation is currently in process and not yet complete.
@@ -112,4 +116,4 @@ D01 may be closed only when all applicable items are evidenced:
 5. If MaaleNex operates express courier services, valid ECA licence and scope verified before operations; otherwise, written ECA/counsel non-applicability determination and evidence of licensed delivery partners retained.
 6. Evidence references, dates, certificate numbers, scope, expiry and verification source recorded in the controlled register.
 
-**Current D01 status: PARTIAL — hybrid model selected; regulatory evidence and legal-entity facts outstanding.** No legal closure, production processing permission or courier operating permission is claimed.
+**Current D01 status: PARTIAL — hybrid model selected and pre-filing service-line/data-role mapping completed; partner-specific, operational, entity and regulatory evidence remain outstanding.** No legal closure, production processing permission or courier operating permission is claimed.
