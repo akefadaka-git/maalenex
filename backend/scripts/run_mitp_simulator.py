@@ -59,6 +59,7 @@ def main() -> int:
             "speed_kph": payload["speed_kph"],
             "heading_degrees": payload["heading_degrees"],
             "accuracy_meters": payload["accuracy_meters"],
+            "synthetic": payload["synthetic"],
         }, separators=(",", ":")).encode("utf-8")
         request_timestamp = str(int(time.time()))
         signature = sign_telemetry(credential, request_timestamp, body)
