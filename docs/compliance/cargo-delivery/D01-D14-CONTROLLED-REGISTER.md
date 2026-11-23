@@ -44,7 +44,11 @@ D01 is refined into two legally distinct ECA workstreams; the recovered historic
 
 The Owner approved hybrid model C. The two service lines, partner licence verification controls and purpose-based controller/processor allocation are documented in [D01 Hybrid Service-Line, Partner Licence and Data-Role Map](D01-HYBRID-SERVICE-LINE-AND-DATA-ROLE-MAP.md). This is a planning record only. Actual partners/licences are not supplied or verified; contracts and operating facts are not yet reconciled; MaaleNex incorporation/TIN remain pending; and PDP/courier filing or operating authority is not established. The map identifies D03 DPIA and D04 inventory/flow reconciliation as dependencies. D01 remains PARTIAL as pre-filing assessment and UNRESOLVED as a compliance gate.
 
-## 3. Reconciliation notes — do not silently harmonise
+## 3. D02 Article 40 threshold assessment
+
+D02 has a separate pre-appointment assessment in [D02 Article 40 DPO Threshold Assessment](D02-ARTICLE-40-DPO-THRESHOLD-ASSESSMENT.md). Article 40(1) contains three alternative triggers: government-body processing; core activities requiring regular and systematic monitoring on a large scale; or core activities involving large-scale processing of sensitive personal data. The proposed private PLC is in formation and no government-body processing arrangement is evidenced, so limb A is not triggered on current evidence. Monitoring and sensitive-data limbs remain UNDETERMINED because feature configuration, actual/forecast volumes, data categories and D03/D04 records are not yet verified. No DPO mandatory/not-required conclusion is made. D02 remains OPEN.
+
+## 4. Reconciliation notes — do not silently harmonise
 
 The two status columns represent different evidence snapshots and reviewer scopes:
 
@@ -55,7 +59,7 @@ The two status columns represent different evidence snapshots and reviewer scope
 - D13 must preserve the distinction between the Owner-supplied L01–L07 opinion (NOT APPROVED, unsigned/unexecuted in the source record), Endalkachew's legal response, and Dr. Kebene's DPIA confirmation. They are not interchangeable approvals.
 - No item is marked CLOSED. The Owner's acceptance of D03/D13 reports has not been recorded in this package.
 
-## 4. Source and evidence register
+## 5. Source and evidence register
 
 | Source ID | Record | Provenance / date | Use and limitation |
 |---|---|---|---|
@@ -70,11 +74,11 @@ The two status columns represent different evidence snapshots and reviewer scope
 | SRC-09 | Personal Data Protection Proclamation No. 1321/2024 | https://pdp.eca.et/pdp-proclamation | Article 33 prior registration and Article 35 registration certificate; does not prove registration. |
 | SRC-10 | ECA courier licensing | https://www.eca.et/services/ and https://iris.eca.et/ | ECA states express courier operators require a licence and lists domestic courier licensing; MaaleNex's operator classification remains fact-dependent. |
 
-## 5. Closure rule
+## 6. Closure rule
 
 A D-item may be marked closed only after its exact evidence is identified, authenticity/version/authority are verified, applicable reviewer determination is recorded, Owner acceptance is documented where required, and operational tests are available where relevant. Do not close based solely on code, a summary, an unexecuted opinion, a category definition or a reviewer acknowledgement.
 
-## 6. Owner decision
+## 7. Owner decision
 
 - Register accuracy: **PENDING OWNER REVIEW**
 - D03/D13 report acceptance: **PENDING**
