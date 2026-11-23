@@ -15,7 +15,7 @@ class TrackingDevice(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     device_identifier: Mapped[str] = mapped_column(String(80), unique=True, index=True)
-    credential_digest: Mapped[str] = mapped_column(String(64))
+    credential_ciphertext: Mapped[str] = mapped_column(String(512))
     credential_version: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
     last_sequence: Mapped[int] = mapped_column(Integer, default=0)
