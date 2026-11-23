@@ -63,7 +63,9 @@ def ingest_telemetry(
     )
     if assignment is None:
         raise TelemetryRejected("device_not_assigned")
-    if settings.synthetic_data_only and not payload.synthetic:
+    if settings.synthetic_data_only and (
+        not payload.synthetic or not device.device_identifier.startswith("SIM-")
+    ):
         raise TelemetryRejected("non_synthetic_telemetry_forbidden")
     if payload.sequence <= device.last_sequence:
         raise TelemetryRejected("sequence_replayed_or_out_of_order")
