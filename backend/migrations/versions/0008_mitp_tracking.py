@@ -3,8 +3,9 @@
 Revision ID: 0008_mitp_tracking
 Revises: 0007_operator_invites_support
 """
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "0008_mitp_tracking"
