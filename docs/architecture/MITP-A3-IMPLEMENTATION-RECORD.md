@@ -47,16 +47,16 @@ The branch now contains additive SQLAlchemy models and Alembic revision 0008 for
 - append-only vehicle/device assignment history with database-enforced uniqueness for one active device per vehicle and one active vehicle per device;
 - vehicle telemetry records with unique per-device sequence and vehicle/time indexes.
 
-The staff API includes device registration (credential returned once), inventory listing, assignment, assignment end, credential rotation, suspension/revocation and staff-authorized latest-position reads. Mutations require the existing staff session and CSRF controls plus the new platform permissions. The synthetic local administrator seed script now provisions those permissions. No default production or public-customer tracking access is introduced.
+The staff API includes device registration (SIM-prefixed identifiers only; credential returned once), inventory listing, assignment, assignment end, credential rotation, suspension/revocation and staff-authorized latest-position reads. Mutations require the existing staff session and CSRF controls plus the new platform permissions. The synthetic local administrator seed script now provisions those permissions. Telemetry must explicitly declare synthetic provenance; non-synthetic submissions and non-SIM device identities are rejected in this development baseline. No default production or public-customer tracking access is introduced.
 
-The telemetry gateway accepts HTTPS-capable FastAPI requests with per-device HMAC signatures over the request timestamp and exact body bytes. Device credentials are encrypted at rest with Fernet; the encryption key is supplied separately through MITP_DEVICE_ENCRYPTION_KEY and is not committed. The gateway checks active device status and vehicle assignment, request timestamp freshness (±300 seconds), monotonic sequence, payload timestamp bounds (up to 24 hours of buffering; no more than 60 seconds in the future), coordinate/field bounds, request body size (4 KiB) and a per-device acceptance ceiling of 120 messages per minute. The simulator refuses non-HTTPS remote endpoints; plain HTTP is allowed only for loopback development.
+The telemetry gateway accepts FastAPI requests with per-device HMAC signatures over the request timestamp and exact body bytes; remote non-loopback clients must use HTTPS, while HTTP is allowed only for local development. Device credentials are encrypted at rest with Fernet; the encryption key is supplied separately through MITP_DEVICE_ENCRYPTION_KEY and is not committed. The gateway checks active device status and vehicle assignment, request timestamp freshness (±300 seconds), monotonic sequence, payload timestamp bounds (up to 24 hours of buffering; no more than 60 seconds in the future), coordinate/field bounds, request body size (4 KiB) and a per-device acceptance ceiling of 120 messages per minute. The simulator refuses non-HTTPS remote endpoints; plain HTTP is allowed only for loopback development.
 
 These controls are an initial development implementation, not a production security certification. Key custody/rotation, deployment TLS termination, distributed rate limiting, device protocol interoperability, monitoring/alerting and independent security review remain A4/production gates.
 
 ## A3.4 — self-hosted road-map proof-of-concept implementation checkpoint
 
 The branch now contains:
-- a local PostGIS database and Martin vector-tile service Compose definition bound to loopback interfaces;
+- a local PostGIS database and Martin vector-tile service Compose definition bound to loopback interfaces, with Martin using a separate read-only database role;
 - PostGIS initialization SQL;
 - a MapLibre frontend page at /tracking-demo;
 - a local vector style for OpenStreetMap-derived road and polygon tables;
