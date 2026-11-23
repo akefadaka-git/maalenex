@@ -19,7 +19,7 @@ def upgrade() -> None:
         "tracking_devices",
         sa.Column("id", uuid, primary_key=True),
         sa.Column("device_identifier", sa.String(80), nullable=False, unique=True),
-        sa.Column("credential_digest", sa.String(64), nullable=False),
+        sa.Column("credential_ciphertext", sa.String(512), nullable=False),
         sa.Column("credential_version", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("status", sa.String(24), nullable=False, server_default="pending"),
         sa.Column("last_sequence", sa.Integer(), nullable=False, server_default="0"),
