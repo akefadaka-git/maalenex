@@ -1,0 +1,9 @@
+{
+  "appId": "com.maalenex.moto",
+  "appName": "MaaleNex Moto",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": false
+  }
+}
