@@ -84,3 +84,19 @@ A D-item may be marked closed only after its exact evidence is identified, authe
 - D03/D13 report acceptance: **PENDING**
 - External submission: **NOT AUTHORISED**
 - D01–D14 closure: **NOT ESTABLISHED**
+
+
+## 8. Source-to-implementation reconciliation — 23 November 2026
+
+New controlled addenda:
+- [D03 DPIA Source-to-Implementation Reconciliation](D03-DPIA-SOURCE-TO-IMPLEMENTATION-RECONCILIATION.md)
+- [D04 Cargo Personal-Data Inventory and Processing-Flow Reconciliation](D04-CARGO-PERSONAL-DATA-INVENTORY-AND-FLOW-RECONCILIATION.md)
+- [D02 Article 40 DPO Threshold Assessment](D02-ARTICLE-40-DPO-THRESHOLD-ASSESSMENT.md) — updated with the source-level implementation findings.
+
+**D03 current reconciliation: PARTIAL / NOT VERIFIED-CLOSED.** The recovered independent DPIA confirmation is C06-focused and expressly states that the full D01–D14 register, privacy notices, DPIA screening record and direct technical schema review were not supplied. The complete DPIA report/version was not recovered. Source-level cargo features and risks are now mapped, but the full DPIA, operational configuration, actual/forecast scale, sensitive-file classification, risk scoring and reviewer/Owner closure remain outstanding.
+
+**D04 current reconciliation: PARTIAL / NOT VERIFIED-CLOSED.** Candidate backend fields and processing flows are now mapped from PRs #45–#51. The cargo feature branches remain unmerged. No production dataset, runtime configuration, processor/hosting location evidence, partner contract, actual operational volume or Owner-approved forecast was found. No live production processing or zero-volume conclusion is inferred.
+
+**D02 impact:** dispatch and discrete tracking events are implemented in staged source, with optional coordinate pairs; no continuous GPS polling or public tracking-link endpoint was found in the inspected cargo branches. Delivery proof includes receiver name, evidence reference, notes and occurrence time; private PDF/JPEG/PNG evidence can contain additional personal or sensitive information. The prior “no special-category data” statement remains an unverified assumption. No measured or forecast scale evidence was located. Article 40 monitoring and sensitive-data limbs therefore remain UNDETERMINED; no DPO-required or DPO-not-required conclusion is made.
+
+**Preservation:** the historical 06:30 and PR #51 snapshot status columns above are retained unchanged. The new addenda are current source-level reconciliation records and do not rewrite the historical reviewer snapshots. The cargo increments are candidate branches and remain separate from main. No merge, deployment, hosted migration, production activation, external reviewer submission or A5 activity is authorised by these documentation additions.
