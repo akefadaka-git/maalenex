@@ -5,11 +5,13 @@ services:
       POSTGRES_DB: mitp_maps
       POSTGRES_USER: mitp_maps
       POSTGRES_PASSWORD: ${MITP_MAP_DB_PASSWORD:?Set MITP_MAP_DB_PASSWORD in the shell}
+      MITP_MAP_READER_PASSWORD: ${MITP_MAP_READER_PASSWORD:?Set MITP_MAP_READER_PASSWORD in the shell}
     ports:
       - "127.0.0.1:55432:5432"
     volumes:
       - mitp-map-data:/var/lib/postgresql/data
       - ./init/001-postgis.sql:/docker-entrypoint-initdb.d/001-postgis.sql:ro
+      - ./init/002-create-reader.sh:/docker-entrypoint-initdb.d/002-create-reader.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U mitp_maps -d mitp_maps"]
       interval: 5s
@@ -26,7 +28,7 @@ services:
       - --listen-addresses
       - 0.0.0.0:3000
       - --postgres-connection-string
-      - postgresql://mitp_maps:${MITP_MAP_DB_PASSWORD}@mitp-map-db:5432/mitp_maps
+      - postgresql://mitp_reader:${MITP_MAP_READER_PASSWORD}@mitp-map-db:5432/mitp_maps
     ports:
       - "127.0.0.1:3000:3000"
     restart: unless-stopped
