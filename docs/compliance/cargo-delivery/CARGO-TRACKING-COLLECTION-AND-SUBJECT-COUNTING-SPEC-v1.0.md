@@ -257,3 +257,8 @@ Accordingly, D04 remains **PARTIAL / NOT VERIFIED-CLOSED**. D03 remains **PARTIA
 - A3 implementation, A4 verification, merge, A5 deployment and production activation each remain separate gates.
 
 **Disposition:** A2 source inspection recorded; tracking specification proposed for Owner review; implementation not authorized by this document.
+
+
+## Controlled addendum — separate Mobility live-trip tracking profile
+
+The user-stated requirement for a verified vehicle owner or the customer who ordered a fleet/ride service to track the designated vehicle from trip start through destination, with ETA and actual arrival, is reconciled in [A2-VEHICLE-TRIP-TRACKING-REQUIREMENT-RECONCILIATION.md](A2-VEHICLE-TRIP-TRACKING-REQUIREMENT-RECONCILIATION.md). This is a separate Mobility capability. It is not a relaxation of the Cargo dispatch-event profile in this v1.0 document. The proposed 30-second moving / 2-minute stationary cadence is for Owner review only; the four-coordinate-per-dispatch and 15-minute interval limits continue to apply to the Cargo profile unless separately revised. No code, schema, permission or provider configuration changed.
