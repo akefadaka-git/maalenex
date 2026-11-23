@@ -11,12 +11,13 @@ This development-only stack serves OpenStreetMap-derived vector tiles from a loc
 
 ## Start the local services
 
-Set a password in the current shell, then start the services:
+Set two local-only alphanumeric passwords in the current shell, then start the services:
 
-    export MITP_MAP_DB_PASSWORD='replace-with-a-local-random-password'
+    export MITP_MAP_DB_PASSWORD='local-owner-password-change-me'
+    export MITP_MAP_READER_PASSWORD='local-reader-password-change-me'
     docker compose -f infra/mitp-maps/docker-compose.yml up -d
 
-The PostGIS database is bound to loopback port 55432 and Martin is bound to loopback port 3000. These ports are not published on a public interface.
+The PostGIS database is bound to loopback port 55432 and Martin is bound to loopback port 3000. These ports are not published on a public interface. The OSM import owner uses the database-owner account; Martin connects with a separate read-only role. Use alphanumeric-only passwords for the sample connection string, and replace the example values.
 
 ## Import road data
 
