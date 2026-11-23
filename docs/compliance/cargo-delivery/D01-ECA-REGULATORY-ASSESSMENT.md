@@ -1,7 +1,7 @@
 # D01 — ECA Regulatory Assessment and Resolution Plan
 
 **Item:** D01 — ECA registration / authorisation  
-**Status:** UNRESOLVED — regulatory requirement established in principle; entity-specific evidence and operator classification pending  
+**Status:** PARTIAL — Owner selected hybrid operating model; service-line allocation, applicant identity and regulatory evidence remain outstanding  
 **Assessment date:** 23 November 2026  
 **Scope:** MaaleNex Cargo Delivery  
 **No authorisation implied:** This assessment does not authorise personal-data processing, courier operations, external submissions or production activation.
@@ -88,17 +88,19 @@ No MaaleNex-specific registration certificate, application receipt, ECA correspo
 | Written ECA/counsel determination that courier licence is not required | NOT LOCATED / NOT VERIFIED |
 | Applicant legal entity / TIN evidence | NOT VERIFIED in this D01 evidence set |
 
-## 6. Owner decision required — one operating-model choice
+## 6. Owner decision — hybrid operating model confirmed
 
-**Which operating model is intended for MaaleNex Cargo Delivery?**
+**Owner decision received: C — Hybrid.** The working model is that MaaleNex may operate some deliveries directly and facilitate other deliveries performed by independent courier partners. This is now the controlled planning assumption; it is not proof that either service line is currently active or authorised.
 
-A. **MaaleNex is the courier operator:** it contracts with customers for delivery, accepts delivery responsibility, and controls/dispatches its own or contracted riders. Treat ECA domestic courier licensing as required unless ECA gives a contrary written determination.
+| Service line | Regulatory treatment | Evidence required before launch |
+|---|---|---|
+| MaaleNex-operated deliveries | Treat MaaleNex as a prospective courier operator for this service line. ECA states that no person may operate an express courier service without a licence. The domestic courier licence is the relevant starting point where sender and recipient are both in Ethiopia. | Identify the legal operator/applicant; obtain and verify the applicable ECA licence, scope, conditions and validity; align customer contract, rider control, custody, pricing, liability and complaints with the licensed operation. |
+| Partner-operated deliveries | Treat each independent courier as the prospective operator where it contracts for and performs the delivery and remains responsible for the consignment. MaaleNex's platform role must be described accurately. | Verify each partner's legal identity and current ECA licence/scope; execute platform/partner terms allocating contracting, custody, delivery, complaints, claims, data roles and subcontracting; obtain written ECA/counsel confirmation of MaaleNex's own licensing position for the intermediary activity. |
+| Shared platform/data layer | Assess separately from courier licensing. MaaleNex may determine purposes/means for some processing and act as processor for other parties' instructions; roles must be mapped by purpose and contract, not assumed globally. | Processing-purpose map, controller/processor allocation, partner data-sharing/processing terms, and ECA PDP registration for the applicable role(s) before processing. |
 
-B. **MaaleNex is a technology marketplace only:** it provides software and matching, while independent, separately licensed courier companies contract for and perform delivery and remain responsible for the consignment. Prepare the platform/operator boundary and seek written ECA/legal confirmation that MaaleNex itself is outside courier-operator licensing.
+The hybrid decision does **not** establish which delivery types, geographic routes, customer contracts or riders fall into each service line. Those facts must be mapped before a final licensing classification. A partner's licence does not automatically cover MaaleNex's separately operated deliveries.
 
-C. **Hybrid:** MaaleNex operates some deliveries and intermediates others. Map each service line and obtain the corresponding licence/authority determinations.
-
-The PDP data-handler registration assessment remains a separate requirement whichever model is selected.
+The PDP data-handler registration assessment remains a separate requirement across both service lines. The next Owner-level fact needed is the identity/status of the legal applicant and its TIN; no application or fee payment is authorised by this assessment.
 
 ## 7. Closure criteria
 
@@ -110,4 +112,4 @@ D01 may be closed only when all applicable items are evidenced:
 5. If MaaleNex operates express courier services, valid ECA licence and scope verified before operations; otherwise, written ECA/counsel non-applicability determination and evidence of licensed delivery partners retained.
 6. Evidence references, dates, certificate numbers, scope, expiry and verification source recorded in the controlled register.
 
-**Current D01 status: UNRESOLVED.** No legal closure, production processing permission or courier operating permission is claimed.
+**Current D01 status: PARTIAL — hybrid model selected; regulatory evidence and legal-entity facts outstanding.** No legal closure, production processing permission or courier operating permission is claimed.
