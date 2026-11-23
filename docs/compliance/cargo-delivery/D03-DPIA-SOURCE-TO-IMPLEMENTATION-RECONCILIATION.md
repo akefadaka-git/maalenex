@@ -198,3 +198,10 @@ No numeric “large scale” threshold is prescribed in this record. The forecas
 | D03-09 | Obtain qualified reviewer’s attributed written D03 conclusion and Owner acceptance | NOT OBTAINED |
 
 **Closure rule:** D03 remains PARTIAL until the complete DPIA is recovered or prepared, the above evidence is reconciled, actual/forecast operational scale is recorded, residual risks are assessed and the qualified reviewer and Owner decisions are documented. No DPO conclusion is made by this addendum.
+
+
+## Owner-approved provisional operating-volume scenario — 23 November 2026
+
+The Project Owner approved a staged capacity-planning scenario recorded in [Cargo Operational-Volume Planning Baseline](CARGO-OPERATIONAL-VOLUME-PLANNING-BASELINE.md): initial launch average 10 deliveries/operating day (peak 20), Year 2 average 30 (peak 60), and Year 3 average 75 (peak 150), using 26 operating days/month. Approximate average-basis monthly volumes are 260, 780 and 1,950; annualised estimates are 3,120, 9,360 and 23,400.
+
+**Evidence classification:** OWNER-APPROVED PROVISIONAL PLANNING ASSUMPTIONS — NOT ACTUAL VOLUMES. These figures are not a regulatory threshold, not a legal safe harbour and not a DPO determination. They do not supply unique-subject counts, tracking-event frequency/duration, coordinate-bearing proportions, evidence-file volumes/content classifications or the SL-01/SL-02 split. D03 remains PARTIAL / NOT VERIFIED-CLOSED; measured operational evidence and complete DPIA/reviewer closure remain outstanding.
