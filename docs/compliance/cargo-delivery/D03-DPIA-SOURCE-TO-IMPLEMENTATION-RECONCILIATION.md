@@ -205,3 +205,10 @@ No numeric “large scale” threshold is prescribed in this record. The forecas
 The Project Owner approved a staged capacity-planning scenario recorded in [Cargo Operational-Volume Planning Baseline](CARGO-OPERATIONAL-VOLUME-PLANNING-BASELINE.md): initial launch average 10 deliveries/operating day (peak 20), Year 2 average 30 (peak 60), and Year 3 average 75 (peak 150), using 26 operating days/month. Approximate average-basis monthly volumes are 260, 780 and 1,950; annualised estimates are 3,120, 9,360 and 23,400.
 
 **Evidence classification:** OWNER-APPROVED PROVISIONAL PLANNING ASSUMPTIONS — NOT ACTUAL VOLUMES. These figures are not a regulatory threshold, not a legal safe harbour and not a DPO determination. They do not supply unique-subject counts, tracking-event frequency/duration, coordinate-bearing proportions, evidence-file volumes/content classifications or the SL-01/SL-02 split. D03 remains PARTIAL / NOT VERIFIED-CLOSED; measured operational evidence and complete DPIA/reviewer closure remain outstanding.
+
+
+## Forecast-to-source reconciliation addendum — 23 November 2026
+
+[D02–D04 Forecast-to-Source Reconciliation](D02-D04-FORECAST-TO-SOURCE-RECONCILIATION.md) now reconciles the Owner-approved volume scenario against the staged dispatch/tracking API, delivery-proof fields, private evidence-upload validation and subject-count limitations. It calculates a normal four-event completed-dispatch baseline and a named transaction-role entry envelope, while explicitly distinguishing both from unique natural-person counts.
+
+Unique sender/recipient/receiver identities cannot be deduplicated from the current name-string schema. Courier/driver identity, staff/partner rosters, uploaded-file contents, client-side location behaviour and actual production volumes remain unverified. D03 remains **PARTIAL / NOT VERIFIED-CLOSED**.
