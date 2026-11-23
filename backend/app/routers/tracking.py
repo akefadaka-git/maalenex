@@ -62,6 +62,34 @@ def _require_encryption_key() -> str:
     return settings.mitp_encryption_key
 
 
+@router.get("/devices")
+def list_devices(
+    limit: int = 100,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _authorize(db, context, "platform.tracking.read")
+    devices = db.scalars(
+        select(TrackingDevice).order_by(TrackingDevice.created_at.desc()).limit(max(1, min(limit, 200)))
+    ).all()
+    result = []
+    for device in devices:
+        assignment = db.scalar(select(VehicleDeviceAssignment).where(
+            VehicleDeviceAssignment.device_id == device.id,
+            VehicleDeviceAssignment.unassigned_at.is_(None),
+        ))
+        result.append({
+            "id": str(device.id),
+            "device_identifier": device.device_identifier,
+            "status": device.status,
+            "credential_version": device.credential_version,
+            "last_sequence": device.last_sequence,
+            "last_seen_at": device.last_seen_at.isoformat() if device.last_seen_at else None,
+            "active_vehicle_id": str(assignment.vehicle_id) if assignment else None,
+        })
+    return result
+
+
 @router.post("/devices", status_code=status.HTTP_201_CREATED)
 def register_device(
     payload: DeviceRegistration, request: Request,
@@ -130,6 +158,34 @@ def assign_device(
     db.commit()
     return {"assignment_id": str(assignment.id), "device_id": str(device.id),
             "vehicle_id": str(vehicle.id), "status": "active"}
+
+
+@router.post("/devices/{device_id}/assignments/end")
+def end_device_assignment(
+    device_id: UUID, request: Request,
+    context: StaffContext = Depends(current_staff_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    require_csrf(request, context)
+    _authorize(db, context, "platform.tracking.manage")
+    device = db.scalar(select(TrackingDevice).where(TrackingDevice.id == device_id).with_for_update())
+    if device is None:
+        raise HTTPException(status_code=404, detail="Device not found.")
+    assignment = db.scalar(select(VehicleDeviceAssignment).where(
+        VehicleDeviceAssignment.device_id == device.id,
+        VehicleDeviceAssignment.unassigned_at.is_(None),
+    ).with_for_update())
+    if assignment is None:
+        raise HTTPException(status_code=409, detail="Device has no active vehicle assignment.")
+    assignment.unassigned_at = datetime.now(timezone.utc)
+    assignment.unassigned_by = context.user.id
+    if device.status == "active":
+        device.status = "pending"
+    _audit(db, context, "tracking.device.unassigned", device.id, "unassign",
+           {"vehicle_id": str(assignment.vehicle_id)})
+    db.commit()
+    return {"device_id": str(device.id), "vehicle_id": str(assignment.vehicle_id),
+            "status": device.status, "assignment_status": "ended"}
 
 
 @router.post("/devices/{device_id}/credentials/rotate")
