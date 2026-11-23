@@ -70,15 +70,18 @@ jobs:
             docker inspect "$(docker compose -f infra/mitp-maps/docker-compose.yml ps -aq mitp-vector-tiles)" --format='State={{.State.Status}} ExitCode={{.State.ExitCode}} Error={{.State.Error}}'
             exit 1
           fi
-          python -c "import json; d=json.load(open('/tmp/mitp-catalog.json')); ids=set(d.get('tiles', {})); assert {'planet_osm_line','planet_osm_polygon'} <= ids, ids"
-          if ! curl --max-time 20 --fail --silent http://127.0.0.1:3000/planet_osm_line/0/0/0 -o /tmp/mitp-roads.pbf; then
+          python -c "import json; d=json.load(open('/tmp/mitp-catalog.json')); ids=set(d.get('tiles', {})); print('Martin sources:', sorted(ids)); assert {'planet_osm_line','planet_osm_polygon'} <= ids, ids"
+          curl --max-time 10 --fail --silent --show-error http://127.0.0.1:3000/planet_osm_line -o /tmp/mitp-line-tilejson.json
+          cat /tmp/mitp-line-tilejson.json
+          if ! curl --max-time 20 --fail --silent --show-error -w 'road tile HTTP %{http_code}; bytes %{size_download}\\n' http://127.0.0.1:3000/planet_osm_line/0/0/0 -o /tmp/mitp-roads.pbf; then
             docker compose -f infra/mitp-maps/docker-compose.yml logs --tail=150 mitp-vector-tiles
             exit 1
           fi
-          if ! curl --max-time 20 --fail --silent http://127.0.0.1:3000/planet_osm_polygon/0/0/0 -o /tmp/mitp-areas.pbf; then
+          if ! curl --max-time 20 --fail --silent --show-error -w 'polygon tile HTTP %{http_code}; bytes %{size_download}\\n' http://127.0.0.1:3000/planet_osm_polygon/0/0/0 -o /tmp/mitp-areas.pbf; then
             docker compose -f infra/mitp-maps/docker-compose.yml logs --tail=150 mitp-vector-tiles
             exit 1
           fi
+          ls -l /tmp/mitp-roads.pbf /tmp/mitp-areas.pbf
           test -s /tmp/mitp-roads.pbf
           test -s /tmp/mitp-areas.pbf
 
