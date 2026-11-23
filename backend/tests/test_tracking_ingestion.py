@@ -89,7 +89,7 @@ def test_ingestion_rejects_tampered_body_signature(monkeypatch):
     monkeypatch.setattr(settings, "mitp_device_encryption_key", SecretStr(key))
     engine = _tracking_session()
     SessionLocal = sessionmaker(bind=engine)
-    now = datetime(2026, 11, 23, 8, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 11, 23, 8, 0, tzinfo=UTC)
     credential = "synthetic-device-credential-value-0001"
     with SessionLocal() as db:
         organization = Organization(display_name="Synthetic operator", status="approved")
