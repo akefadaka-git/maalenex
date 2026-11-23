@@ -10,6 +10,7 @@ from app.main import app
 def test_tracking_routes_are_registered():
     paths = app.openapi()["paths"]
     assert "/api/v1/tracking/devices" in paths
+    assert "/api/v1/tracking/devices/{device_id}/assignments/end" in paths
     assert "/api/v1/tracking/devices/{device_id}/assignments" in paths
     assert "/api/v1/tracking/devices/{device_id}/credentials/rotate" in paths
     assert "/api/v1/tracking/telemetry" in paths
