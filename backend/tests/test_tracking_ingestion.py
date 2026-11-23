@@ -11,7 +11,7 @@ from app.db.base import Base
 from app.domains.fleet.models import Vehicle
 from app.domains.organizations.models import Organization
 from app.domains.identity.models import User
-from app.domains.tracking.models import TrackingDevice, VehicleDeviceAssignment
+from app.domains.tracking.models import TrackingDevice, VehicleDeviceAssignment, VehicleTelemetry
 from app.domains.tracking.schemas import TelemetryPayload
 from app.domains.tracking.security import encrypt_credential, sign_telemetry
 from app.domains.tracking.service import TelemetryRejected, ingest_telemetry
@@ -25,6 +25,7 @@ def _tracking_session():
         Vehicle.__table__,
         TrackingDevice.__table__,
         VehicleDeviceAssignment.__table__,
+        VehicleTelemetry.__table__,
     ]
     Base.metadata.create_all(engine, tables=tables)
     return engine
@@ -86,7 +87,7 @@ def test_ingestion_rejects_tampered_body_signature(monkeypatch):
     from sqlalchemy.orm import sessionmaker
 
     key = Fernet.generate_key().decode("ascii")
-    monkeypatch.setattr(settings, "mitp_device_encryption_key", key)
+    monkeypatch.setattr(settings, "mitp_device_encryption_key", SecretStr(key))
     engine = _tracking_session()
     SessionLocal = sessionmaker(bind=engine)
     now = datetime(2026, 11, 23, 8, 0, tzinfo=timezone.utc)
