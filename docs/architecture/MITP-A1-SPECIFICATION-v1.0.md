@@ -404,7 +404,7 @@ The following items cannot responsibly be marked resolved from product preferenc
 - **A4:** Verification; requires evidence and separate stage approval.
 - **A5:** Deployment; requires separate explicit authorization.
 
-This document does not authorize A2, A3, A4 or A5. It does not authorize procurement, supplier engagement, payment, merge, production activation or deployment.
+A2 is authorized for read-only reconciliation only, as recorded in §21. A3, A4 and A5 remain unauthorized. Procurement, supplier engagement, payment, merge, production activation and deployment are not authorized.
 
 ## 20. A1 closure conditions
 
