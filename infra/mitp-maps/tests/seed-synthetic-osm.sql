@@ -14,11 +14,11 @@ VALUES (
 CREATE TABLE public.planet_osm_polygon (
     osm_id BIGINT PRIMARY KEY,
     landuse TEXT,
-    natural TEXT,
+    "natural" TEXT,
     way geometry(Geometry, 3857) NOT NULL
 );
 CREATE INDEX planet_osm_polygon_way_gix ON public.planet_osm_polygon USING GIST (way);
-INSERT INTO public.planet_osm_polygon (osm_id, landuse, natural, way)
+INSERT INTO public.planet_osm_polygon (osm_id, landuse, "natural", way)
 VALUES (
     2, 'residential', NULL,
     ST_Transform(
