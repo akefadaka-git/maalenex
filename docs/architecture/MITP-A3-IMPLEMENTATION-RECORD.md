@@ -77,3 +77,50 @@ The map uses no Google Maps SDK, external paid tile API or API key. No OSM extra
 | A3.6 A3 evidence and closure | NOT COMPLETE | Pending exact-head validation |
 
 No migration has been applied to a database. No local or hosted map service has been started. No workflow run or test pass is claimed in this record. No merge, deployment, hardware procurement, supplier contact, paid service, live telemetry activation or production use has occurred.
+
+
+## Verification checkpoint — 23 November 2026
+
+**Verified code head:** 3007fabf74de320ef9c216d79840b8285550727e  
+**Base:** main at 1daf201bfb407280604534e28440b9fa83178efb  
+**PR:** https://github.com/akefadaka-git/maalenex/pull/53 (draft; unmerged)
+
+All three GitHub Actions workflows completed successfully against the verified code head:
+
+1. **Backend / migration verification — run 45155371138**
+   - Ruff: all selected checks passed.
+   - Pytest: 28 passed, 9 skipped, 1 warning.
+   - Alembic upgrade to head: PASS.
+   - Alembic metadata check: no new upgrade operations detected.
+   - Full downgrade to base and clean upgrade to head: PASS.
+   - Evidence: https://github.com/akefadaka-git/maalenex/actions/runs/45155371138
+
+2. **Frontend verification — run 45155371085**
+   - Vitest: 6 passed.
+   - Vite production build: PASS (3.29 seconds).
+   - Evidence: https://github.com/akefadaka-git/maalenex/actions/runs/45155371085
+
+3. **Self-hosted map service verification — run 45155371144**
+   - PostGIS started and became healthy.
+   - Synthetic road and polygon fixtures loaded.
+   - Martin 1.16.1 discovered both PostGIS sources.
+   - Road vector tile: HTTP 200, 118 bytes at z10/x620/y486.
+   - Polygon vector tile: HTTP 200, 100 bytes at z10/x620/y486.
+   - Frontend style JSON parsed and both tile paths were confirmed to use the local same-origin proxy.
+   - Compose services and ephemeral volume were removed after the test.
+   - Evidence: https://github.com/akefadaka-git/maalenex/actions/runs/45155371144
+
+## A3 acceptance disposition
+
+| Package | Disposition | Remaining boundary |
+|---|---|---|
+| A3.1 simulator | PASS — source and tests | Standalone CLI-to-API smoke test not run |
+| A3.2 device registry | PASS — schema, migration and route registration | Full authenticated lifecycle API test not run |
+| A3.3 telemetry gateway | PASS — signature, validation, ingestion and replay tests | No physical tracker protocol or hardware test |
+| A3.4 self-hosted map | PASS — PostGIS/Martin vector-tile service | Real OSM PBF import and browser-rendered MapLibre session not run |
+| A3.5 regression | PASS — backend and frontend CI | No production workload test |
+| A3.6 evidence record | UPDATED | Owner review remains |
+
+**A3 result:** The bounded synthetic-only implementation and its automated verification are complete for the approved repository proof-of-concept scope. Remaining items above are explicit integration/operational boundaries, not claims of production readiness.
+
+**A4 remains NOT AUTHORIZED / NOT STARTED. A5 remains NOT AUTHORIZED.** No merge, deployment, production activation, hardware purchase, supplier contact, paid map service, satellite imagery integration or live vehicle telemetry has occurred. The draft PR remains open and unmerged.
