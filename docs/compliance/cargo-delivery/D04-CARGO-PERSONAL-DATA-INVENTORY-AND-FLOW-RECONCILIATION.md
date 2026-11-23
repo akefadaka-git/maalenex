@@ -259,3 +259,10 @@ The Project Owner approved a provisional planning scenario, documented in [Cargo
 **Classification:** OWNER-APPROVED PROVISIONAL PLANNING ASSUMPTIONS — NOT ACTUAL VOLUMES, NOT A LEGAL THRESHOLD. The scenario covers combined hybrid-service-line activity; no SL-01/SL-02 split has been approved. It does not establish unique data-subject counts, tracking-event or coordinate frequency/duration, file-upload volumes/content, partner/courier counts or geographic reach.
 
 This planning record improves the forecast evidence position but does not replace measured operational evidence or the additional data dimensions listed in section 7. Article 40 cannot be decided from delivery counts alone. D04 remains PARTIAL / NOT VERIFIED-CLOSED; runtime, actual processing, interfaces, integrations, processors/locations, contracts, notices, lawful bases and measured volumes remain open.
+
+
+## Tracking, proof and data-subject count reconciliation — 23 November 2026
+
+See [D02–D04 Forecast-to-Source Reconciliation](D02-D04-FORECAST-TO-SOURCE-RECONCILIATION.md) for the field-level and forecast arithmetic. Key additions: optional caller-supplied coordinate pairs; no source-verified background GPS in the inspected backend but no event-frequency ceiling; required sender/recipient names; optional proof receiver name and free-text notes; PDF/JPEG/PNG evidence capped at 10 MiB with type/signature/size validation but no content classification; and no stable person identifiers for deduplicating sender/recipient/receiver roles.
+
+The role-entry envelope is not a unique-person estimate. Actual unique subject counts, courier/driver rosters, people appearing in files, mobile client/device settings, service-line allocation and production data remain missing. D04 remains **PARTIAL / NOT VERIFIED-CLOSED**.
