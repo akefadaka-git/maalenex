@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -65,6 +65,12 @@ def ingest_telemetry(
         raise TelemetryRejected("device_not_assigned")
     if payload.sequence <= device.last_sequence:
         raise TelemetryRejected("sequence_replayed_or_out_of_order")
+    recent_count = db.scalar(select(func.count(VehicleTelemetry.id)).where(
+        VehicleTelemetry.device_id == device.id,
+        VehicleTelemetry.received_at >= current - timedelta(minutes=1),
+    )) or 0
+    if recent_count >= 120:
+        raise TelemetryRejected("device_rate_limit_exceeded")
 
     recorded_at = payload.recorded_at.astimezone(timezone.utc)
     if recorded_at > current + timedelta(seconds=60):
