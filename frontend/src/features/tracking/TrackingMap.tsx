@@ -12,7 +12,8 @@ type Position = {
   accuracy_meters: number;
   recorded_at: string;
   received_at: string | null;
-  source: "installed_vehicle_gps";
+  source: "synthetic_gps_simulator" | "installed_vehicle_gps";
+  synthetic: boolean;
 };
 
 const styleUrl = "/mitp-map/style.json";
@@ -120,6 +121,7 @@ export default function TrackingMap() {
         {position && (
           <dl className="mitp-map-position">
             <div><dt>Vehicle</dt><dd>{position.vehicle_id}</dd></div>
+            <div><dt>Data type</dt><dd>{position.synthetic ? "SYNTHETIC" : "LIVE"}</dd></div>
             <div><dt>Speed</dt><dd>{position.speed_kph.toFixed(1)} km/h</dd></div>
             <div><dt>Accuracy</dt><dd>{position.accuracy_meters.toFixed(1)} m</dd></div>
             <div><dt>Recorded</dt><dd>{new Date(position.recorded_at).toLocaleString()}</dd></div>
