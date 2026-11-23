@@ -295,5 +295,6 @@ def read_latest_vehicle_position(
         "accuracy_meters": float(position.accuracy_meters),
         "recorded_at": position.recorded_at.isoformat(),
         "received_at": position.received_at.isoformat() if position.received_at else None,
-        "source": "installed_vehicle_gps",
+        "source": "synthetic_gps_simulator" if position.is_synthetic else "installed_vehicle_gps",
+        "synthetic": position.is_synthetic,
     }
