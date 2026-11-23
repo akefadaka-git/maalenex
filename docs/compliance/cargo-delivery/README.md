@@ -22,7 +22,8 @@ Those source files were recovered from the user's Library, not as repository fil
 
 - [D01–D14 controlled register](D01-D14-CONTROLLED-REGISTER.md) — current Owner-review matrix, reviewer-specific reconciliation, evidence gaps and closure prerequisites.
 - [D01–D14 machine-readable CSV](D01-D14-CONTROLLED-REGISTER.csv) — row-aligned export of the controlled matrix.
-- [D01 ECA regulatory assessment](D01-ECA-REGULATORY-ASSESSMENT.md) — separate PDP registration and courier-licensing tests, source links, evidence gaps and the one Owner operating-model decision.
+- [D01 ECA regulatory assessment](D01-ECA-REGULATORY-ASSESSMENT.md) — separate PDP registration and courier-licensing tests, source links and evidence gaps.
+- [D01 hybrid service-line and data-role map](D01-HYBRID-SERVICE-LINE-AND-DATA-ROLE-MAP.md) — SL-01/SL-02 operator boundaries, partner licence-verification checklist, purpose-based controller/processor allocation and pre-filing dependencies.
 - [C06 and production gate](C06-AND-PRODUCTION-GATE.md) — separate legal/DPIA determinations, retention qualifications, minimisation, hold rules and activation restrictions.
 
 ## Status semantics
