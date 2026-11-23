@@ -5,9 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.domains.tracking.models import TrackingDevice, VehicleDeviceAssignment, VehicleTelemetry
 from app.domains.tracking.schemas import TelemetryPayload
-from app.domains.tracking.security import verify_telemetry_signature
+from app.domains.tracking.security import decrypt_credential, verify_telemetry_signature
 
 
 class TelemetryRejected(Exception):
@@ -41,8 +42,16 @@ def ingest_telemetry(
     )
     if device is None or device.status != "active":
         raise TelemetryRejected("device_not_active")
+    if settings.mitp_encryption_key is None:
+        raise TelemetryRejected("device_security_not_configured")
+    try:
+        raw_credential = decrypt_credential(
+            device.credential_ciphertext, settings.mitp_encryption_key
+        )
+    except ValueError:
+        raise TelemetryRejected("device_credential_unavailable")
     if not verify_telemetry_signature(
-        device.credential_digest, request_timestamp, request_body, signature
+        raw_credential, request_timestamp, request_body, signature
     ):
         raise TelemetryRejected("invalid_device_signature")
 
@@ -54,9 +63,9 @@ def ingest_telemetry(
     )
     if assignment is None:
         raise TelemetryRejected("device_not_assigned")
-
     if payload.sequence <= device.last_sequence:
         raise TelemetryRejected("sequence_replayed_or_out_of_order")
+
     recorded_at = payload.recorded_at.astimezone(timezone.utc)
     if recorded_at > current + timedelta(seconds=60):
         raise TelemetryRejected("telemetry_timestamp_in_future")
