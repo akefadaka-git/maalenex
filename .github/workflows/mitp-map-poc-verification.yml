@@ -30,13 +30,20 @@ jobs:
 
       - name: Wait for PostGIS
         run: |
+          container_id="$(docker compose -f infra/mitp-maps/docker-compose.yml ps -q mitp-map-db)"
           for attempt in $(seq 1 40); do
-            if docker compose -f infra/mitp-maps/docker-compose.yml exec -T mitp-map-db pg_isready -U mitp_maps -d mitp_maps; then
+            health="$(docker inspect --format='{{.State.Health.Status}}' "$container_id")"
+            if [ "$health" = "healthy" ]; then
+              docker compose -f infra/mitp-maps/docker-compose.yml exec -T mitp-map-db pg_isready -U mitp_maps -d mitp_maps
               exit 0
+            fi
+            if [ "$health" = "unhealthy" ]; then
+              docker compose -f infra/mitp-maps/docker-compose.yml logs mitp-map-db
+              exit 1
             fi
             sleep 2
           done
-          echo "PostGIS did not become ready."
+          echo "PostGIS did not become healthy."
           exit 1
 
       - name: Load synthetic road and polygon fixtures
