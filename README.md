@@ -1,4 +1,4 @@
-# MaaleNex Moto
+# MaaleNex
 
 Amharic-first passenger mobility platform for Ethiopia, beginning with passenger trip discovery in Jinka. Freight logistics remains a separately phased future domain. The initial passenger product is online-first; offline boarding is not included.
 
