@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - feat/a3-maalenex-shared-platform-foundation
+      - feat/a3-synthetic-email-e2e-test
   pull_request:
     branches:
       - feat/a3-passenger-mvp
+      - feat/a3-maalenex-shared-platform-foundation
   workflow_dispatch:
 
 permissions:

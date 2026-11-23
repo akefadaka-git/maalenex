@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
+from app.domains.audit.service import record_event
 from app.domains.identity.accounts import AccountIdentifier, AccountSession
 from app.domains.identity.account_service import (
     AccountAuthenticationError, AccountRateLimited, authenticate_account,
@@ -70,6 +71,32 @@ def _test_token(token: str) -> str | None:
     return None
 
 
+def _audit_challenge_delivery(
+    db: Session, *, account_id: UUID, purpose: str, delivery_status: str
+) -> None:
+    """Record the SMTP adapter result without storing recipient, token or credentials."""
+    success = delivery_status == "sent"
+    record_event(
+        db,
+        event_type="account.challenge.delivery",
+        actor_type="system",
+        actor_id=None,
+        resource_type="platform_account",
+        resource_id=str(account_id),
+        action="send_verification_email",
+        outcome="success" if success else "failure",
+        reason_code=None if success else delivery_status,
+        correlation_id=str(account_id),
+        metadata={
+            "channel": "email",
+            "provider": "smtp",
+            "purpose": purpose,
+            "delivery_status": delivery_status,
+        },
+    )
+    db.commit()
+
+
 def _current_account(request: Request, db: Session = Depends(get_db)):
     try:
         context = resolve_account_session(db, request.cookies.get(SESSION_COOKIE))
@@ -112,6 +139,10 @@ def create_account_registration(payload: RegistrationRequest, db: Session = Depe
         destination=normalize_identifier(payload.identifier_type, payload.identifier_value),
         purpose="identifier_verification",
         token=token,
+    )
+    _audit_challenge_delivery(
+        db, account_id=account.id, purpose="identifier_verification",
+        delivery_status=delivery_status,
     )
     return {
         "account_id": str(account.id),
