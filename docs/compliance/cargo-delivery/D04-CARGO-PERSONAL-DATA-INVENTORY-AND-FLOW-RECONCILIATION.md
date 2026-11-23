@@ -175,29 +175,29 @@ The default settings are source defaults, not proof of the values in any hosted 
 
 ## 7. Operational volumes and scale evidence
 
-**No numeric operational volume or forecast was recovered.** The current evidence does not provide measured or approved values for any of the following:
+**No measured production operational volumes were recovered.** The Owner approved a provisional delivery-volume planning scenario on 23 November 2026. It covers average and peak delivery counts only; it is not actual activity and does not provide unique-subject, courier/staff, tracking-event, coordinate, proof/file, exception or geographic metrics. The current evidence does not provide measured values for the following:
 
 | Metric | Required breakdown | Current status |
 |---|---|---|
-| Unique senders/customers | Monthly/yearly; deduplicated natural persons | MISSING |
-| Unique recipients | Monthly/yearly; deduplicated natural persons | MISSING |
+| Unique senders/customers | Monthly/yearly; deduplicated natural persons | MISSING — no stable person key or measured count |
+| Unique recipients | Monthly/yearly; deduplicated natural persons | MISSING — no stable person key or measured count |
 | Couriers/riders and partner staff | Active and occasional; by service line/partner | MISSING |
 | MaaleNex staff/admin users | Active users by role and access scope | MISSING |
 | Active carrier partners | Count, service area, operating days | MISSING |
-| Consignments and dispatches | Average day, peak day, monthly, annual | MISSING |
-| Tracking events | Total and per dispatch; event-type distribution | MISSING |
+| Consignments and dispatches | Average day, peak day, monthly, annual | PARTIAL — provisional delivery forecast recorded; actual counts and dispatch/delivery ratio MISSING |
+| Tracking events | Total and per dispatch; event-type distribution | PARTIAL — normal four-event lifecycle baseline calculated; actual counts and additional-event rate MISSING |
 | Coordinate-bearing events | Count/percentage, source, frequency and per-person duration | MISSING |
 | Delivery proofs and uploads | Count, file type, average/max size and storage growth | MISSING |
 | Exceptions | Count, category and linked people | MISSING |
 | Geographic scope | Routes, towns/woredas, regions, cross-border activity | MISSING |
 | Retention exposure | Active/archived evidence, event history, audit data and backups | MISSING |
-| Growth forecast | Launch year and 36-month base/low/high assumptions | MISSING |
+| Growth forecast | Launch year and 36-month base/low/high assumptions | PARTIAL — provisional delivery-only scenario approved; other metric assumptions MISSING |
 
 The absence of records in this repository search is not a zero-volume result. Test fixtures and CI results are not a production sample. No database query or production telemetry was available.
 
 ### 7.1 Forecast dataset required
 
-Operations should produce an Owner-approved forecast with:
+The Owner-approved provisional scenario currently covers deliveries only. To complete the forecast, Operations should supply:
 - monthly average and peak-day values for launch year and years 2–3;
 - MaaleNex-operated versus partner-operated split;
 - active partner, vehicle, courier and staff counts;
@@ -221,7 +221,7 @@ Keep observed values, forecasts and scenarios separate. Do not create an assumed
 | D04-04 | Location monitoring source/configuration | MISSING | Device/source, purpose, sampling, frequency, precision, subject, duration, access and retention |
 | D04-05 | Uploaded-file content categories and sensitive-data classification | MISSING | Representative content taxonomy, content minimisation and classification/approval procedure |
 | D04-06 | Processor/subprocessor and hosting locations | MISSING | Hosting contract, region, backup/replica/DR, support-access map, object-storage contract and processor agreements |
-| D04-07 | Actual and forecast operational volumes | MISSING | Owner-approved measured/forecast volume dataset and assumptions |
+| D04-07 | Actual and forecast operational volumes | PARTIAL — delivery-only provisional scenario recorded; measured volumes and other forecast dimensions missing | Owner-approved measured dataset and complete subject/event/coordinate/proof/partner/geography assumptions |
 | D04-08 | Service-line controller/processor allocation | PARTIAL — D01 map exists | Executed partner contracts and actual decision-making/data-sharing practices |
 | D04-09 | Retention and access by category | PARTIAL — technical metadata exists | Approved schedule, production configuration, tested access and retention behavior |
 | D04-10 | Reconciliation to privacy notices and lawful bases | MISSING | Published notices and approved purpose/lawful-basis register |
@@ -241,7 +241,7 @@ The principal source blobs are listed in D03 Section 9. Additional source files 
 
 D04 may be closed only after this source-level inventory is reconciled to the release candidate, actual UI/mobile and external integrations, executed service-line/partner contracts, hosting and processor evidence, published notices, approved lawful bases, retention/access configuration and actual/forecast operational volumes. The resulting inventory must be signed/versioned and used as the authoritative input to the completed D03 DPIA and D02 Article 40 assessment.
 
-**Current D04 status: PARTIAL — source fields and candidate backend flows mapped; live configuration, processors/locations, operational volumes and complete legal/operational reconciliation remain MISSING or UNVERIFIED.**
+**Current D04 status: PARTIAL — source fields, candidate backend flows and a delivery-only provisional forecast are recorded; measured volumes, deduplicated subject counts, client/runtime configuration, processors/locations and complete legal/operational reconciliation remain MISSING or UNVERIFIED.**
 
 
 ## 8. Owner-approved provisional operating-volume scenario — 23 November 2026
