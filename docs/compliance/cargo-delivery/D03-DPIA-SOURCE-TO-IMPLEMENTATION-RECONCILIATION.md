@@ -21,7 +21,7 @@ The source review now establishes that staged backend code includes:
 
 These features create identifiable processing involving senders, recipients, carrier staff, MaaleNex staff and potentially other persons represented in uploaded evidence. The code does **not** establish continuous GPS polling, a live map, public tracking links, automatic rider scoring, profiling, facial recognition or biometric identification. Those capabilities were not found in the inspected cargo branches; their absence from these branches is not proof that no other system or later configuration can perform them.
 
-The repository contains no measured production volumes or Owner-approved operating forecast. The cargo increments are unmerged candidate branches, not a deployed cargo service. Consequently, the DPIA can now be grounded in the implemented data model and API behavior, but cannot yet make a defensible quantitative scale or operational residual-risk determination.
+The repository contains no measured production volumes. The Owner has now approved a provisional delivery-volume planning scenario, recorded in CARGO-OPERATIONAL-VOLUME-PLANNING-BASELINE.md. It does not quantify unique data subjects, actual event frequency, coordinate-bearing events, sensitive-file volumes or service-line allocation. The cargo increments are unmerged candidate branches, not a deployed cargo service. Consequently, the DPIA can be grounded in the staged data model and API behavior, but cannot yet make a defensible quantitative scale or operational residual-risk determination.
 
 **D03 disposition: PARTIAL / NOT VERIFIED-CLOSED.** This addendum narrows the unknowns; it does not complete or approve the DPIA.
 
@@ -145,11 +145,11 @@ This table is a source-informed risk register, not a completed likelihood/impact
 
 ## 8. Scale and operational volume evidence
 
-No measured production delivery volume, live cargo dataset, actual active courier/partner count, or Owner-approved forecast was found in the recovered D03/D04 material or inspected repository evidence. CI/test records are synthetic engineering evidence and must not be treated as an operational sample.
+No measured production delivery volume, live cargo dataset or actual active courier/partner count was found. The Owner-approved provisional delivery forecast was recorded on 23 November 2026; it is a planning scenario, not actual activity, and does not provide the remaining subject/event/coordinate/file/partner/geography metrics. CI/test records are synthetic engineering evidence and must not be treated as an operational sample.
 
 The following are **MISSING**, not zero:
-- monthly and annual unique senders, recipients, couriers, partner staff and MaaleNex staff;
-- consignments and dispatches per day/month/year, including peak-day and peak-month volumes;
+- monthly and annual measured unique senders, recipients, couriers, partner staff and MaaleNex staff;
+- actual consignments and dispatches per day/month/year, including peak-day and peak-month volumes (the delivery-only forecast is recorded separately);
 - tracking events per dispatch and per day/month/year;
 - count and percentage of tracking events carrying coordinates;
 - average and maximum tracking duration and event frequency per journey;
@@ -190,7 +190,7 @@ No numeric “large scale” threshold is prescribed in this record. The forecas
 | D03-01 | Recover the actual complete DPIA, screening record, version, author and scope | MISSING / NOT RECOVERED |
 | D03-02 | Confirm the DPIA explicitly covers the PR #45–51 feature set and the hybrid SL-01/SL-02 model | PARTIAL — source features mapped here; full DPIA reconciliation pending |
 | D03-03 | Complete end-to-end D04 data inventory and data-flow map | PARTIAL — source fields mapped; processors, live destinations and actual configuration unknown |
-| D03-04 | Obtain measured or Owner-approved forecast volumes and monitoring metrics | MISSING |
+| D03-04 | Obtain measured volumes and complete subject/event/monitoring metrics; reconcile the approved delivery-only forecast | PARTIAL — provisional delivery scenario recorded; measured volumes and other dimensions MISSING |
 | D03-05 | Determine the source, purpose, frequency, duration and subject of every coordinate-bearing event | MISSING |
 | D03-06 | Review representative evidence-file categories and free-text controls; establish sensitive-data classification | MISSING |
 | D03-07 | Reconcile controller/processor roles, partner access, hosting, transfers, notices and lawful bases | UNRESOLVED |
