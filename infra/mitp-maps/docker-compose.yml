@@ -17,6 +17,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+      start_period: 20s
     restart: unless-stopped
 
   mitp-vector-tiles:
