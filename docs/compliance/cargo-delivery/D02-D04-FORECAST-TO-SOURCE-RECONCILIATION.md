@@ -31,6 +31,7 @@ The forecast is combined across SL-01 MaaleNex-operated and SL-02 partner-operat
 - The submitted event occurrence time must be within the previous 30 days and no more than five minutes in the future. This is an input-validation window, not a retention period.
 - Tracking history reads are paginated up to 250 items per response; that read limit does not cap event creation.
 - The inspected backend does not show continuous GPS polling, a background location worker, a live map feed or an automated location sampling schedule. This is a source-level absence only: no complete mobile/web client, device permission configuration, external map SDK, telemetry integration or deployed runtime was reconciled.
+- Supplemental GitHub code searches against the repository default branch for `navigator.geolocation`, Android fine/coarse location permissions, `requestLocationUpdates`, and cargo tracking route terms returned no matches. The code-search scope is the default branch, not every feature branch or external/mobile client repository; this is not proof that no client-side location collection exists.
 
 ### 2.2 Forecasted event-record envelope
 
