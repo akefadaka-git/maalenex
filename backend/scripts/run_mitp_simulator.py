@@ -2,13 +2,14 @@
 
 Example:
 python scripts/run_mitp_simulator.py --url http://127.0.0.1:8000 --device-id SIM-GPS-0001 \
-  --credential <one-time-device-credential> --latitude 6.25 --longitude 36.88
+  --latitude 6.25 --longitude 36.88
 """
 from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
 import json
+from getpass import getpass
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -22,7 +23,6 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="MITP synthetic GPS-device simulator")
     parser.add_argument("--url", required=True, help="Local API base URL, e.g. http://127.0.0.1:8000")
     parser.add_argument("--device-id", required=True)
-    parser.add_argument("--credential", required=True, help="Synthetic device credential; never logged")
     parser.add_argument("--latitude", type=float, required=True)
     parser.add_argument("--longitude", type=float, required=True)
     parser.add_argument("--points", type=int, default=5)
@@ -37,6 +37,7 @@ def main() -> int:
     if parsed.scheme != "https" and parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
         parser.error("unencrypted HTTP is allowed only for loopback development")
 
+    credential = getpass("Synthetic device credential: ")
     fixes = generate_route(
         device_id=args.device_id,
         start_latitude=args.latitude,
@@ -60,7 +61,7 @@ def main() -> int:
             "accuracy_meters": payload["accuracy_meters"],
         }, separators=(",", ":")).encode("utf-8")
         request_timestamp = str(int(time.time()))
-        signature = sign_telemetry(args.credential, request_timestamp, body)
+        signature = sign_telemetry(credential, request_timestamp, body)
         request = Request(
             endpoint,
             data=body,
