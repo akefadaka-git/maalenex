@@ -18,7 +18,7 @@ def upgrade() -> None:
     op.create_table(
         "tracking_devices",
         sa.Column("id", uuid, primary_key=True),
-        sa.Column("device_identifier", sa.String(80), nullable=False, unique=True),
+        sa.Column("device_identifier", sa.String(80), nullable=False),
         sa.Column("credential_ciphertext", sa.String(512), nullable=False),
         sa.Column("credential_version", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("status", sa.String(24), nullable=False, server_default="pending"),
@@ -27,7 +27,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("last_seen_at", sa.DateTime(timezone=True)),
     )
-    op.create_index("ix_tracking_devices_device_identifier", "tracking_devices", ["device_identifier"])
+    op.create_index("ix_tracking_devices_device_identifier", "tracking_devices", ["device_identifier"], unique=True)
     op.create_index("ix_tracking_devices_status", "tracking_devices", ["status"])
 
     op.create_table(
