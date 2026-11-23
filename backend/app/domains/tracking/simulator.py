@@ -4,10 +4,10 @@ This module never reads device sensors, network location, or production records.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
 import math
 import random
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime, timedelta
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,10 +51,10 @@ def generate_route(
     if not 0 <= speed_kph <= 180:
         raise ValueError("speed_kph must be between 0 and 180")
 
-    origin = start_at or datetime.now(timezone.utc)
+    origin = start_at or datetime.now(UTC)
     if origin.tzinfo is None:
         raise ValueError("start_at must be timezone-aware")
-    origin = origin.astimezone(timezone.utc)
+    origin = origin.astimezone(UTC)
     rng = random.Random(seed)
     # Small deterministic north-east movement, approximately 1 degree = 111 km.
     latitude_step = (speed_kph * interval_seconds / 3600 / 111.0) * 0.65
