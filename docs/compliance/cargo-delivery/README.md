@@ -70,3 +70,6 @@ No reviewer transmission is performed by this repository change.
 **External submission:** NOT AUTHORISED  
 **D01–D14 closure:** NOT ESTABLISHED  
 **Production activation:** NOT AUTHORISED
+
+
+- [D02–D04 forecast-to-source reconciliation](D02-D04-FORECAST-TO-SOURCE-RECONCILIATION.md) — source-level tracking and coordinate design, delivery-proof/file-content exposure, calculated event and role-entry envelopes, unique-person counting limitations and Article 40 status.
