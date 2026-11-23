@@ -218,3 +218,12 @@ The source review makes the feature and field analysis more concrete but does no
 The Project Owner approved a staged planning scenario: average deliveries per operating day of 10 at initial launch, 30 in Year 2 and 75 in Year 3; peak-day assumptions are 20, 60 and 150 respectively; planning uses 26 operating days/month. See [Cargo Operational-Volume Planning Baseline](CARGO-OPERATIONAL-VOLUME-PLANNING-BASELINE.md).
 
 These are **provisional planning assumptions, not actual volumes and not a legal threshold**. They do not decide any Article 40 limb. Unique data-subject counts, monitoring nature/frequency/duration, coordinate use, sensitive-data content and scale, and service-line allocation remain unverified. The monitoring and sensitive-data limbs remain **UNDETERMINED**; no DPO-required or DPO-not-required conclusion is made.
+
+
+## Source-to-forecast reconciliation addendum — 23 November 2026
+
+See [D02–D04 Forecast-to-Source Reconciliation](D02-D04-FORECAST-TO-SOURCE-RECONCILIATION.md). The staged tracking API is staff-authenticated and event-based; latitude/longitude are optional paired caller-supplied fields. The inspected backend has no continuous GPS polling or background location worker, but it also has no per-dispatch event ceiling or rate limit, and no client/device configuration was reviewed. The normal completed dispatch path generates four lifecycle events per dispatch; additional caller-submitted events are not bounded by the inspected route.
+
+The consignment schema requires sender and recipient name strings. Delivery proof can add a receiver name and optional free-text notes; uploaded evidence accepts PDF/JPEG/PNG up to 10 MiB. File verification checks type/signature/size, not content. Evidence classification begins unclassified; the sensitive-data flag defaults false, which is not proof of absence. Unique natural-person counts are not computable because cargo names are not linked to stable person identifiers and courier/driver identifiers and actual rosters were not supplied.
+
+The forecast yields two required named role entries per consignment and up to one additional receiver-name entry per proof, but these are role appearances, not deduplicated unique people. Tracking baseline arithmetic and the role-entry envelope are documented in the reconciliation addendum. The monitoring and sensitive-data limbs remain **UNDETERMINED**; no DPO-required or DPO-not-required conclusion is made.
