@@ -59,6 +59,10 @@ def _require_encryption_key() -> str:
             status_code=503,
             detail="MITP_DEVICE_ENCRYPTION_KEY must be configured before device credentials can be issued.",
         )
+    try:
+        encrypt_credential("validation-only-device-credential-000000", settings.mitp_encryption_key)
+    except ValueError:
+        raise HTTPException(status_code=503, detail="MITP_DEVICE_ENCRYPTION_KEY is invalid.")
     return settings.mitp_encryption_key
 
 
