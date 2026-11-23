@@ -1,17 +1,19 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from cryptography.fernet import Fernet
 
 from app.domains.tracking.security import (
-    decrypt_credential, encrypt_credential, sign_telemetry,
+    decrypt_credential,
+    encrypt_credential,
+    sign_telemetry,
     verify_telemetry_signature,
 )
 from app.domains.tracking.simulator import generate_route
 
 
 def test_synthetic_route_is_deterministic_and_monotonic():
-    start = datetime(2026, 11, 23, 8, 0, tzinfo=timezone.utc)
+    start = datetime(2026, 11, 23, 8, 0, tzinfo=UTC)
     first = generate_route(
         device_id="SIM-GPS-0001", start_latitude=6.25, start_longitude=36.88,
         point_count=5, interval_seconds=15, start_at=start, seed=42,
