@@ -64,8 +64,14 @@ jobs:
             fi
             sleep 2
           done
+          if ! curl --max-time 5 --fail --silent http://127.0.0.1:3000/health >/dev/null; then
+            docker compose -f infra/mitp-maps/docker-compose.yml ps -a
+            docker compose -f infra/mitp-maps/docker-compose.yml logs --tail=150 mitp-vector-tiles
+            docker inspect "$(docker compose -f infra/mitp-maps/docker-compose.yml ps -aq mitp-vector-tiles)" --format='State={{.State.Status}} ExitCode={{.State.ExitCode}} Error={{.State.Error}}'
+            exit 1
+          fi
           if ! curl --max-time 15 --fail --silent http://127.0.0.1:3000/catalog -o /tmp/mitp-catalog.json; then
-            docker compose -f infra/mitp-maps/docker-compose.yml logs --tail=100 mitp-vector-tiles
+            docker compose -f infra/mitp-maps/docker-compose.yml logs --tail=150 mitp-vector-tiles
             exit 1
           fi
           python -c "import json; d=json.load(open('/tmp/mitp-catalog.json')); ids=set(d.get('tiles', {})); assert {'planet_osm_line','planet_osm_polygon'} <= ids, ids"
