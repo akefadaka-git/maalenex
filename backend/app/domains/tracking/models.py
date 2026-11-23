@@ -2,8 +2,16 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
-    DateTime, ForeignKey, Index, Integer, Numeric, String, UniqueConstraint,
-    Uuid, func, text,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    UniqueConstraint,
+    Uuid,
+    func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
