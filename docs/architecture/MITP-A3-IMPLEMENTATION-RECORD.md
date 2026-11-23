@@ -38,3 +38,42 @@ These are foundational primitives only. They do not yet constitute a persistent 
 ## Acceptance boundary
 
 A3 completion requires exact-head evidence for all packages. A successful simulator unit test alone does not close A3, establish real-device compatibility, certify security, or authorize production use. A4 verification and A5 deployment remain separate gates.
+
+
+## A3.2–A3.3 — device registry and direct telemetry gateway implementation checkpoint
+
+The branch now contains additive SQLAlchemy models and Alembic revision 0008 for:
+- tracking device identity, encrypted credential ciphertext, credential version, lifecycle status, sequence and last-seen metadata;
+- append-only vehicle/device assignment history with database-enforced uniqueness for one active device per vehicle and one active vehicle per device;
+- vehicle telemetry records with unique per-device sequence and vehicle/time indexes.
+
+The staff API includes device registration (credential returned once), inventory listing, assignment, assignment end, credential rotation, suspension/revocation and staff-authorized latest-position reads. Mutations require the existing staff session and CSRF controls plus the new platform permissions. The synthetic local administrator seed script now provisions those permissions. No default production or public-customer tracking access is introduced.
+
+The telemetry gateway accepts HTTPS-capable FastAPI requests with per-device HMAC signatures over the request timestamp and exact body bytes. Device credentials are encrypted at rest with Fernet; the encryption key is supplied separately through MITP_DEVICE_ENCRYPTION_KEY and is not committed. The gateway checks active device status and vehicle assignment, request timestamp freshness (±300 seconds), monotonic sequence, payload timestamp bounds (up to 24 hours of buffering; no more than 60 seconds in the future), coordinate/field bounds, request body size (4 KiB) and a per-device acceptance ceiling of 120 messages per minute. The simulator refuses non-HTTPS remote endpoints; plain HTTP is allowed only for loopback development.
+
+These controls are an initial development implementation, not a production security certification. Key custody/rotation, deployment TLS termination, distributed rate limiting, device protocol interoperability, monitoring/alerting and independent security review remain A4/production gates.
+
+## A3.4 — self-hosted road-map proof-of-concept implementation checkpoint
+
+The branch now contains:
+- a local PostGIS database and Martin vector-tile service Compose definition bound to loopback interfaces;
+- PostGIS initialization SQL;
+- a MapLibre frontend page at /tracking-demo;
+- a local vector style for OpenStreetMap-derived road and polygon tables;
+- a Vite proxy to the local Martin service;
+- setup instructions for importing a permitted OSM PBF extract with osm2pgsql.
+
+The map uses no Google Maps SDK, external paid tile API or API key. No OSM extract, generated tile database or satellite imagery is committed. The local map stack and OSM import have not yet been executed; actual tile availability and visual rendering remain NOT RUN / UNVERIFIED. The map displays a vehicle marker only when an authorized staff session can read an accepted vehicle position. Customer/public live tracking is not implemented.
+
+## Current evidence disposition
+
+| Work package | Source status | Verification status |
+|---|---|---|
+| A3.1 simulator and HMAC primitives | IMPLEMENTED ON BRANCH | Tests committed; NOT RUN |
+| A3.2 device registry and assignment history | IMPLEMENTED ON BRANCH | Migration and route tests pending; NOT RUN |
+| A3.3 direct telemetry gateway | IMPLEMENTED ON BRANCH | Ingestion tests committed; NOT RUN |
+| A3.4 self-hosted road-map PoC | IMPLEMENTED ON BRANCH | Compose, OSM import and browser rendering NOT RUN |
+| A3.5 integration/regression | NOT COMPLETE | NOT RUN |
+| A3.6 A3 evidence and closure | NOT COMPLETE | Pending exact-head validation |
+
+No migration has been applied to a database. No local or hosted map service has been started. No workflow run or test pass is claimed in this record. No merge, deployment, hardware procurement, supplier contact, paid service, live telemetry activation or production use has occurred.
