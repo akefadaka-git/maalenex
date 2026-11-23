@@ -1,9 +1,11 @@
 from datetime import datetime, timezone
 
 import pytest
+from cryptography.fernet import Fernet
 
 from app.domains.tracking.security import (
-    credential_digest, sign_telemetry, verify_telemetry_signature,
+    decrypt_credential, encrypt_credential, sign_telemetry,
+    verify_telemetry_signature,
 )
 from app.domains.tracking.simulator import generate_route
 
@@ -39,13 +41,22 @@ def test_simulator_rejects_invalid_inputs():
         )
 
 
+def test_device_credential_is_encrypted_and_round_trips():
+    key = Fernet.generate_key().decode("ascii")
+    credential = "synthetic-device-credential-value-0001"
+    ciphertext = encrypt_credential(credential, key)
+    assert credential not in ciphertext
+    assert decrypt_credential(ciphertext, key) == credential
+    with pytest.raises(ValueError):
+        decrypt_credential(ciphertext, Fernet.generate_key().decode("ascii"))
+
+
 def test_device_telemetry_signature_binds_timestamp_and_exact_body():
     credential = "synthetic-device-credential-value-0001"
     body = b'{"sequence":1,"latitude":6.25,"longitude":36.88}'
     timestamp = "1795420800"
     signature = sign_telemetry(credential, timestamp, body)
-    digest = credential_digest(credential)
-    assert verify_telemetry_signature(digest, timestamp, body, signature)
-    assert not verify_telemetry_signature(digest, "1795420801", body, signature)
-    assert not verify_telemetry_signature(digest, timestamp, body + b" ", signature)
-    assert not verify_telemetry_signature("not-a-digest", timestamp, body, signature)
+    assert verify_telemetry_signature(credential, timestamp, body, signature)
+    assert not verify_telemetry_signature(credential, "1795420801", body, signature)
+    assert not verify_telemetry_signature(credential, timestamp, body + b" ", signature)
+    assert not verify_telemetry_signature(credential, timestamp, body, "invalid")
