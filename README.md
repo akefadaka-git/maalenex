@@ -1,4 +1,4 @@
-# MaaleNex Moto
+# MaaleNex
 
 Amharic-first motorcycle mobility and service platform for Ethiopia, designed for offline-capable workflows and controlled, secure dispatch.
 
