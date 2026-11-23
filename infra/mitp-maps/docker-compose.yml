@@ -1,0 +1,35 @@
+services:
+  mitp-map-db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: mitp_maps
+      POSTGRES_USER: mitp_maps
+      POSTGRES_PASSWORD: ${MITP_MAP_DB_PASSWORD:?Set MITP_MAP_DB_PASSWORD in the shell}
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - mitp-map-data:/var/lib/postgresql/data
+      - ./init/001-postgis.sql:/docker-entrypoint-initdb.d/001-postgis.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mitp_maps -d mitp_maps"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  mitp-vector-tiles:
+    image: ghcr.io/maplibre/martin:v0.15.0
+    depends_on:
+      mitp-map-db:
+        condition: service_healthy
+    command:
+      - --listen-addresses
+      - 0.0.0.0:3000
+      - --postgres-connection-string
+      - postgresql://mitp_maps:${MITP_MAP_DB_PASSWORD}@mitp-map-db:5432/mitp_maps
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+
+volumes:
+  mitp-map-data:
