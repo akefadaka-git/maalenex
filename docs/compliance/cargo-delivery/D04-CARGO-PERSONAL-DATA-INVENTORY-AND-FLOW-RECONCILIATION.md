@@ -9,7 +9,7 @@
 
 The recovered D04 status states that a technical inventory had been described but was not reconciled to the DPIA. The repository submission search did not locate a cargo-specific inventory/flow map. This document now provides the source-level reconciliation against the staged backend code.
 
-The inventory is based on candidate branches associated with PRs #45–#51. The cargo increments are separate, unmerged pull requests and are not evidence of a deployed cargo service. No production database, production configuration, actual customer/recipient/courier records, hosted object-storage bucket, live logs or operational volumes were available for inspection.
+The inventory is based on candidate branches associated with PRs #45–#49 and #51; PR #50 is a separate parallel branch and is not in PR #51's ancestry. The cargo increments are separate, unmerged pull requests and are not evidence of a deployed cargo service. No production database, production configuration, actual customer/recipient/courier records, hosted object-storage bucket, live logs or operational volumes were available for inspection.
 
 **D04 disposition: PARTIAL / NOT VERIFIED-CLOSED.** Source fields and main backend flows are now identified. Actual data collection, end-user interfaces, production configuration, processor locations, partner flows, volumes and file-content categories remain unresolved.
 
@@ -233,7 +233,7 @@ The principal source blobs are listed in D03 Section 9. Additional source files 
 - `backend/app/domains/organizations/models.py` — PR #46, blob `1220bfe4021bc825b04af4f7c64242df0f81452a`.
 - `backend/app/domains/fleet/models.py` — PR #46, blob `175eb6a2eabdb3e7707db065dd5cf87032b6fd8d`.
 - `backend/app/domains/audit/models.py` — PR #51 branch, blob `a87acb1a78be538272ed8ebe386fb484521f3ec1`.
-- `backend/app/domains/audit/service.py` — PR #51 branch, blob `219fbfb6341dd928cc96f2dcd0a5bf23443e955c`.
+- `backend/app/domains/audit/service.py` — PR #51 branch, blob `a5b5be2882d799de0f4a16c48246299acb70559d`.
 - `backend/app/core/config.py` — cargo evidence governance branch, blob `ce49e4bf571b47fd2222d0ca630eb18b01bc9831`.
 - `backend/app/jobs/scheduler_worker.py` — PR #49 evidence branch, blob `f23a6750d541372e26da7e6225d18e43efb0c43f`.
 
