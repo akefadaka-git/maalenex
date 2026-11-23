@@ -26,6 +26,7 @@ services:
       mitp-map-db:
         condition: service_healthy
     command:
+      - --no-tui
       - --listen-addresses
       - 0.0.0.0:3000
       - postgresql://mitp_reader:${MITP_MAP_READER_PASSWORD}@mitp-map-db:5432/mitp_maps
