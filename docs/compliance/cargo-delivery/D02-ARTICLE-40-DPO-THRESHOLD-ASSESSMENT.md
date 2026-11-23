@@ -211,3 +211,10 @@ No measured production volumes or Owner-approved forecast was found. Unique send
 
 The source review makes the feature and field analysis more concrete but does not supply the scale, runtime or actual processing evidence needed to decide whether monitoring is regular/systematic on a large scale or whether sensitive personal data is processed on a large scale. No numeric threshold is invented. D02 remains OPEN; no DPO-required or DPO-not-required conclusion is made.
 
+
+
+## Owner-approved provisional delivery-volume scenario — 23 November 2026
+
+The Project Owner approved a staged planning scenario: average deliveries per operating day of 10 at initial launch, 30 in Year 2 and 75 in Year 3; peak-day assumptions are 20, 60 and 150 respectively; planning uses 26 operating days/month. See [Cargo Operational-Volume Planning Baseline](CARGO-OPERATIONAL-VOLUME-PLANNING-BASELINE.md).
+
+These are **provisional planning assumptions, not actual volumes and not a legal threshold**. They do not decide any Article 40 limb. Unique data-subject counts, monitoring nature/frequency/duration, coordinate use, sensitive-data content and scale, and service-line allocation remain unverified. The monitoring and sensitive-data limbs remain **UNDETERMINED**; no DPO-required or DPO-not-required conclusion is made.
