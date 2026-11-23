@@ -8,12 +8,16 @@
   "sources": {
     "osm_lines": {
       "type": "vector",
-      "url": "/mitp-tiles/planet_osm_line",
+      "tiles": ["/mitp-tiles/planet_osm_line/{z}/{x}/{y}"],
+      "minzoom": 0,
+      "maxzoom": 14,
       "attribution": "© OpenStreetMap contributors"
     },
     "osm_polygons": {
       "type": "vector",
-      "url": "/mitp-tiles/planet_osm_polygon",
+      "tiles": ["/mitp-tiles/planet_osm_polygon/{z}/{x}/{y}"],
+      "minzoom": 0,
+      "maxzoom": 14,
       "attribution": "© OpenStreetMap contributors"
     }
   },
