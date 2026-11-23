@@ -15,7 +15,7 @@ type Position = {
   source: "installed_vehicle_gps";
 };
 
-const styleUrl = import.meta.env.VITE_MITP_MAP_STYLE_URL || "/mitp-map/style.json";
+const styleUrl = "/mitp-map/style.json";
 
 export default function TrackingMap() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -32,7 +32,6 @@ export default function TrackingMap() {
       style: styleUrl,
       center: [38, 9],
       zoom: 5,
-      attributionControl: true,
     });
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl(), "top-right");
