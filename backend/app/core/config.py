@@ -1,4 +1,4 @@
-from pydantic import model_validator
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     synthetic_data_only: bool = True
     secure_cookies: bool = False
+    mitp_device_encryption_key: SecretStr | None = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -36,6 +37,10 @@ class Settings(BaseSettings):
     @property
     def allowed_origins(self) -> list[str]:
         return [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+
+    @property
+    def mitp_encryption_key(self) -> str | None:
+        return self.mitp_device_encryption_key.get_secret_value() if self.mitp_device_encryption_key else None
 
 
 settings = Settings()
