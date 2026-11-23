@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     ForeignKey,
     Index,
@@ -92,3 +93,4 @@ class VehicleTelemetry(Base):
     speed_kph: Mapped[float] = mapped_column(Numeric(6, 2))
     heading_degrees: Mapped[float] = mapped_column(Numeric(6, 2))
     accuracy_meters: Mapped[float] = mapped_column(Numeric(7, 2))
+    is_synthetic: Mapped[bool] = mapped_column(Boolean, default=True)
