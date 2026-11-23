@@ -24,7 +24,9 @@ Those source files were recovered from the user's Library, not as repository fil
 - [D01–D14 machine-readable CSV](D01-D14-CONTROLLED-REGISTER.csv) — row-aligned export of the controlled matrix.
 - [D01 ECA regulatory assessment](D01-ECA-REGULATORY-ASSESSMENT.md) — separate PDP registration and courier-licensing tests, source links and evidence gaps.
 - [D01 hybrid service-line and data-role map](D01-HYBRID-SERVICE-LINE-AND-DATA-ROLE-MAP.md) — SL-01/SL-02 operator boundaries, partner licence-verification checklist, purpose-based controller/processor allocation and pre-filing dependencies.
-- [D02 Article 40 DPO threshold assessment](D02-ARTICLE-40-DPO-THRESHOLD-ASSESSMENT.md) — separate government-body, large-scale monitoring and large-scale sensitive-data tests, evidence plan and conditional DPO readiness requirements.
+- [D02 Article 40 DPO threshold assessment](D02-ARTICLE-40-DPO-THRESHOLD-ASSESSMENT.md) — separate government-body, large-scale monitoring and large-scale sensitive-data tests, now reconciled to staged cargo source features and configuration limits.
+- [D03 DPIA source-to-implementation reconciliation](D03-DPIA-SOURCE-TO-IMPLEMENTATION-RECONCILIATION.md) — distinguishes the recovered C06-only DPIA confirmation from a complete DPIA and maps implemented features, monitoring behavior, sensitive-data exposure, risks and missing scale evidence.
+- [D04 cargo personal-data inventory and flow reconciliation](D04-CARGO-PERSONAL-DATA-INVENTORY-AND-FLOW-RECONCILIATION.md) — field-level inventory, candidate backend flows, linked identities, storage/processor unknowns and operational-volume evidence requirements.
 - [C06 and production gate](C06-AND-PRODUCTION-GATE.md) — separate legal/DPIA determinations, retention qualifications, minimisation, hold rules and activation restrictions.
 
 ## Status semantics
@@ -55,7 +57,7 @@ No reviewer transmission is performed by this repository change.
 ## Production and change-control restrictions
 
 - PR #51 remains open and unmerged.
-- No code, schema, migration, workflow or application behaviour is changed by this package.
+- No code, schema, migration, workflow or application behaviour is changed by this package. D03/D04 documents reconcile staged source evidence only; they do not change or activate cargo functionality.
 - Production deletion, purge and retention automation remain disabled.
 - No purge schedule is approved or inferred from C06 metadata.
 - No A5 readiness, deployment, production migration, policy activation, scheduler activation or deletion is authorised.
