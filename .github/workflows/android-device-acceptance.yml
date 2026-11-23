@@ -1,0 +1,63 @@
+name: Android device acceptance build
+
+on:
+  push:
+    branches:
+      - fix/android-device-acceptance
+  pull_request:
+    branches:
+      - main
+      - feat/android-debug-apk
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-and-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      VITE_API_BASE_URL: ${{ vars.MAALENEX_TEST_API_BASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install frontend dependencies
+        run: npm install
+      - name: Frontend unit tests
+        run: npm test
+      - name: Typecheck and production build
+        run: npm run build
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-35 build-tools;35.0.0
+      - name: Install Capacitor Android toolchain
+        run: npm install --no-save @capacitor/core@6.2.1 @capacitor/cli@6.2.1 @capacitor/android@6.2.1
+      - name: Generate and sync Android project
+        run: |
+          npx cap add android
+          npx cap sync android
+      - name: Assemble debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: maalenex-moto-android-debug
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
