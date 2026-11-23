@@ -1,16 +1,17 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from cryptography.fernet import Fernet
-from sqlalchemy import create_engine
 from pydantic import SecretStr
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
 from app.db.base import Base
 from app.domains.fleet.models import Vehicle
-from app.domains.organizations.models import Organization
 from app.domains.identity.models import User
+from app.domains.organizations.models import Organization
 from app.domains.tracking.models import TrackingDevice, VehicleDeviceAssignment, VehicleTelemetry
 from app.domains.tracking.schemas import TelemetryPayload
 from app.domains.tracking.security import encrypt_credential, sign_telemetry
@@ -32,13 +33,11 @@ def _tracking_session():
 
 
 def test_ingestion_binds_telemetry_to_the_registered_vehicle_and_rejects_replay(monkeypatch):
-    from sqlalchemy.orm import sessionmaker
-
     key = Fernet.generate_key().decode("ascii")
     monkeypatch.setattr(settings, "mitp_device_encryption_key", SecretStr(key))
     engine = _tracking_session()
     SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
-    now = datetime(2026, 11, 23, 8, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 11, 23, 8, 0, tzinfo=UTC)
     credential = "synthetic-device-credential-value-0001"
     with SessionLocal() as db:
         organization = Organization(display_name="Synthetic operator", status="approved")
