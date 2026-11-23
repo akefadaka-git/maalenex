@@ -13,6 +13,7 @@ class TelemetryPayload(BaseModel):
     speed_kph: float = Field(ge=0, le=180)
     heading_degrees: float = Field(ge=0, lt=360)
     accuracy_meters: float = Field(gt=0, le=500)
+    synthetic: bool = True
 
     @field_validator("recorded_at")
     @classmethod
