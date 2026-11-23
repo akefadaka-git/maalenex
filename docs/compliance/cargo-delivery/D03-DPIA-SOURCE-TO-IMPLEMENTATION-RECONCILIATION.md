@@ -173,8 +173,8 @@ No numeric “large scale” threshold is prescribed in this record. The forecas
 | `backend/app/domains/cargo/carrier_operations.py` | PR #47 / `feat/carrier-operations-delivery-proof-v1` | `1cb5dbbf06977d424a14d4efebcc4cd5734346f1` | Carrier, delivery-proof and exception fields |
 | `backend/app/routers/cargo_carrier_operations.py` | PR #47 | `de8b00cc625838f2e42ba1455cfcb38f98ebb1d6` | Proof submission/review and exception operations |
 | `backend/app/domains/fleet/object_storage.py` | PR #48 / `feat/cargo-delivery-evidence-storage-v1` | `5c612e050bd965904b6013f66405cc93963cf811` | Private upload types, size and scope |
-| `backend/app/domains/cargo/evidence_lifecycle.py` | PR #49 / `feat/cargo-evidence-legal-retention-remediation-v1` | `3de847294781b845bddd1e52b5d453e60ec92ea9` | Evidence lifecycle and initial classification fields |
-| `backend/app/domains/cargo/evidence_lifecycle.py` | PR #51 branch / `feat/cargo-evidence-legal-retention-remediation-v1` | `022feb4e3d45a1174eaf8b1ed24689b2749d0e65` | Corrective personal/sensitive-data, legal-basis, transfer and DPO metadata |
+| `backend/app/domains/cargo/evidence_lifecycle.py` | PR #49 / `feat/cargo-evidence-lifecycle-governance-v1` | `d8cd6d25316fff4102c70abdbd9920167c723482` | Evidence lifecycle and initial classification fields |
+| `backend/app/domains/cargo/evidence_lifecycle.py` | PR #51 branch / `feat/cargo-evidence-legal-retention-remediation-v1` | `3de847294781b845bddd1e52b5d453e60ec92ea9` | Corrective personal/sensitive-data, legal-basis, transfer and DPO metadata |
 | `backend/app/domains/audit/models.py` | PR #51 branch | `a87acb1a78be538272ed8ebe386fb484521f3ec1` | Audit-event fields |
 | `backend/app/domains/audit/service.py` | PR #51 branch | `a5b5be2882d799de0f4a16c48246299acb70559d` | Audit metadata redaction |
 | `backend/app/core/config.py` | cargo evidence governance branch | `ce49e4bf571b47fd2222d0ca630eb18b01bc9831` | Synthetic-only, scheduler and object-storage defaults |
