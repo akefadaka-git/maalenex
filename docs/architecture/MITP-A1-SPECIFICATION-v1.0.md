@@ -7,9 +7,9 @@
 | Version | 1.0 — Owner decisions incorporated |
 | Date | 2026-11-23 |
 | Stage | A1 — Assessment and specification |
-| Status | OPEN — OWNER REVIEW |
+| Status | VERIFIED-CLOSED — A1 scope only |
 | Repository | `akefadaka-git/maalenex` |
-| Authorization | Documentation only; no A2/A3/A4/A5 authorization |
+| Authorization | A1 closure and A2 read-only reconciliation only; no A3/A4/A5 authorization |
 
 ## 1. Purpose and executive summary
 
@@ -28,7 +28,7 @@ The following decisions were supplied by the Owner and are incorporated without 
 | D01 | Mandatory | Every MaaleNex-operated vehicle must have a registered, approved and functioning installed GPS tracker. Driver-phone GPS is fallback only. | DECIDED |
 | D02 | Road | Initial camera scope is road-facing cameras only. Cabin cameras are excluded from initial scope. | DECIDED |
 | D03 | Hybrid | Self-hosted road maps plus a separately approved satellite imagery layer. | DECIDED |
-| D04 | Review | Keep A1 open for Owner review. Do not authorize A2 or implementation. | DECIDED — REVIEW ONLY |
+| D04 | Review (initial decision) | Initially retained A1 for review and withheld A2. Superseded by the explicit Owner approval recorded in §21. | SUPERSEDED BY §21 |
 
 These decisions establish product direction. They do not authorize hardware procurement, paid subscriptions, supplier engagement, code changes, schema changes, migrations, merges, production activation or deployment.
 
@@ -419,3 +419,22 @@ A1 can be closed only when the Owner:
 **Owner decisions incorporated:** D01 mandatory installed GPS; D02 road-facing camera only; D03 self-hosted road maps plus approved satellite imagery; D04 review only.
 
 **No A2/A3/A4/A5, procurement, merge or deployment authorization is implied.**
+
+
+## 21. Owner approval and A1 closure record
+
+**Approval date:** 23 November 2026  
+**Approval evidence:** Explicit Owner instruction in the controlling project conversation: “Approved.” This approval followed the request to approve A1 closure and authorize A2 read-only reconciliation.
+
+**Governance determination:**
+- A1 — **VERIFIED-CLOSED for specification and assessment scope only**.
+- A2 — **AUTHORIZED, READ-ONLY RECONCILIATION ONLY**.
+- A3 — NOT AUTHORIZED.
+- A4 — NOT AUTHORIZED.
+- A5 — NOT AUTHORIZED.
+
+The Owner's later approval supersedes the earlier D04 review-only hold. The technical decisions D01–D03 remain unchanged: mandatory installed GPS tracker for every MaaleNex-operated vehicle; road-facing cameras only in initial scope; self-hosted road maps plus a legally approved satellite imagery layer.
+
+A2 may inspect existing repository files, branches, commits, pull requests, workflows, tests and architecture. A2 must not modify application code, schemas, migrations, runtime configuration, workflows, existing branches or deployment state. No procurement, supplier engagement, paid service, merge, production activation or deployment is authorized.
+
+**A1 closure boundary:** This closure freezes the MITP A1 direction and requirements. It does not certify technical implementation, legal compliance, provider/imagery licensing, hardware compatibility, security readiness, operating cost or production readiness. Those remain evidence items for A2 and later separately approved stages.
