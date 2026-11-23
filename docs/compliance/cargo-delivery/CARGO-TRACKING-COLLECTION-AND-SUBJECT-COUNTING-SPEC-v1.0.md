@@ -79,6 +79,8 @@ Coordinates may be attached only to these event contexts, if the event is operat
 - delivered — at most one delivery coordinate.
 - exception — at most one coordinate when needed to document a material delivery exception.
 
+The global ceiling of four coordinate-bearing events per dispatch overrides these per-event maxima. A dispatch may therefore use no more than four total coordinates; no more than two may be checkpoints, and the remaining slots may be selected from pickup, arrival, delivery or a material exception. Unused slots do not roll over or authorize background sampling.
+
 Do not attach coordinates to offered, accepted, rejected, routine departed, or cancelled events by default. Any additional event type requires a documented purpose and controlled specification revision.
 
 Proposed frequency ceilings:
