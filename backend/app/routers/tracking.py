@@ -258,7 +258,9 @@ async def receive_telemetry(request: Request, db: Session = Depends(get_db)) -> 
     except TelemetryRejected as exc:
         db.rollback()
         status_code = 503 if exc.reason == "device_security_not_configured" else (
-            401 if exc.reason in {"device_not_active", "invalid_device_signature"} else 409
+            429 if exc.reason == "device_rate_limit_exceeded" else (
+                401 if exc.reason in {"device_not_active", "invalid_device_signature"} else 409
+            )
         )
         raise HTTPException(status_code=status_code, detail=exc.reason)
     except ValueError:
