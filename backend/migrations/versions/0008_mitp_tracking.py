@@ -87,10 +87,12 @@ def downgrade() -> None:
     op.drop_table("vehicle_device_assignments")
     op.drop_table("tracking_devices")
     op.execute("""
+        DELETE FROM access_role_permissions rp
+        USING access_permissions p
+        WHERE rp.permission_id = p.id
+          AND p.code IN ('platform.tracking.manage', 'platform.tracking.read')
+    """)
+    op.execute("""
         DELETE FROM access_permissions
         WHERE code IN ('platform.tracking.manage', 'platform.tracking.read')
-          AND NOT EXISTS (
-              SELECT 1 FROM access_role_permissions rp
-              WHERE rp.permission_id = access_permissions.id
-          )
     """)
