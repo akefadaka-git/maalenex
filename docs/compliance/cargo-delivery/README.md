@@ -27,6 +27,7 @@ Those source files were recovered from the user's Library, not as repository fil
 - [D02 Article 40 DPO threshold assessment](D02-ARTICLE-40-DPO-THRESHOLD-ASSESSMENT.md) — separate government-body, large-scale monitoring and large-scale sensitive-data tests, now reconciled to staged cargo source features and configuration limits.
 - [D03 DPIA source-to-implementation reconciliation](D03-DPIA-SOURCE-TO-IMPLEMENTATION-RECONCILIATION.md) — distinguishes the recovered C06-only DPIA confirmation from a complete DPIA and maps implemented features, monitoring behavior, sensitive-data exposure, risks and missing scale evidence.
 - [D04 cargo personal-data inventory and flow reconciliation](D04-CARGO-PERSONAL-DATA-INVENTORY-AND-FLOW-RECONCILIATION.md) — field-level inventory, candidate backend flows, linked identities, storage/processor unknowns and operational-volume evidence requirements.
+- [Cargo operational-volume planning baseline](CARGO-OPERATIONAL-VOLUME-PLANNING-BASELINE.md) — Owner-approved provisional launch/Year 2/Year 3 capacity assumptions, explicitly distinguished from actual volumes and legal thresholds.
 - [C06 and production gate](C06-AND-PRODUCTION-GATE.md) — separate legal/DPIA determinations, retention qualifications, minimisation, hold rules and activation restrictions.
 
 ## Status semantics
