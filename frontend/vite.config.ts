@@ -9,6 +9,11 @@ export default defineConfig({
         target: "http://127.0.0.1:8000",
         changeOrigin: false,
       },
+      "/mitp-tiles": {
+        target: "http://127.0.0.1:3000",
+        changeOrigin: false,
+        rewrite: (path) => path.replace(/^\/mitp-tiles/, ""),
+      },
     },
   },
 });
