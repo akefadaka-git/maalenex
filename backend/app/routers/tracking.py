@@ -29,7 +29,7 @@ DatabaseSession = Annotated[Session, Depends(get_db)]
 
 
 class DeviceRegistration(BaseModel):
-    device_identifier: str = Field(min_length=3, max_length=80, pattern=r"^[A-Za-z0-9._-]+$")
+    device_identifier: str = Field(min_length=3, max_length=80, pattern=r"^SIM-[A-Za-z0-9._-]+$")
 
 
 class AssignmentRequest(BaseModel):
