@@ -212,3 +212,10 @@ The Project Owner approved a staged capacity-planning scenario recorded in [Carg
 [D02–D04 Forecast-to-Source Reconciliation](D02-D04-FORECAST-TO-SOURCE-RECONCILIATION.md) now reconciles the Owner-approved volume scenario against the staged dispatch/tracking API, delivery-proof fields, private evidence-upload validation and subject-count limitations. It calculates a normal four-event completed-dispatch baseline and a named transaction-role entry envelope, while explicitly distinguishing both from unique natural-person counts.
 
 Unique sender/recipient/receiver identities cannot be deduplicated from the current name-string schema. Courier/driver identity, staff/partner rosters, uploaded-file contents, client-side location behaviour and actual production volumes remain unverified. D03 remains **PARTIAL / NOT VERIFIED-CLOSED**.
+
+
+## A2 tracking specification addendum — 23 November 2026
+
+The A2 read-only client/integration inspection and proposed tracking controls are recorded in [CARGO-TRACKING-COLLECTION-AND-SUBJECT-COUNTING-SPEC-v1.0.md]. The reviewed Cargo PR #45–#49 branches are backend-only and no Cargo client was located; the passenger Google Maps geolocation feature is separate. The specification proposes event-bound one-shot coordinates, server-enforced event/frequency limits, minimised precision and keyed pseudonymous subject counting. It is a design proposal only; no implementation or live configuration was changed.
+
+D03 remains **PARTIAL / NOT VERIFIED-CLOSED**. The complete DPIA, actual client/runtime evidence, actual operational volumes, sensitive-file classification, risk scoring and qualified reviewer/Owner decisions remain outstanding.
