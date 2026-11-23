@@ -72,6 +72,7 @@ def test_ingestion_binds_telemetry_to_the_registered_vehicle_and_rejects_replay(
         db.commit()
         assert accepted.vehicle_id == vehicle.id
         assert accepted.sequence == 1
+        assert accepted.is_synthetic is True
         assert device.last_sequence == 1
 
         with pytest.raises(TelemetryRejected, match="sequence_replayed_or_out_of_order"):
