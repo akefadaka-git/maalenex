@@ -3,7 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class TelemetryPayload(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     sequence: int = Field(ge=1, le=2_147_483_647)
     recorded_at: datetime
