@@ -3,7 +3,7 @@
 **Assessment date:** 23 November 2026  
 **Status:** PARTIAL / NOT VERIFIED-CLOSED  
 **Scope:** MaaleNex Cargo Delivery, hybrid service model C  
-**Evidence boundary:** Source-level review of staged PRs #45–#51. These PRs remain open and unmerged; the inspected code is not evidence of a deployed or operational production configuration.
+**Evidence boundary:** Source-level review of the relevant staged cargo PRs #45–#49 and #51. PR #50 is a separate parallel retention-remediation branch and is not in PR #51's ancestry or used as the tracking/proof baseline here. The reviewed feature PRs remain open and unmerged; the inspected code is not evidence of a deployed or operational production configuration.
 
 ## 1. Purpose and controlling forecast
 
@@ -157,7 +157,11 @@ All references below are source snapshots from open, unmerged PRs; they are not 
 | Runtime defaults/evidence lifecycle (PR #49) | `3662887098211ac9f0b6c4ee3c4eb2401529f74b` | `backend/app/core/config.py` — `ce49e4bf571b47fd2222d0ca630eb18b01bc9831`; `backend/app/domains/cargo/evidence_lifecycle.py` — `d8cd6d25316fff4102c70abdbd9920167c723482` |
 | Sensitive-data metadata/audit redaction (PR #51) | `b81e788b55bb5c988d77412ce54f483106675e82` | `backend/app/domains/cargo/evidence_lifecycle.py` — `3de847294781b845bddd1e52b5d453e60ec92ea9`; `backend/app/domains/audit/service.py` — `a5b5be2882d799de0f4a16c48246299acb70559d` |
 
-## 8. Governance disposition
+## 8. Legal source
+
+Article 40(1)(a)–(c) of Ethiopia's Personal Data Protection Proclamation No. 1321/2024 sets out the three alternative DPO appointment triggers discussed above. Official Federal Negarit Gazette text: https://justice.gov.et/wp-content/uploads/2025/04/seasiisia-seusiNse%C2%A1-1321-2016.pdf (English text, Article 40, PDF pages 41–42). The Ministry of Justice law catalogue lists Proclamation No. 1321/2024 as in force: https://justice.gov.et/en/law/personal-data-protection-proclamation/.
+
+## 9. Governance disposition
 
 This is a documentation-only source reconciliation. It does not modify application code, migrations, workflow configuration or production settings. PRs #45–#51 remain unmerged; PR #52 remains a draft. No live data processing, pilot, partner operation, DPO appointment, filing, merge or deployment is authorised by this record.
 
