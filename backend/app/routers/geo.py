@@ -1,4 +1,5 @@
 """Authenticated, tenant-scoped internal vehicle-position API."""
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -20,12 +21,12 @@ router = APIRouter(prefix="/geo/internal", tags=["internal-geography"])
 @router.get("/vehicles/positions")
 def read_internal_vehicle_positions(
     response: Response,
-    organization_id: UUID = Query(..., description="Organization whose positions the caller is authorized to read"),
-    vehicle_id: UUID | None = Query(None, description="Optional vehicle filter within the selected organization"),
-    max_age_minutes: int = Query(30, ge=1, le=1440),
-    limit: int = Query(200, ge=1, le=500),
-    context: StaffContext = Depends(current_staff_context),
-    db: Session = Depends(get_db),
+    organization_id: Annotated[UUID, Query(description="Organization whose positions the caller is authorized to read")],
+    vehicle_id: Annotated[UUID | None, Query(description="Optional vehicle filter within the selected organization")] = None,
+    max_age_minutes: Annotated[int, Query(ge=1, le=1440)] = 30,
+    limit: Annotated[int, Query(ge=1, le=500)] = 200,
+    context: Annotated[StaffContext, Depends(current_staff_context)] = None,
+    db: Annotated[Session, Depends(get_db)] = None,
 ) -> dict:
     """Return only the latest recent position per vehicle in one authorized tenant."""
     try:
