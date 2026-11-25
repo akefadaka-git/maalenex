@@ -225,6 +225,18 @@ BEGIN
 END;
 $geo_roles$
 """)
+    op.execute("""
+ALTER ROLE maalenex_geo_internal_reader
+    NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOINHERIT
+""")
+    op.execute("""
+ALTER ROLE maalenex_geo_tenant_manager
+    NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOINHERIT
+""")
+    op.execute("""
+ALTER ROLE maalenex_geo_catalog_manager
+    NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOINHERIT
+""")
 
     # The internal reader receives only SELECT on the position relation/view.
     # Invoker-security view means its SELECT is filtered by the same RLS policy.
