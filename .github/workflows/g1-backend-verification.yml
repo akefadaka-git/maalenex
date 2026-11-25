@@ -86,7 +86,7 @@ jobs:
         run: python -m alembic upgrade head
       - name: Inventory PostgreSQL extension-owned relations
         run: |
-          psql "postgresql://postgres:postgres@localhost:5432/maalenex_dev" -X -v ON_ERROR_STOP=1 -At -F "\\t" -c "
+          psql "postgresql://postgres:postgres@localhost:5432/maalenex_dev" -X -v ON_ERROR_STOP=1 -At -c "
             SELECT extension.extname, namespace.nspname, relation.relname
             FROM pg_depend AS dependency
             JOIN pg_extension AS extension ON extension.oid = dependency.refobjid
