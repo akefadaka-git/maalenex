@@ -1,6 +1,13 @@
 name: G1 backend foundation verification
 
 on:
+  push:
+    branches: [feat/a3-canonical-postgis-integration]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "infra/martin/**"
+      - ".github/workflows/g1-backend-verification.yml"
   pull_request:
     branches: [main]
     paths:
@@ -83,7 +90,7 @@ jobs:
         run: python -m pytest -q tests/test_geo_tenant_rls.py
       - name: Provision disposable least-privilege Martin reader
         run: |
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          psql "postgresql://postgres:postgres@localhost:5432/maalenex_dev" -v ON_ERROR_STOP=1 <<'SQL'
           CREATE ROLE maalenex_martin_login LOGIN PASSWORD 'ci-only-secret';
           GRANT CONNECT ON DATABASE maalenex_dev TO maalenex_martin_login;
           GRANT maalenex_geo_public_reader TO maalenex_martin_login;
