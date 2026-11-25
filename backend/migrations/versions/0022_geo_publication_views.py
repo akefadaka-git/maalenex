@@ -112,7 +112,9 @@ JOIN geo.publications sp
  AND sp.source_id = s.source_id
 JOIN geo_public.routes pr ON pr.id = s.route_id
 JOIN geo_public.locations pl ON pl.id = s.location_id
-WHERE s.status = 'published'
+LEFT JOIN geo_public.terminals pt ON pt.id = s.terminal_id
+WHERE (s.terminal_id IS NULL OR pt.id IS NOT NULL)
+  AND s.status = 'published'
   AND s.publication_eligible
   AND ds.verification_status = 'verified'
   AND ds.publication_eligible
