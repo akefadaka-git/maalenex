@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.request_security import require_allowed_origin
 from app.db.session import get_db
 from app.domains.bookings.access import (
     BookingAccessError, BookingAccessRateLimited, create_access_challenge,
@@ -64,9 +65,9 @@ def _client_ip(request: Request) -> str:
 
 
 def _require_origin(request: Request) -> None:
-    origin = request.headers.get("origin")
-    if origin and origin not in settings.allowed_origins:
-        raise HTTPException(status_code=403, detail="Request origin is not allowed.")
+    # Use the shared raw-header validator so duplicates and malformed values
+    # cannot be hidden by the convenience header accessor.
+    require_allowed_origin(request)
 
 
 def current_booking_grant(

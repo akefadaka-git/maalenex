@@ -508,6 +508,37 @@ The TLS termination, trusted-proxy, cookie, CORS and ingress contract is **OWNER
 
 A5.3.4 implementation is isolated on [PR #11](https://github.com/akefadaka-git/maalenex-moto/pull/11), branch `a5/a5-3-4-edge-security-hardening`. Its implementation report is [MAALENEX-A5-3-4-EDGE-SECURITY-IMPLEMENTATION-REPORT.md](https://github.com/akefadaka-git/maalenex-moto/blob/a5/a5-3-4-edge-security-hardening/docs/verification/MAALENEX-A5-3-4-EDGE-SECURITY-IMPLEMENTATION-REPORT.md).
 
-**A5.3.4 status:** Implemented on isolated branch; isolated synthetic unit suite passed 21 tests; exact-HEAD GitHub Actions result remains **NOT VERIFIED**. PR #11 is draft and unmerged. No live proxy, public ingress, DNS, certificates or production runtime controls are claimed as implemented.
+**A5.3.4 status:** Implemented on isolated branch; isolated synthetic unit suite passed 23 tests; exact-HEAD GitHub Actions run [#42568481664](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42568481664) passed on `60ea65e85a6a02e9467ab10ea0970750d49c5376` (70 backend/PostgreSQL tests passed; frontend and security jobs passed).. PR #11 is draft and unmerged. No live proxy, public ingress, DNS, certificates or production runtime controls are claimed as implemented.
 
 All existing development/test-only, synthetic-only and local `maalenex_dev` restrictions remain binding. Overall A5 remains **NOT READY / NO-GO**.
+
+## A5.3.4 focused security review
+
+- Review: [MAALENEX-A5-3-4-FOCUSED-SECURITY-REVIEW.md](MAALENEX-A5-3-4-FOCUSED-SECURITY-REVIEW.md)
+- Disposition: **COMPLETED — FINDINGS OPEN**; A5.3.4 is not security-closed pending F-01 through F-03 remediation and exact-HEAD regression tests.
+- The 26 admin/operator/catalog/fleet/trip/fare/support mutation handlers and staff/account session revocation routes passed the focused Origin/CSRF route audit. Confirmed open findings: trusted proxy accepts missing HTTPS metadata (P1); proxy client-IP rate-limit collapse (P2); optional Origin on login and guest booking challenge/bootstrap routes (P2); HSTS/CSP remain an unverified production-edge hardening requirement (P2).
+- Production readiness remains **NOT READY**. No application-code remediation, deployment, merge or production activation was performed in this review.
+
+
+## A5.3.4 remediation and exact-HEAD CI update
+
+- **F-01 trusted-proxy HTTPS metadata: VERIFIED-CLOSED** for application behavior; trusted proxy requires exactly one HTTPS forwarded-proto value and fails closed otherwise.
+- **F-03 browser Origin enforcement: VERIFIED-CLOSED** for staff/account login, guest challenge bootstrap and cookie-authenticated guest booking mutations; duplicate, missing, malformed and non-allowlisted Origin values are denied.
+- **F-02 rate-limit client identity: VERIFIED-CLOSED** for the documented single-hop edge profile; validated X-Forwarded-For is parsed only from a trusted immediate peer, and untrusted peers retain their direct socket identity.
+- Exact-HEAD verification: [run #42571302514 — success](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42571302514) on `3bce5b81c91ad9a573a02e55d3a6e2f6da1a3121`; backend/PostgreSQL 82 passed, 1 warning; frontend, dependency, static security and migration gates all passed.
+- **F-04 remains OPEN** as a production-edge gate for HSTS/CSP ownership, real TLS termination, ingress/network controls and external verification. No hosting provider or production ingress has been provisioned.
+- PR #11 remains a separate draft/unmerged implementation review. No main-branch modification, merge, deployment, production secrets, real data, payment, GPS or commercial activation occurred.
+
+**A5.3.4 application implementation and automated verification: VERIFIED-CLOSED for F-01/F-02/F-03 scope. Overall A5 production readiness remains NOT READY / NO-GO.**
+
+
+## F-04 production-edge design and acceptance update
+
+- Design package: [A5.3.5 F-04 Production-Edge Security Design and Acceptance](MAALENEX-A5-3-5-F04-PRODUCTION-EDGE-DESIGN-AND-ACCEPTANCE.md).
+- HSTS/CSP single owner: public ingress edge. The application retains CORS, Origin/CSRF, cookie and proxy-trust controls; no weakening or duplicate policy ownership.
+- HSTS staged rollout and subdomain/preload restrictions defined; CSP report-only observation, enforcement criteria and rollback defined.
+- TLS termination, encrypted private origin hop, origin isolation, ingress hardening, external evidence IDs and F04-01 through F04-12 acceptance gates defined.
+- **F-04: DESIGN-RESOLVED / OPERATIONAL ACCEPTANCE PENDING.** No provider, DNS, certificate, endpoint or edge has been provisioned; live TLS/HTTP/HSTS/CSP/origin-bypass scans and rollback exercises are NOT RUN.
+- Existing APP_ENV development/test restriction, SYNTHETIC_DATA_ONLY requirement and local maalenex_dev database restriction remain unchanged. No production secret, real data, DNS, certificate, network, runtime, merge or deployment change.
+
+**Overall A5 remains NOT READY / NO-GO.**

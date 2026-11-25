@@ -232,3 +232,17 @@ The versioned AES-GCM encryption envelope, key-ID resolver, encryption-key rotat
 The normative, provider-neutral contract is prepared in [MAALENEX-A5-3-3-TLS-PROXY-COOKIE-CORS-INGRESS-SECURITY-CONTRACT.md](MAALENEX-A5-3-3-TLS-PROXY-COOKIE-CORS-INGRESS-SECURITY-CONTRACT.md). It defines HTTPS termination, exact proxy-peer trust and forwarded-header sanitization, canonical host/scheme handling, Secure/HttpOnly/SameSite session cookies, CSRF protections, exact credentialed CORS origins, ingress isolation/limits, security headers, operational runbooks and a synthetic verification matrix.
 
 **A5.3.3 disposition: OWNER-APPROVED CONTRACT; implementation separately gated.** A5.3.4 application hardening is under implementation on [PR #11](https://github.com/akefadaka-git/maalenex-moto/pull/11), with the report in [MAALENEX-A5-3-4-EDGE-SECURITY-IMPLEMENTATION-REPORT.md](https://github.com/akefadaka-git/maalenex-moto/blob/a5/a5-3-4-edge-security-hardening/docs/verification/MAALENEX-A5-3-4-EDGE-SECURITY-IMPLEMENTATION-REPORT.md). Exact-HEAD GitHub CI is not yet verified; no production ingress or TLS controls are claimed as live. No DNS, certificates, runtime configuration, application code, secrets, infrastructure or network resources changed. No live hostname or external TLS scan was performed. The existing development/test-only, synthetic-only and local `maalenex_dev` restrictions remain binding. Overall A5 remains **NOT READY / NO-GO**.
+
+
+## A5.3.4 remediation verification update
+
+**F-01, F-02 and F-03: VERIFIED-CLOSED for application-level implementation and synthetic regression coverage.** Exact-head CI passed on `3bce5b81c91ad9a573a02e55d3a6e2f6da1a3121` ([run #42571302514](https://github.com/akefadaka-git/maalenex-moto/actions/runs/42571302514)): backend/PostgreSQL 82 passed, 1 warning; compile, Ruff, migrations, seed idempotency, Alembic parity, downgrade/re-upgrade, frontend tests/typecheck/build/npm audit, pip-audit and Bandit all passed.
+
+The A5.3.3 ingress contract now specifies a single trusted final edge that overwrites X-Forwarded-For with exactly one observed client IP; arbitrary multi-hop chains are not supported by this G1 profile. F-04 remains OPEN: HSTS/CSP ownership and actual TLS/ingress verification cannot be closed without an approved hosting and public-edge environment. No DNS, certificates, runtime settings, secrets, production infrastructure, merge or deployment changed. Overall A5 remains **NOT READY / NO-GO**.
+
+
+## F-04 production-edge design update
+
+F-04 design ownership and acceptance requirements are documented in [A5.3.5 F-04 Production-Edge Security Design and Acceptance](MAALENEX-A5-3-5-F04-PRODUCTION-EDGE-DESIGN-AND-ACCEPTANCE.md). HSTS and CSP are assigned to the public edge as their single authoritative owner; the application retains its existing controls. TLS, edge-to-origin encryption, private origin isolation, staged HSTS, CSP report-only/enforcement, evidence collection and rollback are specified.
+
+F-04 is **DESIGN-RESOLVED / OPERATIONAL ACCEPTANCE PENDING**. The current repository contains no approved provider, public hostname, deployed edge or live scan evidence. Do not mark operational acceptance PASS until all F04-01 through F04-12 gates have actual evidence and Owner approval. A5 remains **NOT READY / NO-GO**; runtime hard stops are unchanged.

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.proxy import TrustedProxyMiddleware
 from app.db import model_registry  # noqa: F401
 from app.routers.admin import router as admin_router
 from app.routers.auth import router as auth_router
@@ -25,6 +26,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Content-Type", "X-CSRF-Token", "Idempotency-Key"],
+)
+app.add_middleware(
+    TrustedProxyMiddleware,
+    trusted_proxy_networks=settings.trusted_proxy_networks,
+    canonical_hosts=settings.allowed_hosts,
 )
 app.include_router(health_router, prefix=settings.api_prefix)
 app.include_router(identity_router, prefix=settings.api_prefix)
