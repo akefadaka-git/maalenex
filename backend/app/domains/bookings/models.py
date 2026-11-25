@@ -22,6 +22,9 @@ class Booking(Base):
     booking_reference: Mapped[str] = mapped_column(String(32), unique=True)
     booking_contact_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("booking_contacts.id", ondelete="RESTRICT"))
     trip_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("trips.id", ondelete="RESTRICT"), index=True)
+    passenger_account_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("passenger_accounts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     status: Mapped[str] = mapped_column(String(32), default="draft", index=True)
     currency_code: Mapped[str] = mapped_column(String(3), default="ETB")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
