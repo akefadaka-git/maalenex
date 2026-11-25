@@ -66,6 +66,7 @@ AS
 SELECT t.id, t.location_id, t.name, t.geom
 FROM geo.terminals t
 JOIN geo.data_sources ds ON ds.id = t.source_id
+JOIN geo_public.locations pl ON pl.id = t.location_id
 JOIN geo.publications p
   ON p.entity_type = 'terminal'
  AND p.entity_id = t.id
@@ -84,6 +85,8 @@ AS
 SELECT r.id, r.code, r.origin_location_id, r.destination_location_id, r.geom
 FROM geo.routes r
 JOIN geo.data_sources ds ON ds.id = r.source_id
+JOIN geo_public.locations origin_public ON origin_public.id = r.origin_location_id
+JOIN geo_public.locations destination_public ON destination_public.id = r.destination_location_id
 JOIN geo.publications p
   ON p.entity_type = 'route'
  AND p.entity_id = r.id
@@ -141,10 +144,16 @@ AS
 SELECT r.id, r.road_class, r.name, r.geom
 FROM geo.roads r
 JOIN geo.data_sources ds ON ds.id = r.source_id
+JOIN geo.publications p
+  ON p.entity_type = 'road'
+ AND p.entity_id = r.id
+ AND p.source_id = r.source_id
 WHERE r.status = 'active'
   AND r.publication_eligible
   AND ds.verification_status = 'verified'
   AND ds.publication_eligible
+  AND p.status = 'published'
+  AND p.revoked_at IS NULL
 """)
     op.execute("""
 GRANT SELECT ON
