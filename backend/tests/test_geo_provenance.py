@@ -8,7 +8,6 @@ from sqlalchemy.exc import DBAPIError
 
 from app.core.config import settings
 
-
 pytestmark = pytest.mark.skipif(
     os.getenv("RUN_GEO_PROVENANCE_INTEGRATION") != "1",
     reason="requires disposable PostGIS database after A3.8 migrations",
