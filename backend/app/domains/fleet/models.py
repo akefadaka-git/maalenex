@@ -2,15 +2,15 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     DateTime,
     ForeignKey,
     Index,
     Integer,
-    JSON,
     String,
-    Uuid,
     UniqueConstraint,
+    Uuid,
     func,
     text,
 )
