@@ -1,6 +1,15 @@
+import os
+
+import pytest
 from sqlalchemy import create_engine, text
 
 from app.core.config import settings
+
+
+pytestmark = pytest.mark.skipif(
+    os.environ.get("RUN_MITP_BACKFILL_INTEGRATION") != "1",
+    reason="Requires synthetic legacy rows and the completed Alembic backfill.",
+)
 
 
 def test_mitp_legacy_rows_are_migrated_or_quarantined_without_tenant_guessing() -> None:
