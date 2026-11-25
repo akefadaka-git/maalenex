@@ -153,11 +153,17 @@ export default function InternalGeoMap() {
           cache: "no-store",
         });
         if (response.status === 401) {
+          const source = mapRef.current?.getSource("internal-vehicle-positions") as maplibregl.GeoJSONSource | undefined;
+          source?.setData(EMPTY);
+          setPositionsCount(0);
           setAuthenticated(false);
           setStatus("Staff session expired. Sign in again.");
           return;
         }
         if (response.status === 403) {
+          const source = mapRef.current?.getSource("internal-vehicle-positions") as maplibregl.GeoJSONSource | undefined;
+          source?.setData(EMPTY);
+          setPositionsCount(0);
           setStatus("Access denied. Your account lacks tracking.read permission for this organization.");
           return;
         }
@@ -184,7 +190,12 @@ export default function InternalGeoMap() {
         setPositionsCount(features.length);
         setStatus(`Showing ${features.length} recent vehicle position(s). Refreshes every 30 seconds.`);
       } catch {
-        if (!cancelled) setStatus("Position service unavailable. No cached positions are displayed.");
+        if (!cancelled) {
+          const source = mapRef.current?.getSource("internal-vehicle-positions") as maplibregl.GeoJSONSource | undefined;
+          source?.setData(EMPTY);
+          setPositionsCount(0);
+          setStatus("Position service unavailable. Previously displayed positions were cleared.");
+        }
       }
     };
     void refresh();
