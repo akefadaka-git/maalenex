@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -62,7 +62,7 @@ def teardown_function():
 def test_internal_positions_api_requires_staff_and_tenant_authorization(monkeypatch):
     organization_id = uuid4()
     vehicle_id = uuid4()
-    recorded_at = datetime(2026, 11, 25, 7, 0, tzinfo=timezone.utc)
+    recorded_at = datetime(2026, 11, 25, 7, 0, tzinfo=UTC)
     received_at = datetime(2026, 11, 25, 7, 0, 5, tzinfo=timezone.utc)
     fake_db = FakeSession([{
         "vehicle_id": vehicle_id,
