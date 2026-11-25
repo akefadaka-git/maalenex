@@ -63,7 +63,7 @@ def test_internal_positions_api_requires_staff_and_tenant_authorization(monkeypa
     organization_id = uuid4()
     vehicle_id = uuid4()
     recorded_at = datetime(2026, 11, 25, 7, 0, tzinfo=UTC)
-    received_at = datetime(2026, 11, 25, 7, 0, 5, tzinfo=timezone.utc)
+    received_at = datetime(2026, 11, 25, 7, 0, 5, tzinfo=UTC)
     fake_db = FakeSession([{
         "vehicle_id": vehicle_id,
         "longitude": 37.0,
