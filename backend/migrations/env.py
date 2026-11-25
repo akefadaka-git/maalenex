@@ -7,9 +7,18 @@ config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 target_metadata = Base.metadata
 
+# PostGIS owns this public reference table; it is not application metadata.
+POSTGIS_EXTENSION_TABLES = {"spatial_ref_sys"}
+
+
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ == "table" and reflected and name in POSTGIS_EXTENSION_TABLES:
+        return False
+    return True
+
 def run_migrations_offline() -> None:
     context.configure(url=settings.database_url, target_metadata=target_metadata, literal_binds=True,
-                      dialect_opts={"paramstyle": "named"}, compare_type=True)
+                      dialect_opts={"paramstyle": "named"}, compare_type=True, include_object=include_object)
     with context.begin_transaction():
         context.run_migrations()
 
@@ -18,7 +27,7 @@ def run_migrations_online() -> None:
     section["sqlalchemy.url"] = settings.database_url
     connectable = engine_from_config(section, prefix="sqlalchemy.", poolclass=pool.NullPool)
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True, include_object=include_object)
         with context.begin_transaction():
             context.run_migrations()
 
