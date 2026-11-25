@@ -367,6 +367,10 @@ CREATE INDEX ix_geo_vehicle_positions_organization_id
         ON geo.vehicle_positions(organization_id)
 """)
     op.execute("""
+CREATE INDEX ix_geo_vehicle_positions_source_id
+        ON geo.vehicle_positions(source_id)
+""")
+    op.execute("""
 CREATE INDEX ix_geo_vehicle_positions_vehicle_recorded
         ON geo.vehicle_positions(vehicle_id, recorded_at DESC)
 """)
