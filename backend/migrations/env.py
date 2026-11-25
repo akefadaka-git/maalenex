@@ -9,10 +9,15 @@ target_metadata = Base.metadata
 
 # PostGIS owns this public reference table; it is not application metadata.
 POSTGIS_EXTENSION_TABLES = {"spatial_ref_sys"}
+LEGACY_MITP_TABLES = {
+    "tracking_devices",
+    "vehicle_device_assignments",
+    "vehicle_telemetry",
+}
 
 
 def include_object(object, name, type_, reflected, compare_to):
-    if type_ == "table" and reflected and name in POSTGIS_EXTENSION_TABLES:
+    if type_ == "table" and reflected and (\n        name in POSTGIS_EXTENSION_TABLES\n        or name in LEGACY_MITP_TABLES\n        or getattr(object, "schema", None) == "geo"\n    ):
         return False
     return True
 
