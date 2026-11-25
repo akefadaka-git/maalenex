@@ -83,7 +83,7 @@ def test_public_view_columns_exclude_tenant_and_operational_identifiers():
         engine.dispose()
 
 
-def test_internal_reader_has_no_a3_4_access_grants():
+def test_internal_reader_has_only_position_view_and_base_table_access():
     engine = create_engine(settings.database_url)
     try:
         with engine.connect() as connection:

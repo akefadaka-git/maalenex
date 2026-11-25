@@ -211,7 +211,6 @@ def downgrade() -> None:
     permissions = sa.table(
         "access_permissions", sa.column("id", uuid), sa.column("code", sa.String),
     )
-    roles = sa.table("access_roles", sa.column("id", uuid), sa.column("code", sa.String))
     links = sa.table(
         "access_role_permissions",
         sa.column("id", uuid), sa.column("role_id", uuid), sa.column("permission_id", uuid),
