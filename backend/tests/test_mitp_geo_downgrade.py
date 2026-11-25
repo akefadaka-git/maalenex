@@ -18,9 +18,22 @@ def test_a33_downgrade_preserves_legacy_source_rows() -> None:
         assert connection.scalar(text("SELECT count(*) FROM public.tracking_devices")) == 3
         assert connection.scalar(text("SELECT count(*) FROM public.vehicle_device_assignments")) == 3
         assert connection.scalar(text("SELECT count(*) FROM public.vehicle_telemetry")) == 3
-        assert connection.scalar(text("SELECT count(*) FROM geo.devices")) == 0
-        assert connection.scalar(text("SELECT count(*) FROM geo.device_vehicle_assignments")) == 0
-        assert connection.scalar(text("SELECT count(*) FROM geo.vehicle_positions")) == 0
+        # Preserve unrelated canonical rows; assert only A3.3 backfill copies are gone.
+        assert connection.scalar(text("""
+            SELECT count(*)
+            FROM geo.devices canonical
+            JOIN public.tracking_devices legacy ON legacy.id = canonical.id
+        """)) == 0
+        assert connection.scalar(text("""
+            SELECT count(*)
+            FROM geo.device_vehicle_assignments canonical
+            JOIN public.vehicle_device_assignments legacy ON legacy.id = canonical.id
+        """)) == 0
+        assert connection.scalar(text("""
+            SELECT count(*)
+            FROM geo.vehicle_positions canonical
+            JOIN public.vehicle_telemetry legacy ON legacy.id = canonical.id
+        """)) == 0
         quarantine_exists = connection.scalar(text("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.tables
