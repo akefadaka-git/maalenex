@@ -1,5 +1,5 @@
 from uuid import UUID, uuid4
-from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint, Uuid
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, JSON, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 class Location(Base):
@@ -8,6 +8,9 @@ class Location(Base):
     name: Mapped[str] = mapped_column(String(160))
     location_type: Mapped[str] = mapped_column(String(32))
     status: Mapped[str] = mapped_column(String(24), default="draft", index=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    coordinate_source: Mapped[str | None] = mapped_column(String(40), nullable=True)
 class Terminal(Base):
     __tablename__ = "terminals"
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
@@ -21,6 +24,8 @@ class Route(Base):
     origin_location_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("locations.id", ondelete="RESTRICT"))
     destination_location_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("locations.id", ondelete="RESTRICT"))
     status: Mapped[str] = mapped_column(String(24), default="draft", index=True)
+    geometry: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    geometry_source: Mapped[str | None] = mapped_column(String(80), nullable=True)
 class RouteStop(Base):
     __tablename__ = "route_stops"
     __table_args__ = (UniqueConstraint("route_id", "sequence_number", name="uq_route_stop_sequence"),)
