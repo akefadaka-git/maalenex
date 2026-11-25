@@ -97,8 +97,7 @@ SELECT
         WHEN m.organization_count = 0 THEN 'no_tenant_assignment_history'
         ELSE 'multiple_tenant_assignment_history'
     END,
-    to_jsonb(d)
-FROM public.tracking_devices d
+    (to_jsonb(d) - 'credential_ciphertext') || jsonb_build_object(\n        'credential_ciphertext_redacted', true\n    )\nFROM public.tracking_devices d
 JOIN _a33_device_tenant_map m ON m.device_id = d.id
 WHERE m.organization_count <> 1
 ON CONFLICT (source_table, source_id) DO NOTHING
