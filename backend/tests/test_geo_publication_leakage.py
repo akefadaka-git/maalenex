@@ -199,8 +199,7 @@ def test_public_reader_sees_only_verified_published_and_allowlisted_features():
                 "geo.locations", "geo.routes", "geo.publications",
                 "geo.devices", "geo.vehicle_positions", "geo_audit.events",
             ):
-                with connection.begin_nested():
-                    with pytest.raises(Exception):
-                        connection.execute(text(f"SELECT * FROM {relation} LIMIT 1"))
+                with pytest.raises(Exception), connection.begin_nested():
+                    connection.execute(text(f"SELECT * FROM {relation} LIMIT 1"))
     finally:
         engine.dispose()
