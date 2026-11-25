@@ -30,12 +30,24 @@ EXTENSION_OWNED_RELATIONS: set[tuple[str | None, str]] = set()
 
 def include_object(object, name, type_, reflected, compare_to):
     if type_ == "table" and reflected:
-        schema = getattr(object, "schema", None) or "public"
-        if (schema, name) in EXTENSION_OWNED_RELATIONS:
+        schema = getattr(object, "schema", None)
+        if (
+            (schema, name) in EXTENSION_OWNED_RELATIONS
+            or ("public", name) in EXTENSION_OWNED_RELATIONS
+        ):
             return False
-        if schema in MIGRATION_MANAGED_SCHEMAS:
+        effective_schema = schema or "public"
+        if effective_schema in MIGRATION_MANAGED_SCHEMAS:
             return False
-        if schema == "public" and name in LEGACY_MITP_TABLES:
+        if effective_schema == "public" and name in LEGACY_MITP_TABLES:
+            return False
+    if type_ == "index" and reflected:
+        table = object.table
+        schema = getattr(table, "schema", None)
+        if (
+            (schema, table.name) in EXTENSION_OWNED_RELATIONS
+            or ("public", table.name) in EXTENSION_OWNED_RELATIONS
+        ):
             return False
     return True
 
