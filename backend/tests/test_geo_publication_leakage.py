@@ -98,11 +98,17 @@ def test_catalog_manager_cannot_read_other_tenant_locations_routes_or_publicatio
             for table, key in (
                 ("geo.locations", "origin"),
                 ("geo.routes", "route"),
-                ("geo.publications", "source"),
             ):
                 visible = set(connection.scalars(text(f"SELECT id FROM {table}")))
                 assert fixtures[org_a][key] in visible
                 assert fixtures[org_b][key] not in visible
+            visible_publications = set(connection.scalars(text(
+                "SELECT entity_id FROM geo.publications"
+            )))
+            assert fixtures[org_a]["origin"] in visible_publications
+            assert fixtures[org_a]["route"] in visible_publications
+            assert fixtures[org_b]["origin"] not in visible_publications
+            assert fixtures[org_b]["route"] not in visible_publications
 
         with engine.begin() as connection:
             connection.execute(text("SET LOCAL ROLE maalenex_geo_catalog_manager"))
@@ -193,7 +199,8 @@ def test_public_reader_sees_only_verified_published_and_allowlisted_features():
                 "geo.locations", "geo.routes", "geo.publications",
                 "geo.devices", "geo.vehicle_positions", "geo_audit.events",
             ):
-                with pytest.raises(Exception):
-                    connection.execute(text(f"SELECT * FROM {relation} LIMIT 1"))
+                with connection.begin_nested():
+                    with pytest.raises(Exception):
+                        connection.execute(text(f"SELECT * FROM {relation} LIMIT 1"))
     finally:
         engine.dispose()
