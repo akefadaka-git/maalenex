@@ -79,20 +79,117 @@ USING (organization_id = geo.current_organization_id())
 WITH CHECK (organization_id = geo.current_organization_id())
 """)
 
+    # Restrictive relationship guards prevent cross-tenant foreign-key
+    # references even when a caller knows another tenant's UUID. PostgreSQL
+    # combines these with the permissive tenant-key policies using AND.
+    relationship_guards = {
+        "locations": """
+EXISTS (
+    SELECT 1 FROM geo.data_sources ds
+    WHERE ds.id = locations.source_id
+      AND ds.organization_id = geo.current_organization_id()
+)""",
+        "terminals": """
+EXISTS (
+    SELECT 1 FROM geo.data_sources ds
+    WHERE ds.id = terminals.source_id
+      AND ds.organization_id = geo.current_organization_id()
+)
+AND EXISTS (
+    SELECT 1 FROM geo.locations l
+    WHERE l.id = terminals.location_id
+      AND l.organization_id = geo.current_organization_id()
+)""",
+        "routes": """
+EXISTS (
+    SELECT 1 FROM geo.data_sources ds
+    WHERE ds.id = routes.source_id
+      AND ds.organization_id = geo.current_organization_id()
+)
+AND EXISTS (
+    SELECT 1 FROM geo.locations l
+    WHERE l.id = routes.origin_location_id
+      AND l.organization_id = geo.current_organization_id()
+)
+AND EXISTS (
+    SELECT 1 FROM geo.locations l
+    WHERE l.id = routes.destination_location_id
+      AND l.organization_id = geo.current_organization_id()
+)""",
+        "route_stops": """
+EXISTS (
+    SELECT 1 FROM geo.data_sources ds
+    WHERE ds.id = route_stops.source_id
+      AND ds.organization_id = geo.current_organization_id()
+)
+AND EXISTS (
+    SELECT 1 FROM geo.routes r
+    WHERE r.id = route_stops.route_id
+      AND r.organization_id = geo.current_organization_id()
+)
+AND EXISTS (
+    SELECT 1 FROM geo.locations l
+    WHERE l.id = route_stops.location_id
+      AND l.organization_id = geo.current_organization_id()
+)
+AND (
+    route_stops.terminal_id IS NULL
+    OR EXISTS (
+        SELECT 1 FROM geo.terminals t
+        WHERE t.id = route_stops.terminal_id
+          AND t.organization_id = geo.current_organization_id()
+    )
+)""",
+        "boundaries": """
+EXISTS (
+    SELECT 1 FROM geo.data_sources ds
+    WHERE ds.id = boundaries.source_id
+      AND ds.organization_id = geo.current_organization_id()
+)""",
+        "publications": """
+EXISTS (
+    SELECT 1 FROM geo.data_sources ds
+    WHERE ds.id = publications.source_id
+      AND ds.organization_id = geo.current_organization_id()
+)""",
+    }
+    for table, expression in relationship_guards.items():
+        policy = f"p_{table}_tenant_relationship_guard"
+        op.execute(f"""
+CREATE POLICY {policy} ON geo.{table}
+AS RESTRICTIVE
+USING ({expression})
+WITH CHECK ({expression})
+""")
+
     # Route versions inherit tenant ownership through their parent route.
     op.execute("ALTER TABLE geo.route_versions ENABLE ROW LEVEL SECURITY")
     op.execute("""
 CREATE POLICY p_route_versions_tenant_isolation ON geo.route_versions
-USING (EXISTS (
-    SELECT 1 FROM geo.routes r
-    WHERE r.id = route_versions.route_id
-      AND r.organization_id = geo.current_organization_id()
-))
-WITH CHECK (EXISTS (
-    SELECT 1 FROM geo.routes r
-    WHERE r.id = route_versions.route_id
-      AND r.organization_id = geo.current_organization_id()
-))
+USING (
+    EXISTS (
+        SELECT 1 FROM geo.routes r
+        WHERE r.id = route_versions.route_id
+          AND r.organization_id = geo.current_organization_id()
+    )
+    AND EXISTS (
+        SELECT 1 FROM geo.data_sources ds
+        WHERE ds.id = route_versions.source_id
+          AND ds.organization_id = geo.current_organization_id()
+    )
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM geo.routes r
+        WHERE r.id = route_versions.route_id
+          AND r.organization_id = geo.current_organization_id()
+    )
+    AND EXISTS (
+        SELECT 1 FROM geo.data_sources ds
+        WHERE ds.id = route_versions.source_id
+          AND ds.organization_id = geo.current_organization_id()
+    )
+)
 """)
 
     # Road records inherit ownership from their provenance source. No tenant
@@ -240,6 +337,10 @@ def downgrade() -> None:
     }
     for table, policy in policy_tables.items():
         op.execute(f"DROP POLICY IF EXISTS {policy} ON geo.{table}")
+    for table in ("locations", "terminals", "routes", "route_stops", "boundaries", "publications"):
+        op.execute(
+            f"DROP POLICY IF EXISTS p_{table}_tenant_relationship_guard ON geo.{table}"
+        )
     op.execute(
         "ALTER TABLE geo.legacy_tracking_quarantine DISABLE ROW LEVEL SECURITY"
     )
