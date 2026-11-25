@@ -1,6 +1,6 @@
 # MAALENEX-IA-A3.6 — MapLibre / Martin Integration
 
-**Disposition:** IMPLEMENTED — EXECUTION VERIFICATION PENDING  
+**Disposition:** VERIFIED-CLOSED — A3.6 CODE AND CI ACCEPTANCE; RUNTIME PROVISIONING DEFERRED  
 **Repository:** `akefadaka-git/maalenex`  
 **Branch:** `feat/a3-canonical-postgis-integration`  
 **Architecture baseline:** MAALENEX-IA-A1-SPEC-001 v1.0.0; A2 canonical PostGIS decision  
@@ -36,7 +36,7 @@ The public Martin service remains incapable of serving internal tracking. Its de
 - `backend/tests/test_geo_internal_positions_api.py`: staff authentication dependency, permission-before-query behavior, tenant filter, response privacy and no-store header.
 - Existing A3.5 PostGIS RLS integration tests cover missing/malformed tenant context and two-tenant isolation of `geo.vehicle_positions` and `geo_internal.vehicle_positions`.
 - Existing Martin contract test checks the explicit public-schema allowlist and MapLibre style source/layer contract.
-- Updated `.github/workflows/g1-backend-verification.yml` to run on integration-branch pushes, PRs and manual dispatch. It now runs frontend TypeScript/Vite build, backend tests, PostGIS migrations/RLS tests, Martin catalog and TileJSON smoke checks, and negative privilege checks for the Martin login.
+- Updated `.github/workflows/g1-backend-verification.yml` to run on integration-branch pushes and PRs. It runs frontend TypeScript/Vite build and UI tests, backend tests, PostGIS migrations/RLS tests, Martin catalog and TileJSON smoke checks, and negative privilege checks for the Martin login.
 - CI uses disposable PostgreSQL/PostGIS 3.5 and a throwaway reader credential; no production credentials are used.
 
 ## 4. Data, privacy and licensing boundary
@@ -54,16 +54,27 @@ OSM data is not imported by this package. Any later OSM-derived data must be loa
 - No internal tracking credentials, database secrets or production endpoints are committed.
 - No migration, production database change, Plesk deployment, merge or PR mutation is part of A3.6.
 
-## 6. Verification status
+## 6. Verification results
 
-Implementation and verification are distinct. The integration-branch push workflow has been configured to execute the checks below; until GitHub reports a completed successful run, they remain pending:
+**GitHub Actions run:** [G1 backend foundation verification #748](https://github.com/akefadaka-git/maalenex/actions/runs/45569701583)  
+**Verified commit:** `da93d345ab576bcb187ae9c2daa712a596875636`  
+**Branch:** `feat/a3-canonical-postgis-integration`
 
-- [ ] Backend Ruff and pytest suite, including internal API authorization tests.
-- [ ] Alembic migration, RLS and cross-tenant integration tests on disposable PostGIS.
-- [ ] Frontend dependency installation, TypeScript check and Vite production build.
-- [ ] Martin startup against the disposable canonical PostGIS database.
-- [ ] Martin catalog and all six public TileJSON endpoints.
-- [ ] Negative database privilege checks: Martin login cannot read `geo.vehicle_positions` or `geo.devices`.
-- [ ] Review workflow logs for failures and confirm no internal fields appear in public TileJSON/tile properties.
+A3.6 acceptance checks completed successfully:
 
-**Current status:** API, internal overlay, public MapLibre/Martin path and verification workflow are committed. A3.6 closure is withheld pending actual CI execution and review.
+- [x] Ruff check for the new internal API and authorization tests.
+- [x] Backend pytest suite, including the authenticated internal positions API tests.
+- [x] Canonical PostGIS migration and A3.3 backfill integration tests on disposable PostGIS.
+- [x] A3.4 public/internal view privilege tests.
+- [x] A3.5 tenant RLS and cross-tenant isolation tests.
+- [x] Frontend TypeScript/Vite production build.
+- [x] Internal MapLibre overlay UI tests: authenticated session path requests the selected organization; unauthenticated path does not request positions.
+- [x] Martin 2.0.0-beta.7 starts against the disposable canonical PostGIS database using the dedicated public-reader login.
+- [x] Martin catalog and all six configured public TileJSON endpoints respond.
+- [x] Negative privilege checks confirm the Martin login cannot read `geo.vehicle_positions` or `geo.devices`.
+
+**Important broader workflow qualification:** the overall backend job is marked failed after the A3.6 checks, at the separate `alembic check` metadata-parity step. That check reports reflected public/extension tables absent from the SQLAlchemy metadata, including TIGER tables and existing passenger-account metadata. This is not a failure of the A3.6 API, frontend, Martin or RLS acceptance checks, but remains an unresolved repository-wide migration-baseline issue. Do not describe the entire workflow as green.
+
+**Verification limits:** the internal frontend component test mocks the map renderer and API response; no live staff account or production application DB login was used. Martin TileJSON discovery was verified, but no populated production MVT tile payload was tested. The actual runtime application DB login is still unidentified, so its out-of-band membership in the A3.5 capability roles remains a deployment prerequisite.
+
+**Disposition:** A3.6 implementation and CI-level acceptance are VERIFIED-CLOSED. Runtime DB role provisioning, production infrastructure and live-user acceptance remain deferred; no live DB, credentials, merge or deployment were changed.
