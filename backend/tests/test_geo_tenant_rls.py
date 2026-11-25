@@ -235,21 +235,26 @@ def test_geo_audit_events_are_tenant_scoped_and_append_only():
                 )
             """), {"org": str(org_a)})
             events = connection.execute(text("""
-                SELECT organization_id, permission_code, action, outcome
+                SELECT id, organization_id, permission_code, action, outcome
                 FROM geo_audit.events
             """)).all()
             assert len(events) == 1
-            assert events[0][0] == org_a
-            assert events[0][1:] == (
+            event_id = events[0][0]
+            assert events[0][1] == org_a
+            assert events[0][2:] == (
                 "platform.tracking.read", "read", "authorized",
             )
-            with pytest.raises(Exception):
-                connection.execute(text("UPDATE geo_audit.events SET action = 'manage'"))
 
         with engine.begin() as connection:
             connection.execute(text("SET LOCAL ROLE maalenex_geo_internal_reader"))
             with pytest.raises(Exception):
                 connection.execute(text("SELECT * FROM geo_audit.events"))
+
+        with pytest.raises(DBAPIError):
+            with engine.begin() as connection:
+                connection.execute(text("""
+                    UPDATE geo_audit.events SET action = 'manage' WHERE id = :event_id
+                """), {"event_id": event_id})
     finally:
         engine.dispose()
 

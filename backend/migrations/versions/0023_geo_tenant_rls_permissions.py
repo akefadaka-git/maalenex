@@ -377,7 +377,8 @@ TO maalenex_geo_catalog_manager
 """)
     op.execute("""
 GRANT EXECUTE ON FUNCTION geo.current_organization_id()
-TO maalenex_geo_tenant_manager, maalenex_geo_catalog_manager
+TO maalenex_geo_tenant_manager, maalenex_geo_catalog_manager,
+   maalenex_geo_audit_reader
 """)
 
     op.execute("""
@@ -492,7 +493,7 @@ def downgrade() -> None:
     for table in policy_tables:
         op.execute(f"ALTER TABLE geo.{table} DISABLE ROW LEVEL SECURITY")
 
-    op.execute("REVOKE EXECUTE ON FUNCTION geo.current_organization_id() FROM maalenex_geo_internal_reader, maalenex_geo_tenant_manager, maalenex_geo_catalog_manager")
+    op.execute("REVOKE EXECUTE ON FUNCTION geo.current_organization_id() FROM maalenex_geo_internal_reader, maalenex_geo_tenant_manager, maalenex_geo_catalog_manager, maalenex_geo_audit_reader")
     op.execute("REVOKE ALL ON geo.vehicle_positions FROM maalenex_geo_internal_reader")
     op.execute("REVOKE ALL ON geo_internal.vehicle_positions FROM maalenex_geo_internal_reader")
     op.execute("REVOKE USAGE ON SCHEMA geo, geo_internal FROM maalenex_geo_internal_reader")
