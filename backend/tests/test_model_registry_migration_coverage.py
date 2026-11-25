@@ -1,5 +1,5 @@
-from app.db.base import Base
 from app.db import model_registry  # noqa: F401
+from app.db.base import Base
 
 
 def test_all_migration_backed_application_tables_are_registered():
