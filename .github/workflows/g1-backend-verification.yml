@@ -112,7 +112,7 @@ jobs:
              'test', 'a3.7-ci', true),
             ('a3700000-0000-4000-8000-000000000002', 'A3.7 CI', 'unverified tile fixture',
              'INTERNAL_TEST', 'Synthetic only', 'No external data', 4326, now(),
-             'unverified', NULL, 'test', 'a3.7-ci-private', false);
+             'unverified', NULL, 'pending', NULL, NULL, 'test', 'a3.7-ci-private', false);
           INSERT INTO geo.locations (
             id, name, location_type, status, geom, source_id, publication_eligible
           ) VALUES
