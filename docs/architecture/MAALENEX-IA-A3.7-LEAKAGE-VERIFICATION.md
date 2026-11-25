@@ -1,6 +1,6 @@
 # MAALENEX-IA-A3.7 — Cross-Tenant and Public Leakage Verification
 
-**Disposition:** IMPLEMENTED — CI VERIFICATION PENDING  
+**Disposition:** VERIFIED-CLOSED — A3.7 CI ACCEPTANCE; REPOSITORY-WIDE ALEMBIC PARITY UNRESOLVED  
 **Repository:** `akefadaka-git/maalenex`  
 **Branch:** `feat/a3-canonical-postgis-integration`  
 **Scope:** Disposable PostGIS and Martin verification only; no production database access or deployment.
@@ -40,12 +40,34 @@ After Martin starts with the dedicated least-privilege public-reader login, CI r
 
 ## 5. Acceptance criteria
 
-- [ ] New two-tenant catalog RLS tests pass under the catalog capability role.
-- [ ] Missing and malformed tenant context tests pass.
-- [ ] Public reader sees verified/published eligible feature only.
-- [ ] Public reader direct access to internal/base/audit relations is denied.
-- [ ] Actual Martin MVT tile contains approved feature and excludes unverified private marker.
-- [ ] Existing backend, frontend, migration, RLS and Martin acceptance checks remain passing.
-- [ ] Full workflow outcome and any unrelated Alembic metadata failure are separately recorded.
+- [x] New two-tenant catalog RLS tests pass under the catalog capability role.
+- [x] Missing and malformed tenant context tests pass.
+- [x] Public reader sees verified/published eligible feature only.
+- [x] Public reader direct access to internal/base/audit relations is denied.
+- [x] Actual Martin MVT tile contains approved feature and excludes unverified private marker.
+- [x] Existing backend, frontend, migration, RLS and Martin acceptance checks remain passing.
+- [x] Full workflow outcome and unrelated Alembic metadata failure are separately recorded.
 
-**Current status:** Code and CI workflow changes committed; awaiting the corresponding GitHub Actions run before A3.7 can be marked VERIFIED-CLOSED.
+## 6. CI evidence and final disposition
+
+**GitHub Actions run:** [G1 backend foundation verification #756](https://github.com/akefadaka-git/maalenex/actions/runs/45571126186)  
+**Verified commit:** `e75a8b07dba166ca6ad9b862cf8017106d96fb74`  
+**Branch:** `feat/a3-canonical-postgis-integration`
+
+The backend job completed with failure only at the separate repository-wide Alembic metadata-parity step. The following A3.7 and preceding package checks all completed successfully:
+
+- Ruff for the established A3.6 scope.
+- Full backend pytest suite.
+- Canonical PostGIS baseline, MITP backfill and migration integration tests.
+- A3.4 public/internal view privilege tests.
+- A3.5 tenant RLS and cross-tenant isolation tests.
+- **A3.7 two-tenant catalog RLS and missing/malformed context tests.**
+- **A3.7 public-reader publication-eligibility and direct privilege-denial tests.**
+- Disposable Martin startup, catalog and all six public TileJSON sources.
+- **Actual Martin MVT tile check: approved marker present; unverified private marker absent.**
+- Martin reader denied direct access to internal positions and device tables.
+- Frontend TypeScript/Vite build and internal map UI tests.
+
+The metadata-parity failure remains a separate repository-wide issue. The check reports unmodeled PostGIS TIGER/extension objects and existing passenger-account, ledger, notification, report and other application schema differences. The full backend workflow is therefore **not green**; the A3.7 acceptance steps themselves are green. No waiver or baseline suppression was introduced.
+
+**Final disposition:** A3.7 cross-tenant and public leakage verification is **VERIFIED-CLOSED at disposable CI acceptance level**. This does not establish production runtime provisioning or external reverse-proxy behavior. No production DB, merge, deployment or PR state was changed.
