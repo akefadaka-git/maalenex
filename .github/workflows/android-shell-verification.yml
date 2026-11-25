@@ -1,0 +1,313 @@
+name: MaaleNex Android shell verification
+
+on:
+  pull_request:
+    branches: [main, feat/a3-passenger-only-integration]
+    paths:
+      - "android/**"
+      - "frontend/**"
+      - ".github/scripts/android-emulator-smoke.sh"
+      - ".github/scripts/gradle-report-to-cyclonedx.py"
+      - ".github/scripts/verify-gradle-sbom.py"
+      - ".github/workflows/android-shell-verification.yml"
+      - ".github/workflows/osv-scanner.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-build-and-emulator:
+    name: Android assemble, lint and emulator launch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Prepare bounded smoke evidence directory
+        run: mkdir -p artifacts/android-smoke
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Build frontend for Android asset packaging
+        working-directory: frontend
+        run: npm run build
+
+      - name: Verify packaged WebView CSP contract
+        run: python3 .github/scripts/verify-android-web-csp.py frontend/dist/index.html
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK and emulator packages
+        shell: bash
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort | tail -n 1)"
+          test -n "$SDKMANAGER"
+          set +o pipefail
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          set -o pipefail
+          "$SDKMANAGER" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "build-tools;37.0.0" \
+            "platform-tools" \
+            "emulator" \
+            "system-images;android-35;google_apis;x86_64"
+
+      - name: Enable KVM access for the emulator runner
+        shell: bash
+        run: |
+          test -c /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          ls -l /dev/kvm
+
+      - name: Set up Gradle 9.9.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.9.1"
+          develocity-injection-enabled: false
+
+      - name: Bootstrap or verify Gradle SHA-256 dependency metadata
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -s gradle/verification-metadata.xml ]; then
+            gradle --no-daemon --write-verification-metadata sha256 :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+          else
+            gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+          fi
+
+      - name: Capture application runtime and non-runtime dependency configurations
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ../osv-input/runtime ../osv-input/test ../osv-input/lint ../osv-input/build
+          gradle --no-daemon :app:dependencies --configuration debugRuntimeClasspath --console=plain > ../osv-input/runtime/debugRuntimeClasspath.txt
+          for configuration in debugCompileClasspath debugUnitTestCompileClasspath debugUnitTestRuntimeClasspath debugAndroidTestCompileClasspath debugAndroidTestRuntimeClasspath lintClassPath; do
+            case "$configuration" in
+              debugUnitTest*) output_dir=test ;;
+              debugAndroidTest*) output_dir=test ;;
+              lintClassPath) output_dir=lint ;;
+              *) output_dir=build ;;
+            esac
+            if gradle --no-daemon :app:dependencies --configuration "$configuration" --console=plain > "../osv-input/$output_dir/$configuration.txt" 2>&1; then
+              echo "CAPTURED $configuration"
+            else
+              echo "UNAVAILABLE $configuration" | tee "../osv-input/$output_dir/$configuration.status"
+            fi
+          done
+          gradle --no-daemon buildEnvironment --console=plain > ../osv-input/build/root-buildEnvironment.txt
+          gradle --no-daemon :app:buildEnvironment --console=plain > ../osv-input/build/app-buildEnvironment.txt
+
+      - name: Prepare resolved SBOM and verification metadata inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s android/gradle/verification-metadata.xml
+          test -s frontend/package-lock.json
+          test -s osv-input/runtime/debugRuntimeClasspath.txt
+          mkdir -p osv-input/sbom metadata-input
+          cp frontend/package-lock.json osv-input/package-lock.json
+          cp android/gradle/verification-metadata.xml metadata-input/verification-metadata.xml
+          python3 .github/scripts/gradle-report-to-cyclonedx.py \
+            --input osv-input/build/root-buildEnvironment.txt \
+            --output osv-input/sbom/gradle-build-tool.cdx.json
+          python3 .github/scripts/gradle-report-to-cyclonedx.py \
+            --input osv-input/build/debugCompileClasspath.txt \
+            --output osv-input/sbom/android-compile.cdx.json
+          python3 .github/scripts/gradle-report-to-cyclonedx.py \
+            --input osv-input/runtime/debugRuntimeClasspath.txt \
+            --output osv-input/sbom/android-runtime.cdx.json
+          python3 .github/scripts/gradle-report-to-cyclonedx.py \
+            --input osv-input/test/debugUnitTestRuntimeClasspath.txt \
+            --input osv-input/test/debugAndroidTestRuntimeClasspath.txt \
+            --output osv-input/sbom/android-test.cdx.json
+          echo "lintClassPath is not exposed as a project configuration; lint tool dependencies are represented in the AGP build-tool graph." > osv-input/sbom/LINT-SCOPE.txt
+
+      - name: Validate categorized Gradle SBOMs and remediation pins
+        run: python3 .github/scripts/verify-gradle-sbom.py --root osv-input/sbom
+
+      - name: Upload resolved SBOM inputs for OSV
+        uses: actions/upload-artifact@v4
+        with:
+          name: maalenex-osv-inputs
+          path: osv-input/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Gradle verification metadata for branch integrity
+        uses: actions/upload-artifact@v4
+        with:
+          name: maalenex-gradle-verification-metadata
+          path: metadata-input/verification-metadata.xml
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Run trusted navigation policy unit tests, assemble APK and run Android lint
+        working-directory: android
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
+
+      - name: Summarize trusted navigation unit-test results
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import xml.etree.ElementTree as ET
+
+          reports = sorted(Path("android/app/build/test-results/testDebugUnitTest").glob("TEST-*.xml"))
+          if not reports:
+              raise SystemExit("FAIL: Android unit-test XML reports are missing")
+          totals = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
+          for report in reports:
+              root = ET.parse(report).getroot()
+              for key in totals:
+                  totals[key] += int(root.attrib.get(key, "0"))
+          if totals["tests"] < 1 or totals["failures"] or totals["errors"]:
+              raise SystemExit(f"FAIL: Android unit tests: {totals}")
+          line = (
+              f"PASS: Android unit tests — {totals['tests']} tests, "
+              f"{totals['failures']} failures, {totals['errors']} errors, "
+              f"{totals['skipped']} skipped"
+          )
+          print(line)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(f"## Android unit tests\n\n- {line}\n")
+          PY
+
+      - name: Upload trusted navigation unit-test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maalenex-trusted-navigation-unit-tests
+          path: |
+            android/app/build/test-results/testDebugUnitTest/
+            android/app/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Print Android lint diagnostics on failure
+        if: failure()
+        shell: bash
+        run: |
+          REPORT="android/app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt"
+          if [ -f "$REPORT" ]; then
+            cat "$REPORT"
+          else
+            echo "Lint text report was not generated at $REPORT"
+          fi
+
+      - name: Upload Android lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maalenex-android-lint-report
+          path: |
+            android/app/build/reports/lint-results-debug.html
+            android/app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: maalenex-moto-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Install and launch on Android 15 emulator
+        timeout-minutes: 20
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-linux-hw-accel: false
+          disable-animations: false
+          script: bash .github/scripts/android-emulator-smoke.sh
+
+      - name: Upload bounded WebView smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maalenex-android-webview-smoke-evidence
+          path: artifacts/android-smoke/
+          if-no-files-found: warn
+          retention-days: 14
+
+  osv-dependency-scan:
+    name: OSV scan resolved frontend and Android dependencies
+    needs: android-build-and-emulator
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.7.1
+    with:
+      download-artifact: maalenex-osv-inputs
+      scan-args: |-
+        --recursive
+        ./sbom
+        --lockfile=./package-lock.json
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+  commit-gradle-verification-metadata:
+    name: Commit generated Gradle verification metadata to A3 branch
+    needs: [android-build-and-emulator, osv-dependency-scan]
+    if: always() && needs.android-build-and-emulator.result == 'success' && github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Download resolved dependency metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: maalenex-gradle-verification-metadata
+          path: /tmp/maalenex-dependency-inputs
+      - name: Commit Gradle verification metadata only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s /tmp/maalenex-dependency-inputs/verification-metadata.xml
+          mkdir -p android/gradle
+          cp /tmp/maalenex-dependency-inputs/verification-metadata.xml android/gradle/verification-metadata.xml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add android/gradle/verification-metadata.xml
+          if git diff --cached --quiet; then
+            echo "Gradle verification metadata already matches the generated dependency graph."
+          else
+            git commit -m "build: add Gradle dependency verification metadata"
+            git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
+          fi

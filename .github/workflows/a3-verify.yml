@@ -7,6 +7,7 @@ on:
       - feat/a3-passenger-mvp
       - integration/passenger-g1-sync-candidate
       - feat/passenger-ux-resilience
+      - feat/a3-passenger-only-integration
       - ci/main-branch-verification
 
 permissions:
@@ -74,12 +75,36 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-      - name: Install frontend dependencies
-        run: npm install --no-audit --no-fund
+          node-version: "22"
+      - name: Install locked frontend dependencies
+        run: npm ci --no-audit --no-fund
       - name: Run frontend tests
         run: npm test
       - name: TypeScript typecheck
         run: npm run typecheck
       - name: Build frontend
         run: npm run build
+      - name: Run blocking npm dependency vulnerability audit
+        shell: bash
+        run: |
+          set +e
+          npm audit --json --audit-level=moderate > npm-audit.json
+          audit_status=$?
+          set -e
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync("npm-audit.json", "utf8"));
+          const v = report.metadata?.vulnerabilities ?? {};
+          const line = `npm audit: ${v.total ?? "unknown"} total; critical=${v.critical ?? "unknown"}, high=${v.high ?? "unknown"}, moderate=${v.moderate ?? "unknown"}, low=${v.low ?? "unknown"}`;
+          console.log(line);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Frontend dependency audit\n\n- ${line}\n`);
+          NODE
+          exit "$audit_status"
+      - name: Upload npm dependency audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maalenex-npm-audit-report
+          path: frontend/npm-audit.json
+          if-no-files-found: warn
+          retention-days: 14
