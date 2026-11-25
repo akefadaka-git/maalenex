@@ -6,11 +6,13 @@ from alembic.script import ScriptDirectory
 
 def migration_scripts() -> ScriptDirectory:
     config_path = Path(__file__).resolve().parents[1] / "alembic.ini"
-    return ScriptDirectory.from_config(Config(str(config_path)))
+    config = Config(str(config_path))
+    config.set_main_option("script_location", str(config_path.parent / "migrations"))
+    return ScriptDirectory.from_config(config)
 
 
 def test_consolidated_migration_history_has_one_head() -> None:
-    assert migration_scripts().get_heads() == ["0019_merge_passenger_mitp"]
+    assert migration_scripts().get_heads() == ["0020_canonical_postgis_schema"]
 
 
 def test_merge_revision_preserves_both_stream_heads() -> None:
@@ -20,3 +22,9 @@ def test_merge_revision_preserves_both_stream_heads() -> None:
         "0018_koybe_boarding_point",
         "0008_mitp_tracking",
     )
+
+
+def test_canonical_postgis_schema_follows_the_merge_revision() -> None:
+    spatial = migration_scripts().get_revision("0020_canonical_postgis_schema")
+    assert spatial is not None
+    assert spatial.down_revision == "0019_merge_passenger_mitp"
