@@ -73,5 +73,11 @@ jobs:
         run: python -m pytest -q tests/test_geo_schema.py
       - name: Check Alembic metadata parity
         run: python -m alembic check
+      - name: Downgrade A3.3 and verify legacy source preservation
+        run: python -m alembic downgrade 0020_canonical_postgis_schema
+      - name: Assert A3.3 rollback retained legacy MITP records
+        env:
+          RUN_MITP_BACKFILL_DOWNGRADE: "1"
+        run: python -m pytest -q tests/test_mitp_geo_downgrade.py
       - name: Test full migration downgrade and clean re-upgrade
         run: python -m alembic downgrade base && python -m alembic upgrade head
