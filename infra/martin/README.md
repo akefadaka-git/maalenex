@@ -1,6 +1,6 @@
 # MaaleNex Martin — public geography tiles
 
-Martin serves vector tiles directly from the canonical MaaleNex PostgreSQL/PostGIS database. It does not create a second map database and does not import or duplicate spatial records.
+Martin 2.0.0-beta.7 serves vector tiles directly from the canonical MaaleNex PostgreSQL/PostGIS database. It does not create a second map database and does not import or duplicate spatial records.
 
 ## Security contract
 
