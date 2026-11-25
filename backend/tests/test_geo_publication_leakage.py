@@ -2,10 +2,11 @@
 import os
 from uuid import uuid4
 
-from app.core.config import settings
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import DBAPIError
+
+from app.core.config import settings
 
 
 pytestmark = pytest.mark.skipif(
