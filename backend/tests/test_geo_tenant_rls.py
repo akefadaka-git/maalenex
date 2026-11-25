@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import DBAPIError
 
 from app.core.config import settings
 
@@ -80,6 +81,14 @@ def test_internal_reader_is_fail_closed_and_tenant_scoped():
             assert connection.execute(text("""
                 SELECT count(*) FROM geo.vehicle_positions
             """)).scalar_one() == 0
+            connection.execute(text("""
+                SELECT pg_catalog.set_config(
+                    'app.current_organization_id', 'not-a-uuid', true
+                )
+            """))
+            assert connection.execute(text("""
+                SELECT count(*) FROM geo_internal.vehicle_positions
+            """)).scalar_one() == 0
 
         with engine.begin() as connection:
             connection.execute(text("SET LOCAL ROLE maalenex_geo_internal_reader"))
@@ -112,5 +121,72 @@ def test_internal_reader_cannot_read_sensitive_device_or_quarantine_tables():
                 connection.execute(text("SET LOCAL ROLE maalenex_geo_internal_reader"))
                 with pytest.raises(Exception):
                     connection.execute(text(f"SELECT * FROM {relation} LIMIT 1"))
+    finally:
+        engine.dispose()
+
+def test_tenant_manager_cannot_read_or_write_another_organizations_devices():
+    engine = create_engine(settings.database_url)
+    org_a, org_b = uuid4(), uuid4()
+    fixtures = []
+    try:
+        with engine.begin() as connection:
+            for org in (org_a, org_b):
+                values = (org, uuid4(), uuid4(), uuid4(), uuid4())
+                _insert_tenant_fixture(connection, *values)
+                fixtures.append(values)
+
+        with engine.begin() as connection:
+            connection.execute(text("SET LOCAL ROLE maalenex_geo_tenant_manager"))
+            connection.execute(text("""
+                SELECT pg_catalog.set_config(
+                    'app.current_organization_id', :org, true
+                )
+            """), {"org": str(org_a)})
+            visible = set(connection.scalars(text("SELECT id FROM geo.devices")))
+            assert visible == {fixtures[0][2]}
+            assert fixtures[1][2] not in visible
+
+        with pytest.raises(DBAPIError):
+            with engine.begin() as connection:
+                connection.execute(text("SET LOCAL ROLE maalenex_geo_tenant_manager"))
+                connection.execute(text("""
+                    SELECT pg_catalog.set_config(
+                        'app.current_organization_id', :org, true
+                    )
+                """), {"org": str(org_a)})
+                connection.execute(text("""
+                    INSERT INTO geo.devices (
+                        id, organization_id, device_identifier, credential_ciphertext,
+                        credential_version, status, last_sequence
+                    ) VALUES (
+                        :device, :org_b, :identifier, 'synthetic-ciphertext',
+                        1, 'active', 0
+                    )
+                """), {
+                    "device": uuid4(), "org_b": org_b, "identifier": str(uuid4()),
+                })
+    finally:
+        engine.dispose()
+
+
+def test_rls_is_enabled_on_all_canonical_geo_tables():
+    engine = create_engine(settings.database_url)
+    expected = {
+        "data_sources", "locations", "terminals", "routes", "route_stops",
+        "route_versions", "boundaries", "roads", "devices",
+        "device_vehicle_assignments", "vehicle_positions", "publications",
+        "legacy_tracking_quarantine",
+    }
+    try:
+        with engine.connect() as connection:
+            enabled = set(connection.scalars(text("""
+                SELECT c.relname
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'geo'
+                  AND c.relkind = 'r'
+                  AND c.relrowsecurity
+            """)))
+        assert expected <= enabled
     finally:
         engine.dispose()
