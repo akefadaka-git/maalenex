@@ -67,7 +67,7 @@ The backend PostgreSQL workflow now:
 3. Applies the `0021` backfill.
 4. Asserts valid rows migrate with preserved IDs, tenant ownership, EPSG:4326 coordinates and provenance.
 5. Asserts unassigned, cross-tenant and invalid telemetry rows are quarantined.
-6. Runs canonical schema checks, Alembic metadata checks, and full downgrade/re-upgrade.
+6. Downgrades only A3.3 and asserts that canonical copies are removed while all legacy source rows remain; then runs canonical schema checks, Alembic metadata checks, and full downgrade/re-upgrade.
 
 The workflow has been updated in source, but no successful workflow run or local database execution has yet been observed. Therefore A3.3 is **IMPLEMENTED — VERIFICATION PENDING**, not verified-closed.
 
