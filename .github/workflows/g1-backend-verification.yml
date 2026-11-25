@@ -80,6 +80,19 @@ jobs:
           tests/test_model_registry_migration_coverage.py
       - name: Apply schema through canonical PostGIS baseline
         run: python -m alembic upgrade 0020_canonical_postgis_schema
+      - name: Diagnose canonical base schema and Alembic connection
+        run: |
+          python -m alembic current
+          psql "postgresql://postgres:postgres@localhost:5432/maalenex_dev" -X -v ON_ERROR_STOP=1 -c "
+            SELECT current_database() AS database_name,
+                   current_user AS database_user,
+                   current_schema() AS current_schema,
+                   current_setting('search_path') AS search_path,
+                   to_regclass('public.organizations') AS organizations,
+                   to_regclass('public.vehicles') AS vehicles,
+                   to_regclass('public.tracking_devices') AS tracking_devices;
+          "
+          python -c "from app.core.config import settings; from sqlalchemy.engine import make_url; u=make_url(settings.database_url); print({'driver':u.drivername,'host':u.host,'port':u.port,'database':u.database,'username':u.username})"
       - name: Seed synthetic legacy MITP backfill fixtures
         run: python scripts/seed_mitp_backfill_fixture.py
       - name: Apply MITP canonical backfill migration
