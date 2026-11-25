@@ -78,10 +78,14 @@ def upgrade() -> None:
         )
     """)
     op.execute("""
-        CREATE INDEX ix_geo_locations_organization_id ON geo.locations(organization_id);
-        CREATE INDEX ix_geo_locations_status ON geo.locations(status);
-        CREATE INDEX ix_geo_locations_geom_gix ON geo.locations USING GIST(geom);
-    """)
+CREATE INDEX ix_geo_locations_organization_id ON geo.locations(organization_id)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_locations_status ON geo.locations(status)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_locations_geom_gix ON geo.locations USING GIST(geom)
+""")
 
     op.execute("""
         CREATE TABLE geo.terminals (
@@ -101,11 +105,17 @@ def upgrade() -> None:
         )
     """)
     op.execute("""
-        CREATE INDEX ix_geo_terminals_organization_id ON geo.terminals(organization_id);
-        CREATE INDEX ix_geo_terminals_location_id ON geo.terminals(location_id);
-        CREATE INDEX ix_geo_terminals_status ON geo.terminals(status);
-        CREATE INDEX ix_geo_terminals_geom_gix ON geo.terminals USING GIST(geom);
-    """)
+CREATE INDEX ix_geo_terminals_organization_id ON geo.terminals(organization_id)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_terminals_location_id ON geo.terminals(location_id)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_terminals_status ON geo.terminals(status)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_terminals_geom_gix ON geo.terminals USING GIST(geom)
+""")
 
     op.execute("""
         CREATE TABLE geo.routes (
@@ -129,10 +139,14 @@ def upgrade() -> None:
         )
     """)
     op.execute("""
-        CREATE INDEX ix_geo_routes_organization_id ON geo.routes(organization_id);
-        CREATE INDEX ix_geo_routes_status ON geo.routes(status);
-        CREATE INDEX ix_geo_routes_geom_gix ON geo.routes USING GIST(geom);
-    """)
+CREATE INDEX ix_geo_routes_organization_id ON geo.routes(organization_id)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_routes_status ON geo.routes(status)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_routes_geom_gix ON geo.routes USING GIST(geom)
+""")
 
     op.execute("""
         CREATE TABLE geo.route_stops (
@@ -155,10 +169,14 @@ def upgrade() -> None:
         )
     """)
     op.execute("""
-        CREATE INDEX ix_geo_route_stops_organization_id ON geo.route_stops(organization_id);
-        CREATE INDEX ix_geo_route_stops_route_id ON geo.route_stops(route_id);
-        CREATE INDEX ix_geo_route_stops_geom_gix ON geo.route_stops USING GIST(geom);
-    """)
+CREATE INDEX ix_geo_route_stops_organization_id ON geo.route_stops(organization_id)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_route_stops_route_id ON geo.route_stops(route_id)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_route_stops_geom_gix ON geo.route_stops USING GIST(geom)
+""")
 
     op.execute("""
         CREATE TABLE geo.route_versions (
@@ -203,10 +221,14 @@ def upgrade() -> None:
         )
     """)
     op.execute("""
-        CREATE INDEX ix_geo_boundaries_organization_id ON geo.boundaries(organization_id);
-        CREATE INDEX ix_geo_boundaries_type ON geo.boundaries(boundary_type);
-        CREATE INDEX ix_geo_boundaries_geom_gix ON geo.boundaries USING GIST(geom);
-    """)
+CREATE INDEX ix_geo_boundaries_organization_id ON geo.boundaries(organization_id)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_boundaries_type ON geo.boundaries(boundary_type)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_boundaries_geom_gix ON geo.boundaries USING GIST(geom)
+""")
 
     op.execute("""
         CREATE TABLE geo.roads (
@@ -224,10 +246,14 @@ def upgrade() -> None:
         )
     """)
     op.execute("""
-        CREATE INDEX ix_geo_roads_source_id ON geo.roads(source_id);
-        CREATE INDEX ix_geo_roads_class ON geo.roads(road_class);
-        CREATE INDEX ix_geo_roads_geom_gix ON geo.roads USING GIST(geom);
-    """)
+CREATE INDEX ix_geo_roads_source_id ON geo.roads(source_id)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_roads_class ON geo.roads(road_class)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_roads_geom_gix ON geo.roads USING GIST(geom)
+""")
 
     # A composite unique key enables database-enforced tenant matching for
     # devices, assignments and position records referencing an existing vehicle.
@@ -257,9 +283,11 @@ def upgrade() -> None:
         )
     """)
     op.execute("""
-        CREATE INDEX ix_geo_devices_organization_id ON geo.devices(organization_id);
-        CREATE INDEX ix_geo_devices_status ON geo.devices(status);
-    """)
+CREATE INDEX ix_geo_devices_organization_id ON geo.devices(organization_id)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_devices_status ON geo.devices(status)
+""")
 
     op.execute("""
         CREATE TABLE geo.device_vehicle_assignments (
@@ -283,17 +311,25 @@ def upgrade() -> None:
         )
     """)
     op.execute("""
-        CREATE INDEX ix_geo_device_assignments_organization_id
-        ON geo.device_vehicle_assignments(organization_id);
-        CREATE INDEX ix_geo_device_assignments_device_id
-        ON geo.device_vehicle_assignments(device_id);
-        CREATE INDEX ix_geo_device_assignments_vehicle_id
-        ON geo.device_vehicle_assignments(vehicle_id);
-        CREATE UNIQUE INDEX uq_geo_active_device_assignment_device
-        ON geo.device_vehicle_assignments(device_id) WHERE unassigned_at IS NULL;
-        CREATE UNIQUE INDEX uq_geo_active_device_assignment_vehicle
-        ON geo.device_vehicle_assignments(vehicle_id) WHERE unassigned_at IS NULL;
-    """)
+CREATE INDEX ix_geo_device_assignments_organization_id
+        ON geo.device_vehicle_assignments(organization_id)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_device_assignments_device_id
+        ON geo.device_vehicle_assignments(device_id)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_device_assignments_vehicle_id
+        ON geo.device_vehicle_assignments(vehicle_id)
+""")
+    op.execute("""
+CREATE UNIQUE INDEX uq_geo_active_device_assignment_device
+        ON geo.device_vehicle_assignments(device_id) WHERE unassigned_at IS NULL
+""")
+    op.execute("""
+CREATE UNIQUE INDEX uq_geo_active_device_assignment_vehicle
+        ON geo.device_vehicle_assignments(vehicle_id) WHERE unassigned_at IS NULL
+""")
 
     op.execute("""
         CREATE TABLE geo.vehicle_positions (
@@ -326,15 +362,21 @@ def upgrade() -> None:
         )
     """)
     op.execute("""
-        CREATE INDEX ix_geo_vehicle_positions_organization_id
-        ON geo.vehicle_positions(organization_id);
-        CREATE INDEX ix_geo_vehicle_positions_vehicle_recorded
-        ON geo.vehicle_positions(vehicle_id, recorded_at DESC);
-        CREATE INDEX ix_geo_vehicle_positions_device_recorded
-        ON geo.vehicle_positions(device_id, recorded_at DESC);
-        CREATE INDEX ix_geo_vehicle_positions_geom_gix
-        ON geo.vehicle_positions USING GIST(geom);
-    """)
+CREATE INDEX ix_geo_vehicle_positions_organization_id
+        ON geo.vehicle_positions(organization_id)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_vehicle_positions_vehicle_recorded
+        ON geo.vehicle_positions(vehicle_id, recorded_at DESC)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_vehicle_positions_device_recorded
+        ON geo.vehicle_positions(device_id, recorded_at DESC)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_vehicle_positions_geom_gix
+        ON geo.vehicle_positions USING GIST(geom)
+""")
 
     op.execute("""
         CREATE TABLE geo.publications (
@@ -363,13 +405,17 @@ def upgrade() -> None:
         )
     """)
     op.execute("""
-        CREATE INDEX ix_geo_publications_organization_id
-        ON geo.publications(organization_id);
-        CREATE INDEX ix_geo_publications_status_time
-        ON geo.publications(status, published_at DESC);
-        CREATE INDEX ix_geo_publications_entity
-        ON geo.publications(entity_type, entity_id);
-    """)
+CREATE INDEX ix_geo_publications_organization_id
+        ON geo.publications(organization_id)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_publications_status_time
+        ON geo.publications(status, published_at DESC)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_publications_entity
+        ON geo.publications(entity_type, entity_id)
+""")
 
 
 def downgrade() -> None:
