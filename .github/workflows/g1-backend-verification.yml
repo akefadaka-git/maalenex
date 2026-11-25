@@ -88,6 +88,41 @@ jobs:
         env:
           RUN_GEO_RLS_INTEGRATION: "1"
         run: python -m pytest -q tests/test_geo_tenant_rls.py
+      - name: Verify A3.7 tenant and public publication leakage boundaries
+        env:
+          RUN_GEO_LEAKAGE_INTEGRATION: "1"
+        run: python -m pytest -q tests/test_geo_publication_leakage.py
+      - name: Seed disposable approved and unverified public tile fixtures
+        run: |
+          psql "postgresql://postgres:postgres@localhost:5432/maalenex_dev" -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO geo.data_sources (
+            id, provider, source_name, license_identifier, license_name,
+            attribution_text, source_srid, collected_at, verification_status,
+            verified_at, responsible_actor_type, responsible_actor_id,
+            publication_eligible
+          ) VALUES
+            ('a3700000-0000-4000-8000-000000000001', 'A3.7 CI', 'approved tile fixture',
+             'INTERNAL_TEST', 'Synthetic only', 'No external data', 4326, now(),
+             'verified', now(), 'test', 'a3.7-ci', true),
+            ('a3700000-0000-4000-8000-000000000002', 'A3.7 CI', 'unverified tile fixture',
+             'INTERNAL_TEST', 'Synthetic only', 'No external data', 4326, now(),
+             'unverified', NULL, 'test', 'a3.7-ci-private', false);
+          INSERT INTO geo.locations (
+            id, name, location_type, status, geom, source_id, publication_eligible
+          ) VALUES
+            ('a3700000-0000-4000-8000-000000000011', 'A37_APPROVED_TILE_FEATURE',
+             'boarding_point', 'published', ST_SetSRID(ST_MakePoint(0, 0), 4326),
+             'a3700000-0000-4000-8000-000000000001', true),
+            ('a3700000-0000-4000-8000-000000000012', 'A37_PRIVATE_MUST_NOT_LEAK',
+             'private_business', 'published', ST_SetSRID(ST_MakePoint(0, 0), 4326),
+             'a3700000-0000-4000-8000-000000000002', true);
+          INSERT INTO geo.publications (entity_type, entity_id, source_id, status)
+          VALUES
+            ('location', 'a3700000-0000-4000-8000-000000000011',
+             'a3700000-0000-4000-8000-000000000001', 'published'),
+            ('location', 'a3700000-0000-4000-8000-000000000012',
+             'a3700000-0000-4000-8000-000000000002', 'published');
+          SQL
       - name: Provision disposable least-privilege Martin reader
         run: |
           psql "postgresql://postgres:postgres@localhost:5432/maalenex_dev" -v ON_ERROR_STOP=1 <<'SQL'
