@@ -9,7 +9,6 @@ from sqlalchemy import (
     Integer,
     JSON,
     String,
-    Text,
     Uuid,
     UniqueConstraint,
     func,
