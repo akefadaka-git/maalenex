@@ -57,8 +57,14 @@ jobs:
         run: python -m ruff check app tests migrations
       - name: Backend tests
         run: python -m pytest -q
-      - name: Apply baseline migration to empty database
+      - name: Apply schema through canonical PostGIS baseline
+        run: python -m alembic upgrade 0020_canonical_postgis_schema
+      - name: Seed synthetic legacy MITP backfill fixtures
+        run: python scripts/seed_mitp_backfill_fixture.py
+      - name: Apply MITP canonical backfill migration
         run: python -m alembic upgrade head
+      - name: Verify tenant-safe MITP backfill and quarantine
+        run: python -m pytest -q tests/test_mitp_geo_backfill.py
       - name: Verify canonical PostGIS schema and tenant-bound tracking keys
         env:
           RUN_GEO_SCHEMA_INTEGRATION: "1"
