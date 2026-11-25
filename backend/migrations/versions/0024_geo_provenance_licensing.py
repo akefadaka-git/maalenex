@@ -19,7 +19,7 @@ def upgrade() -> None:
 ALTER TABLE geo.data_sources
     ADD COLUMN license_review_status varchar(24) NOT NULL DEFAULT 'pending',
     ADD COLUMN license_reviewed_at timestamptz,
-    ADD COLUMN license_reviewed_by uuid REFERENCES public.staff_users(id) ON DELETE RESTRICT,
+    ADD COLUMN license_reviewed_by varchar(128),
     ADD COLUMN source_method varchar(48),
     ADD COLUMN evidence_reference text,
     ADD COLUMN verification_notes text
@@ -35,7 +35,7 @@ ALTER TABLE geo.data_sources
     CHECK (
         (license_review_status = 'approved'
          AND license_reviewed_at IS NOT NULL
-         AND license_reviewed_by IS NOT NULL)
+         AND NULLIF(pg_catalog.btrim(license_reviewed_by), '') IS NOT NULL)
         OR license_review_status <> 'approved'
     )
 """)
@@ -62,7 +62,6 @@ BEGIN
     IF NEW.publication_eligible AND (
         NEW.verification_status <> 'verified'
         OR NEW.verified_at IS NULL
-        OR NEW.verified_by IS NULL
         OR NEW.license_review_status <> 'approved'
         OR NEW.license_reviewed_at IS NULL
         OR NEW.license_reviewed_by IS NULL
@@ -149,10 +148,6 @@ FOR EACH ROW EXECUTE FUNCTION geo.reject_source_evidence_mutation()
 """)
     op.execute("""
 GRANT SELECT, INSERT ON geo.source_evidence TO maalenex_geo_catalog_manager
-""")
-    op.execute("""
-GRANT USAGE, SELECT ON SEQUENCE geo.source_evidence_id_seq
-TO maalenex_geo_catalog_manager
 """)
 
 
