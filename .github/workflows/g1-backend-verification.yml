@@ -155,3 +155,6 @@ jobs:
       - name: TypeScript and Vite production build
         working-directory: frontend
         run: npm run build
+      - name: Internal map UI integration tests
+        working-directory: frontend
+        run: npm test
