@@ -4,9 +4,8 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import DBAPIError
-
 from app.core.config import settings
+from sqlalchemy.exc import DBAPIError
 
 
 pytestmark = pytest.mark.skipif(
