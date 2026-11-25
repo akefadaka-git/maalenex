@@ -41,3 +41,15 @@ def test_booking_owner_foreign_key_preserves_nullable_ownership():
     foreign_key = next(iter(column.foreign_keys))
     assert foreign_key.target_fullname == "passenger_accounts.id"
     assert foreign_key.ondelete == "SET NULL"
+
+
+
+def test_migration_backed_application_indexes_are_registered():
+    booking_indexes = {
+        index.name for index in Base.metadata.tables["bookings"].indexes
+    }
+    ledger_indexes = {
+        index.name for index in Base.metadata.tables["ledger_accounts"].indexes
+    }
+    assert "ix_bookings_status_expires_at" in booking_indexes
+    assert "uq_passenger_wallet_owner_currency" in ledger_indexes
