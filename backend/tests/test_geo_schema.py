@@ -27,6 +27,7 @@ def test_postgis_extension_and_canonical_geo_tables_exist() -> None:
         "device_vehicle_assignments",
         "vehicle_positions",
         "publications",
+        "legacy_tracking_quarantine",
     }
     with engine.connect() as connection:
         installed = connection.scalar(
