@@ -476,22 +476,23 @@ def downgrade() -> None:
         op.execute(
             f"DROP POLICY IF EXISTS p_{table}_tenant_relationship_guard ON geo.{table}"
         )
-    op.execute(
-        "ALTER TABLE geo.legacy_tracking_quarantine DISABLE ROW LEVEL SECURITY"
-    )
     op.execute("DROP POLICY IF EXISTS p_geo_audit_events_tenant_isolation ON geo_audit.events")
-    op.execute("ALTER TABLE geo_audit.events DISABLE ROW LEVEL SECURITY")
+
+    # Revoke capabilities while their objects still exist.
+    op.execute("REVOKE EXECUTE ON FUNCTION geo_audit.record_access_event(uuid, text, text) FROM maalenex_geo_internal_reader, maalenex_geo_tenant_manager, maalenex_geo_catalog_manager, maalenex_geo_audit_reader")
+    op.execute("REVOKE ALL ON geo_audit.events FROM maalenex_geo_audit_reader")
+    op.execute("REVOKE USAGE ON SCHEMA geo_audit FROM maalenex_geo_internal_reader, maalenex_geo_tenant_manager, maalenex_geo_catalog_manager, maalenex_geo_audit_reader")
     op.execute("DROP TRIGGER IF EXISTS geo_audit_events_append_only ON geo_audit.events")
     op.execute("DROP FUNCTION IF EXISTS geo_audit.record_access_event(uuid, text, text)")
     op.execute("DROP FUNCTION IF EXISTS geo_audit.reject_event_mutation()")
     op.execute("DROP TABLE IF EXISTS geo_audit.events")
     op.execute("DROP SCHEMA IF EXISTS geo_audit")
+
+    op.execute("ALTER TABLE geo.legacy_tracking_quarantine DISABLE ROW LEVEL SECURITY")
     for table in policy_tables:
         op.execute(f"ALTER TABLE geo.{table} DISABLE ROW LEVEL SECURITY")
+
     op.execute("REVOKE EXECUTE ON FUNCTION geo.current_organization_id() FROM maalenex_geo_internal_reader, maalenex_geo_tenant_manager, maalenex_geo_catalog_manager")
-    op.execute("REVOKE EXECUTE ON FUNCTION geo_audit.record_access_event(uuid, text, text) FROM maalenex_geo_internal_reader, maalenex_geo_tenant_manager, maalenex_geo_catalog_manager, maalenex_geo_audit_reader")
-    op.execute("REVOKE ALL ON geo_audit.events FROM maalenex_geo_audit_reader")
-    op.execute("REVOKE USAGE ON SCHEMA geo_audit FROM maalenex_geo_internal_reader, maalenex_geo_tenant_manager, maalenex_geo_catalog_manager, maalenex_geo_audit_reader")
     op.execute("REVOKE ALL ON geo.vehicle_positions FROM maalenex_geo_internal_reader")
     op.execute("REVOKE ALL ON geo_internal.vehicle_positions FROM maalenex_geo_internal_reader")
     op.execute("REVOKE USAGE ON SCHEMA geo, geo_internal FROM maalenex_geo_internal_reader")
