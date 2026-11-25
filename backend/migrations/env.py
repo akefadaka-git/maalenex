@@ -17,7 +17,11 @@ LEGACY_MITP_TABLES = {
 
 
 def include_object(object, name, type_, reflected, compare_to):
-    if type_ == "table" and reflected and (\n        name in POSTGIS_EXTENSION_TABLES\n        or name in LEGACY_MITP_TABLES\n        or getattr(object, "schema", None) == "geo"\n    ):
+    if type_ == "table" and reflected and (
+        name in POSTGIS_EXTENSION_TABLES
+        or name in LEGACY_MITP_TABLES
+        or getattr(object, "schema", None) == "geo"
+    ):
         return False
     return True
 
