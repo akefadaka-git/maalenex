@@ -1,44 +1,99 @@
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
+
 from app.core.config import settings
 from app.db.base import Base
 from app.db import model_registry  # noqa: F401
+
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 target_metadata = Base.metadata
 
-# PostGIS owns this public reference table; it is not application metadata.
-POSTGIS_EXTENSION_TABLES = {"spatial_ref_sys"}
+# These are legacy MITP source tables. Migration 0021 reads/backfills them into
+# the canonical geo schema; they remain preserved as historical source records.
 LEGACY_MITP_TABLES = {
     "tracking_devices",
     "vehicle_device_assignments",
     "vehicle_telemetry",
 }
 
+# The canonical geo schema is intentionally SQL-first: its PostGIS geometry,
+# RLS, views, triggers, grants and publication contracts are managed by
+# migrations 0020-0024, not by SQLAlchemy ORM metadata.
+MIGRATION_MANAGED_SCHEMAS = {"geo"}
+
+# Populated from pg_depend at runtime. This is extension ownership, not a
+# name-based allowlist: only relations PostgreSQL records as members of an
+# installed extension are excluded from application metadata parity.
+EXTENSION_OWNED_RELATIONS: set[tuple[str, str]] = set()
+
 
 def include_object(object, name, type_, reflected, compare_to):
-    if type_ == "table" and reflected and (
-        name in POSTGIS_EXTENSION_TABLES
-        or name in LEGACY_MITP_TABLES
-        or getattr(object, "schema", None) == "geo"
-    ):
-        return False
+    if type_ == "table" and reflected:
+        schema = getattr(object, "schema", None) or "public"
+        if (schema, name) in EXTENSION_OWNED_RELATIONS:
+            return False
+        if schema in MIGRATION_MANAGED_SCHEMAS:
+            return False
+        if schema == "public" and name in LEGACY_MITP_TABLES:
+            return False
     return True
 
+
 def run_migrations_offline() -> None:
-    context.configure(url=settings.database_url, target_metadata=target_metadata, literal_binds=True,
-                      dialect_opts={"paramstyle": "named"}, compare_type=True, include_object=include_object)
+    context.configure(
+        url=settings.database_url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+        compare_type=True,
+        include_object=include_object,
+    )
     with context.begin_transaction():
         context.run_migrations()
+
 
 def run_migrations_online() -> None:
     section = config.get_section(config.config_ini_section) or {}
     section["sqlalchemy.url"] = settings.database_url
-    connectable = engine_from_config(section, prefix="sqlalchemy.", poolclass=pool.NullPool)
+    connectable = engine_from_config(
+        section,
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True, include_object=include_object)
+        extension_relations = connection.execute(
+            text(
+                """
+                SELECT namespace.nspname, relation.relname
+                FROM pg_depend AS dependency
+                JOIN pg_extension AS extension
+                  ON extension.oid = dependency.refobjid
+                JOIN pg_class AS relation
+                  ON relation.oid = dependency.objid
+                JOIN pg_namespace AS namespace
+                  ON namespace.oid = relation.relnamespace
+                WHERE dependency.classid = 'pg_class'::regclass
+                  AND dependency.refclassid = 'pg_extension'::regclass
+                  AND dependency.deptype = 'e'
+                  AND relation.relkind IN ('r', 'p')
+                """
+            )
+        ).all()
+        EXTENSION_OWNED_RELATIONS.clear()
+        EXTENSION_OWNED_RELATIONS.update(
+            (schema_name, relation_name)
+            for schema_name, relation_name in extension_relations
+        )
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            include_object=include_object,
+        )
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()
