@@ -22,11 +22,11 @@ router = APIRouter(prefix="/geo/internal", tags=["internal-geography"])
 def read_internal_vehicle_positions(
     response: Response,
     organization_id: Annotated[UUID, Query(description="Organization whose positions the caller is authorized to read")],
+    context: Annotated[StaffContext, Depends(current_staff_context)],
+    db: Annotated[Session, Depends(get_db)],
     vehicle_id: Annotated[UUID | None, Query(description="Optional vehicle filter within the selected organization")] = None,
     max_age_minutes: Annotated[int, Query(ge=1, le=1440)] = 30,
     limit: Annotated[int, Query(ge=1, le=500)] = 200,
-    context: Annotated[StaffContext, Depends(current_staff_context)] = None,
-    db: Annotated[Session, Depends(get_db)] = None,
 ) -> dict:
     """Return only the latest recent position per vehicle in one authorized tenant."""
     try:
