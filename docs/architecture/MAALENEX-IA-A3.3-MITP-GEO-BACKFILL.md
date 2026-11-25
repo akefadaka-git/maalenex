@@ -28,7 +28,7 @@ Migration `0021_mitp_tracking_to_geo` copies legacy operational tracking rows in
 | `vehicle_device_assignments` | `geo.device_vehicle_assignments` |
 | `vehicle_telemetry` | `geo.vehicle_positions` |
 
-The original UUIDs, credential ciphertext, credential version, device status, sequence counters, assignment timestamps, telemetry timestamps, measurements and synthetic flags are preserved. Latitude/longitude become EPSG:4326 PostGIS points using longitude as X and latitude as Y.
+The original UUIDs, credential ciphertext in the canonical device record, credential version, device status, sequence counters, assignment timestamps, telemetry timestamps, measurements and synthetic flags are preserved. For quarantined device records, encrypted credential ciphertext is redacted from the JSONB copy; the unchanged legacy source row retains the original ciphertext. Latitude/longitude become EPSG:4326 PostGIS points using longitude as X and latitude as Y.
 
 A per-tenant internal provenance source is created for migrated telemetry. It is marked `unverified` and is not publication-eligible; this migration does not assert that legacy GPS records are verified or suitable for public release.
 
@@ -47,7 +47,7 @@ A telemetry row is migrated only if:
 2. The vehicle belongs to that same organization.
 3. Exactly one matching device/vehicle assignment was active at the telemetry `recorded_at` time.
 
-Unresolved devices, assignments and telemetry are copied into `geo.legacy_tracking_quarantine` with the complete original row as JSONB and a reason code. They are not discarded, assigned to a guessed tenant, or made publicly accessible.
+Unresolved devices, assignments and telemetry are copied into `geo.legacy_tracking_quarantine` with a JSONB evidence payload and a reason code. Encrypted device credential ciphertext is deliberately redacted from the quarantine copy; the unchanged legacy source row remains intact. These records are not discarded, assigned to a guessed tenant, or made publicly accessible.
 
 The migration also fails closed if canonical IDs, device identifiers or device-sequence identities already collide with the legacy rows. It does not silently overwrite or skip existing canonical data.
 
