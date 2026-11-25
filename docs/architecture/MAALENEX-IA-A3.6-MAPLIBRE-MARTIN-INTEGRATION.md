@@ -78,3 +78,25 @@ A3.6 acceptance checks completed successfully:
 **Verification limits:** the internal frontend component test mocks the map renderer and API response; no live staff account or production application DB login was used. Martin TileJSON discovery was verified, but no populated production MVT tile payload was tested. The actual runtime application DB login is still unidentified, so its out-of-band membership in the A3.5 capability roles remains a deployment prerequisite.
 
 **Disposition:** A3.6 implementation and CI-level acceptance are VERIFIED-CLOSED. Runtime DB role provisioning, production infrastructure and live-user acceptance remain deferred; no live DB, credentials, merge or deployment were changed.
+
+## 7. Subsequent verification addendum — G1 run #822
+
+This addendum preserves the earlier run #748 evidence above and records the later complete integration-branch verification.
+
+**GitHub Actions run:** [G1 backend foundation verification #822](https://github.com/akefadaka-git/maalenex/actions/runs/45720048934)  
+**Verified code commit:** `9750d2cba123a7c2567ef5c9bce3511f9ce0382e`  
+**Branch:** `feat/a3-canonical-postgis-integration`  
+**Result:** both backend/PostGIS and frontend jobs completed successfully.
+
+- [x] Alembic extension ownership inventory and metadata parity passed before the backend and A3 integration suite.
+- [x] Backend suite: 38 passed, 31 skipped; Ruff passed.
+- [x] A3.2 canonical PostGIS schema and tenant-bound tracking keys passed.
+- [x] A3.3 MITP canonical backfill and source-preserving downgrade passed.
+- [x] A3.4 public/internal view privileges passed.
+- [x] A3.5 tenant RLS and cross-tenant isolation passed.
+- [x] A3.6 authorization/API tests were included in the backend suite; Martin catalog, public TileJSON, actual approved-feature MVT payload and internal tracking-table denial checks all passed.
+- [x] A3.7 tenant/public publication leakage checks passed.
+- [x] A3.8 geographic provenance and licensing checks passed.
+- [x] Full migration downgrade to base and clean re-upgrade passed.
+
+The previous broader-workflow qualification and MVT payload limitation describe run #748 only; run #822 supersedes those CI-level limitations. This does not change the operational prerequisites above: production application-role membership, Martin production credentials/infrastructure, live-user acceptance, merge and deployment remain outside this verification and are not authorized by it.
