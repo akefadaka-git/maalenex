@@ -21,7 +21,7 @@ def test_public_reader_is_non_login_and_only_has_sanitized_view_access():
                 SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole
                 FROM pg_roles WHERE rolname = 'maalenex_geo_public_reader'
             """)).one()
-            assert tuple(role) == (False, False, False, False)
+            assert tuple(role) == (False, False, False, False, False, False)
 
             schemas = connection.execute(text("""
                 SELECT has_schema_privilege(
@@ -88,7 +88,8 @@ def test_internal_reader_has_only_position_view_and_base_table_access():
     try:
         with engine.connect() as connection:
             role = connection.execute(text("""
-                SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole
+                SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole,
+                       rolbypassrls, rolinherit
                 FROM pg_roles WHERE rolname = 'maalenex_geo_internal_reader'
             """)).one()
             assert tuple(role) == (False, False, False, False)
@@ -114,5 +115,21 @@ def test_internal_reader_has_only_position_view_and_base_table_access():
                     'geo.vehicle_positions', 'SELECT'
                 )
             """)).scalar_one()
+    finally:
+        engine.dispose()
+
+def test_geo_write_roles_are_non_login_and_cannot_bypass_rls():
+    engine = create_engine(settings.database_url)
+    try:
+        with engine.connect() as connection:
+            for role_name in (
+                "maalenex_geo_tenant_manager", "maalenex_geo_catalog_manager"
+            ):
+                role = connection.execute(text("""
+                    SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole,
+                           rolbypassrls, rolinherit
+                    FROM pg_roles WHERE rolname = :role_name
+                """), {"role_name": role_name}).one()
+                assert tuple(role) == (False, False, False, False, False, False)
     finally:
         engine.dispose()
