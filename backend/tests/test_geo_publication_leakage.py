@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import DBAPIError
 
 from app.core.config import settings
 
@@ -199,7 +200,7 @@ def test_public_reader_sees_only_verified_published_and_allowlisted_features():
                 "geo.locations", "geo.routes", "geo.publications",
                 "geo.devices", "geo.vehicle_positions", "geo_audit.events",
             ):
-                with pytest.raises(Exception), connection.begin_nested():
+                with pytest.raises(DBAPIError), connection.begin_nested():
                     connection.execute(text(f"SELECT * FROM {relation} LIMIT 1"))
     finally:
         engine.dispose()
