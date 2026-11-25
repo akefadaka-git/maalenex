@@ -17,13 +17,12 @@ After the A3.4/A3.5 migrations have been applied to a disposable or approved tar
 
 ```sql
 CREATE ROLE maalenex_martin_login LOGIN INHERIT;
-GRANT CONNECT ON DATABASE maalenex TO maalenex_martin_login;
 GRANT maalenex_geo_public_reader TO maalenex_martin_login;
 ```
 
-The capability role remains NOLOGIN and receives only USAGE on `geo_public` plus SELECT on its six sanitized views. Do not grant this login membership in any other capability role. Store its connection string in the runtime secret `MAALENEX_GEO_PUBLIC_DATABASE_URL`. Use TLS and `sslmode=verify-full` when connecting across hosts.
+Ensure the dedicated login has CONNECT to the canonical application database. The database name and host are environment-specific and must be confirmed before provisioning; do not assume a database name from this example.
 
-The database name above is the canonical application database. Confirm the actual database name and host before provisioning; no credentials or live DB operations are performed by this repository change.
+The capability role remains NOLOGIN and receives only USAGE on `geo_public` plus SELECT on its six sanitized views. Do not grant this login membership in any other capability role. Store its connection string in the runtime secret `MAALENEX_GEO_PUBLIC_DATABASE_URL`. Use TLS and `sslmode=verify-full` when connecting across hosts.
 
 ## Local development
 
