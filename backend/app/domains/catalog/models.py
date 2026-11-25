@@ -1,7 +1,11 @@
 from uuid import UUID, uuid4
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, JSON, String, UniqueConstraint, Uuid
+
+from sqlalchemy import JSON, Boolean, Float, ForeignKey, Integer, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db.base import Base
+
+
 class Location(Base):
     __tablename__ = "locations"
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
