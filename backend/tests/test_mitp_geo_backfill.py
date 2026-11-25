@@ -68,4 +68,13 @@ def test_mitp_legacy_rows_are_migrated_or_quarantined_without_tenant_guessing() 
         assert "multiple_tenant_assignment_history" in reasons
         assert "device_vehicle_tenant_mismatch" in reasons
         assert "device_tenant_unresolved" in reasons
+
+        quarantined_device = connection.execute(text("""
+            SELECT payload
+            FROM geo.legacy_tracking_quarantine
+            WHERE source_table = 'tracking_devices'
+              AND source_id = 'a3300000-0000-4000-8000-000000000022'
+        """)).scalar_one()
+        assert quarantined_device["credential_ciphertext_redacted"] is True
+        assert "credential_ciphertext" not in quarantined_device
     engine.dispose()
