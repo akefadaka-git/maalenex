@@ -1,0 +1,63 @@
+{
+  "version": 8,
+  "name": "MaaleNex Self-hosted OSM Roads",
+  "metadata": {
+    "maalenex:purpose": "synthetic-development-road-map-proof-of-concept",
+    "maalenex:imagery": "no-satellite-imagery"
+  },
+  "sources": {
+    "osm_lines": {
+      "type": "vector",
+      "tiles": ["/mitp-tiles/planet_osm_line/{z}/{x}/{y}"],
+      "minzoom": 0,
+      "maxzoom": 14,
+      "attribution": "© OpenStreetMap contributors"
+    },
+    "osm_polygons": {
+      "type": "vector",
+      "tiles": ["/mitp-tiles/planet_osm_polygon/{z}/{x}/{y}"],
+      "minzoom": 0,
+      "maxzoom": 14,
+      "attribution": "© OpenStreetMap contributors"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": { "background-color": "#edf0e9" }
+    },
+    {
+      "id": "landuse",
+      "type": "fill",
+      "source": "osm_polygons",
+      "source-layer": "planet_osm_polygon",
+      "filter": ["in", "landuse", "residential", "commercial", "industrial", "grass", "forest"],
+      "paint": { "fill-color": "#dfe8d9", "fill-opacity": 0.65 }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "osm_polygons",
+      "source-layer": "planet_osm_polygon",
+      "filter": ["==", "natural", "water"],
+      "paint": { "fill-color": "#c8dce3" }
+    },
+    {
+      "id": "roads-minor",
+      "type": "line",
+      "source": "osm_lines",
+      "source-layer": "planet_osm_line",
+      "filter": ["all", ["has", "highway"], ["in", "highway", "residential", "service", "track", "unclassified", "living_street"]],
+      "paint": { "line-color": "#c4bba9", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.3, 15, 2] }
+    },
+    {
+      "id": "roads-major",
+      "type": "line",
+      "source": "osm_lines",
+      "source-layer": "planet_osm_line",
+      "filter": ["all", ["has", "highway"], ["in", "highway", "primary", "secondary", "tertiary", "trunk", "motorway"]],
+      "paint": { "line-color": "#a98560", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.7, 14, 3] }
+    }
+  ]
+}

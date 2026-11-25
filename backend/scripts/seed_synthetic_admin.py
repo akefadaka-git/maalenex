@@ -27,6 +27,8 @@ PLATFORM_PERMISSIONS = (
     "platform.fare.approve",
     "platform.fare.publish",
     "platform.fleet.review",
+    "platform.tracking.manage",
+    "platform.tracking.read",
     "operator.fleet.manage",
     "operator.trip.manage",
     "operator.fare.propose",

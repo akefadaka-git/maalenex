@@ -8,11 +8,12 @@ from app.routers.auth import router as auth_router
 from app.routers.bookings import router as bookings_router
 from app.routers.health import router as health_router
 from app.routers.passenger_catalog import router as passenger_catalog_router
+from app.routers.tracking import router as tracking_router
 
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
-    description="Passenger MVP development API. Synthetic data only; payment, ticketing, boarding and production use are disabled.",
+    description="MaaleNex development API. Synthetic data only; payment, ticketing, boarding and production use are disabled.",
     openapi_url=f"{settings.api_prefix}/openapi.json",
     docs_url=f"{settings.api_prefix}/docs",
     redoc_url=None,
@@ -22,13 +23,17 @@ app.add_middleware(
     allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["Content-Type", "X-CSRF-Token", "Idempotency-Key"],
+    allow_headers=[
+        "Content-Type", "X-CSRF-Token", "Idempotency-Key",
+        "X-MITP-Device-ID", "X-MITP-Timestamp", "X-MITP-Signature",
+    ],
 )
 app.include_router(health_router, prefix=settings.api_prefix)
 app.include_router(auth_router, prefix=settings.api_prefix)
 app.include_router(admin_router, prefix=settings.api_prefix)
 app.include_router(bookings_router, prefix=settings.api_prefix)
 app.include_router(passenger_catalog_router, prefix=settings.api_prefix)
+app.include_router(tracking_router, prefix=settings.api_prefix)
 
 
 @app.get("/", tags=["root"])

@@ -1,0 +1,95 @@
+name: MITP self-hosted map proof-of-concept verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra/mitp-maps/**"
+      - "frontend/public/mitp-map/**"
+      - "frontend/src/features/tracking/**"
+      - "frontend/vite.config.ts"
+      - ".github/workflows/mitp-map-poc-verification.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-local-vector-tiles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      MITP_MAP_DB_PASSWORD: LocalOwnerPassword123456
+      MITP_MAP_READER_PASSWORD: LocalReaderPassword123456
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Start local PostGIS database
+        run: docker compose -f infra/mitp-maps/docker-compose.yml up -d mitp-map-db
+
+      - name: Wait for PostGIS
+        run: |
+          container_id="$(docker compose -f infra/mitp-maps/docker-compose.yml ps -q mitp-map-db)"
+          for attempt in $(seq 1 40); do
+            health="$(docker inspect --format='{{.State.Health.Status}}' "$container_id")"
+            if [ "$health" = "healthy" ]; then
+              docker compose -f infra/mitp-maps/docker-compose.yml exec -T mitp-map-db pg_isready -U mitp_maps -d mitp_maps
+              exit 0
+            fi
+            if [ "$health" = "unhealthy" ]; then
+              docker compose -f infra/mitp-maps/docker-compose.yml logs mitp-map-db
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "PostGIS did not become healthy."
+          exit 1
+
+      - name: Load synthetic road and polygon fixtures
+        run: |
+          docker compose -f infra/mitp-maps/docker-compose.yml exec -T mitp-map-db \
+            psql -v ON_ERROR_STOP=1 -U mitp_maps -d mitp_maps \
+            < infra/mitp-maps/tests/seed-synthetic-osm.sql
+
+      - name: Start self-hosted Martin vector-tile service
+        run: docker compose -f infra/mitp-maps/docker-compose.yml up -d mitp-vector-tiles
+
+      - name: Verify local catalog and vector tiles
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --max-time 5 --fail --silent http://127.0.0.1:3000/catalog -o /tmp/mitp-catalog.json; then
+              break
+            fi
+            sleep 2
+          done
+          if [ ! -s /tmp/mitp-catalog.json ]; then
+            docker compose -f infra/mitp-maps/docker-compose.yml ps -a
+            docker compose -f infra/mitp-maps/docker-compose.yml logs --tail=150 mitp-vector-tiles
+            docker inspect "$(docker compose -f infra/mitp-maps/docker-compose.yml ps -aq mitp-vector-tiles)" --format='State={{.State.Status}} ExitCode={{.State.ExitCode}} Error={{.State.Error}}'
+            exit 1
+          fi
+          python -c "import json; d=json.load(open('/tmp/mitp-catalog.json')); ids=set(d.get('tiles', {})); print('Martin sources:', sorted(ids)); assert {'planet_osm_line','planet_osm_polygon'} <= ids, ids"
+          curl --max-time 10 --fail --silent --show-error http://127.0.0.1:3000/planet_osm_line -o /tmp/mitp-line-tilejson.json
+          cat /tmp/mitp-line-tilejson.json
+          if ! curl --max-time 20 --fail --silent --show-error -w 'road tile HTTP %{http_code}; bytes %{size_download}\\n' http://127.0.0.1:3000/planet_osm_line/10/620/486 -o /tmp/mitp-roads.pbf; then
+            docker compose -f infra/mitp-maps/docker-compose.yml logs --tail=150 mitp-vector-tiles
+            exit 1
+          fi
+          if ! curl --max-time 20 --fail --silent --show-error -w 'polygon tile HTTP %{http_code}; bytes %{size_download}\\n' http://127.0.0.1:3000/planet_osm_polygon/10/620/486 -o /tmp/mitp-areas.pbf; then
+            docker compose -f infra/mitp-maps/docker-compose.yml logs --tail=150 mitp-vector-tiles
+            exit 1
+          fi
+          ls -l /tmp/mitp-roads.pbf /tmp/mitp-areas.pbf
+          test -s /tmp/mitp-roads.pbf
+          test -s /tmp/mitp-areas.pbf
+
+      - name: Validate frontend map style references local tile paths
+        run: |
+          python -m json.tool frontend/public/mitp-map/style.json >/dev/null
+          python -c "import json; s=json.load(open('frontend/public/mitp-map/style.json')); urls=[src['tiles'][0] for src in s['sources'].values()]; assert all(u.startswith('/mitp-tiles/') for u in urls), urls"
+
+      - name: Stop local map services
+        if: always()
+        run: docker compose -f infra/mitp-maps/docker-compose.yml down -v
