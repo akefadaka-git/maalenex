@@ -53,7 +53,6 @@ export default function InternalGeoMap() {
       zoom: 5,
       minZoom: 3,
       maxZoom: 18,
-      attributionControl: true,
     });
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl(), "top-right");
