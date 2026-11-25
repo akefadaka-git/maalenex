@@ -63,7 +63,21 @@ jobs:
       - name: Install backend and test dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
       - name: Ruff
-        run: python -m ruff check app/routers/geo.py tests/test_geo_internal_positions_api.py tests/test_geo_provenance.py tests/test_geo_publication_leakage.py
+        run: >-
+          python -m ruff check
+          app/routers/geo.py
+          app/db/model_registry.py
+          app/domains/ledger/models.py
+          app/domains/passengers/models.py
+          app/domains/scheduler/models.py
+          app/domains/fleet/models.py
+          app/domains/bookings/models.py
+          app/domains/catalog/models.py
+          migrations/env.py
+          tests/test_geo_internal_positions_api.py
+          tests/test_geo_provenance.py
+          tests/test_geo_publication_leakage.py
+          tests/test_model_registry_migration_coverage.py
       - name: Backend tests
         run: python -m pytest -q
       - name: Apply schema through canonical PostGIS baseline
