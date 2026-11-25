@@ -1,0 +1,87 @@
+{
+  "version": 8,
+  "name": "MaaleNex Public Geography",
+  "metadata": {
+    "maalenex:scope": "geo_public-only",
+    "maalenex:source": "canonical-postgis"
+  },
+  "sources": {
+    "roads": { "type": "vector", "url": "/martin/roads" },
+    "boundaries": { "type": "vector", "url": "/martin/boundaries" },
+    "routes": { "type": "vector", "url": "/martin/routes" },
+    "locations": { "type": "vector", "url": "/martin/locations" },
+    "terminals": { "type": "vector", "url": "/martin/terminals" }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": { "background-color": "#edf0e9" }
+    },
+    {
+      "id": "boundaries-fill",
+      "type": "fill",
+      "source": "boundaries",
+      "source-layer": "boundaries",
+      "paint": {
+        "fill-color": "#d7e1d2",
+        "fill-opacity": 0.24
+      }
+    },
+    {
+      "id": "boundaries-outline",
+      "type": "line",
+      "source": "boundaries",
+      "source-layer": "boundaries",
+      "paint": {
+        "line-color": "#879b83",
+        "line-width": 1.2,
+        "line-dasharray": [2, 2]
+      }
+    },
+    {
+      "id": "roads",
+      "type": "line",
+      "source": "roads",
+      "source-layer": "roads",
+      "paint": {
+        "line-color": "#b9ad98",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.5, 14, 2.4]
+      }
+    },
+    {
+      "id": "routes",
+      "type": "line",
+      "source": "routes",
+      "source-layer": "routes",
+      "paint": {
+        "line-color": "#a45f2a",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.2, 14, 4]
+      }
+    },
+    {
+      "id": "locations",
+      "type": "circle",
+      "source": "locations",
+      "source-layer": "locations",
+      "paint": {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2.5, 14, 6],
+        "circle-color": "#315d50",
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 1.5
+      }
+    },
+    {
+      "id": "terminals",
+      "type": "circle",
+      "source": "terminals",
+      "source-layer": "terminals",
+      "paint": {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 4, 14, 8],
+        "circle-color": "#a45f2a",
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 2
+      }
+    }
+  ]
+}
