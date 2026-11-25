@@ -34,7 +34,7 @@ ON geo.legacy_tracking_quarantine(source_table, source_id)
 
     # Never overwrite canonical records or silently absorb identity collisions.
     op.execute("""
-DO $
+DO $a3$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM public.tracking_devices legacy
@@ -61,7 +61,7 @@ BEGIN
         RAISE EXCEPTION 'A3.3 telemetry identity collision; reconcile before backfill';
     END IF;
 END;
-$
+$a3$
 """)
 
     # A device is tenant-owned only when every historical vehicle assignment
