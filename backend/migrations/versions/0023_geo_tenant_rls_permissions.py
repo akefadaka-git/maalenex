@@ -366,11 +366,11 @@ def downgrade() -> None:
     )
     for table in policy_tables:
         op.execute(f"ALTER TABLE geo.{table} DISABLE ROW LEVEL SECURITY")
-    op.execute("DROP FUNCTION IF EXISTS geo.current_organization_id()")
+    op.execute("REVOKE EXECUTE ON FUNCTION geo.current_organization_id() FROM maalenex_geo_internal_reader, maalenex_geo_tenant_manager, maalenex_geo_catalog_manager")
     op.execute("REVOKE ALL ON geo.vehicle_positions FROM maalenex_geo_internal_reader")
     op.execute("REVOKE ALL ON geo_internal.vehicle_positions FROM maalenex_geo_internal_reader")
     op.execute("REVOKE USAGE ON SCHEMA geo, geo_internal FROM maalenex_geo_internal_reader")
     op.execute("REVOKE ALL ON geo.vehicle_positions, geo.devices, geo.device_vehicle_assignments FROM maalenex_geo_tenant_manager")
     op.execute("REVOKE ALL ON geo.data_sources, geo.locations, geo.terminals, geo.routes, geo.route_stops, geo.route_versions, geo.boundaries, geo.roads, geo.publications FROM maalenex_geo_catalog_manager")
     op.execute("REVOKE USAGE ON SCHEMA geo FROM maalenex_geo_tenant_manager, maalenex_geo_catalog_manager")
-    op.execute("REVOKE EXECUTE ON FUNCTION geo.current_organization_id() FROM maalenex_geo_tenant_manager, maalenex_geo_catalog_manager")
+    op.execute("DROP FUNCTION IF EXISTS geo.current_organization_id()")
