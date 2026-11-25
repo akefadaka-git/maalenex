@@ -126,7 +126,8 @@ SELECT
     'vehicle_device_assignments',
     a.id,
     CASE
-        WHEN m.device_id IS NULL THEN 'device_tenant_unresolved'
+        WHEN m.device_id IS NULL OR m.organization_count IS DISTINCT FROM 1
+            THEN 'device_tenant_unresolved'
         ELSE 'device_vehicle_tenant_mismatch'
     END,
     to_jsonb(a)
