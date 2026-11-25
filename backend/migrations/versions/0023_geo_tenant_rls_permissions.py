@@ -213,6 +213,93 @@ WITH CHECK (EXISTS (
     # non-owner access until a separately reconciled tenant attribution exists.
     op.execute("ALTER TABLE geo.legacy_tracking_quarantine ENABLE ROW LEVEL SECURITY")
 
+    # Append-only, tenant-scoped audit trail for protected geo operations.
+    op.execute("CREATE SCHEMA IF NOT EXISTS geo_audit")
+    op.execute("""
+CREATE TABLE geo_audit.events (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE RESTRICT,
+    actor_user_id uuid REFERENCES public.staff_users(id) ON DELETE SET NULL,
+    permission_code varchar(100) NOT NULL,
+    action varchar(32) NOT NULL,
+    outcome varchar(24) NOT NULL DEFAULT 'authorized',
+    resource_type varchar(80),
+    resource_id varchar(128),
+    request_id varchar(80),
+    occurred_at timestamptz NOT NULL DEFAULT now(),
+    metadata_redacted jsonb NOT NULL DEFAULT '{}'::jsonb,
+    CONSTRAINT ck_geo_audit_action CHECK (
+        action IN ('read', 'manage', 'publish', 'audit_read')
+    ),
+    CONSTRAINT ck_geo_audit_outcome CHECK (
+        outcome IN ('authorized', 'denied', 'failed')
+    )
+)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_audit_events_org_time
+ON geo_audit.events(organization_id, occurred_at DESC)
+""")
+    op.execute("""
+CREATE INDEX ix_geo_audit_events_actor_time
+ON geo_audit.events(actor_user_id, occurred_at DESC)
+""")
+    op.execute("ALTER TABLE geo_audit.events ENABLE ROW LEVEL SECURITY")
+    op.execute("""
+CREATE POLICY p_geo_audit_events_tenant_isolation ON geo_audit.events
+USING (organization_id = geo.current_organization_id())
+WITH CHECK (organization_id = geo.current_organization_id())
+""")
+    op.execute("""
+CREATE OR REPLACE FUNCTION geo_audit.reject_event_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog
+AS $geo_audit$
+BEGIN
+    RAISE EXCEPTION 'geo_audit.events are append-only';
+END;
+$geo_audit$
+""")
+    op.execute("""
+CREATE TRIGGER geo_audit_events_append_only
+BEFORE UPDATE OR DELETE ON geo_audit.events
+FOR EACH ROW EXECUTE FUNCTION geo_audit.reject_event_mutation()
+""")
+    op.execute("""
+CREATE OR REPLACE FUNCTION geo_audit.record_access_event(
+    p_actor_user_id uuid,
+    p_permission_code text,
+    p_action text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, geo_audit
+AS $geo_audit_record$
+DECLARE
+    v_organization_id uuid;
+BEGIN
+    v_organization_id := geo.current_organization_id();
+    IF v_organization_id IS NULL THEN
+        RAISE EXCEPTION 'geo audit requires an authorized tenant context';
+    END IF;
+    INSERT INTO geo_audit.events (
+        organization_id, actor_user_id, permission_code, action, outcome
+    ) VALUES (
+        v_organization_id, p_actor_user_id, p_permission_code, p_action, 'authorized'
+    );
+END;
+$geo_audit_record$
+""")
+    op.execute("""
+REVOKE ALL ON geo_audit.events FROM PUBLIC
+""")
+    op.execute("""
+REVOKE ALL ON FUNCTION geo_audit.record_access_event(uuid, text, text) FROM PUBLIC
+""")
+
     op.execute("""
 DO $geo_roles$
 BEGIN
@@ -243,6 +330,20 @@ ALTER ROLE maalenex_geo_tenant_manager
 """)
     op.execute("""
 ALTER ROLE maalenex_geo_catalog_manager
+    NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOINHERIT
+""")
+
+    op.execute("""
+DO $geo_audit_role$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'maalenex_geo_audit_reader') THEN
+        CREATE ROLE maalenex_geo_audit_reader NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+    END IF;
+END;
+$geo_audit_role$
+""")
+    op.execute("""
+ALTER ROLE maalenex_geo_audit_reader
     NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOINHERIT
 """)
 
@@ -277,6 +378,20 @@ TO maalenex_geo_catalog_manager
     op.execute("""
 GRANT EXECUTE ON FUNCTION geo.current_organization_id()
 TO maalenex_geo_tenant_manager, maalenex_geo_catalog_manager
+""")
+
+    op.execute("""
+GRANT USAGE ON SCHEMA geo_audit
+TO maalenex_geo_internal_reader, maalenex_geo_tenant_manager,
+   maalenex_geo_catalog_manager, maalenex_geo_audit_reader
+""")
+    op.execute("""
+GRANT SELECT ON geo_audit.events TO maalenex_geo_audit_reader
+""")
+    op.execute("""
+GRANT EXECUTE ON FUNCTION geo_audit.record_access_event(uuid, text, text)
+TO maalenex_geo_internal_reader, maalenex_geo_tenant_manager,
+   maalenex_geo_catalog_manager, maalenex_geo_audit_reader
 """)
 
     # Add stable permission identifiers and least-privilege role mappings.
@@ -364,9 +479,19 @@ def downgrade() -> None:
     op.execute(
         "ALTER TABLE geo.legacy_tracking_quarantine DISABLE ROW LEVEL SECURITY"
     )
+    op.execute("DROP POLICY IF EXISTS p_geo_audit_events_tenant_isolation ON geo_audit.events")
+    op.execute("ALTER TABLE geo_audit.events DISABLE ROW LEVEL SECURITY")
+    op.execute("DROP TRIGGER IF EXISTS geo_audit_events_append_only ON geo_audit.events")
+    op.execute("DROP FUNCTION IF EXISTS geo_audit.record_access_event(uuid, text, text)")
+    op.execute("DROP FUNCTION IF EXISTS geo_audit.reject_event_mutation()")
+    op.execute("DROP TABLE IF EXISTS geo_audit.events")
+    op.execute("DROP SCHEMA IF EXISTS geo_audit")
     for table in policy_tables:
         op.execute(f"ALTER TABLE geo.{table} DISABLE ROW LEVEL SECURITY")
     op.execute("REVOKE EXECUTE ON FUNCTION geo.current_organization_id() FROM maalenex_geo_internal_reader, maalenex_geo_tenant_manager, maalenex_geo_catalog_manager")
+    op.execute("REVOKE EXECUTE ON FUNCTION geo_audit.record_access_event(uuid, text, text) FROM maalenex_geo_internal_reader, maalenex_geo_tenant_manager, maalenex_geo_catalog_manager, maalenex_geo_audit_reader")
+    op.execute("REVOKE ALL ON geo_audit.events FROM maalenex_geo_audit_reader")
+    op.execute("REVOKE USAGE ON SCHEMA geo_audit FROM maalenex_geo_internal_reader, maalenex_geo_tenant_manager, maalenex_geo_catalog_manager, maalenex_geo_audit_reader")
     op.execute("REVOKE ALL ON geo.vehicle_positions FROM maalenex_geo_internal_reader")
     op.execute("REVOKE ALL ON geo_internal.vehicle_positions FROM maalenex_geo_internal_reader")
     op.execute("REVOKE USAGE ON SCHEMA geo, geo_internal FROM maalenex_geo_internal_reader")
