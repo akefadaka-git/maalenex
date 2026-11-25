@@ -169,6 +169,40 @@ def test_tenant_manager_cannot_read_or_write_another_organizations_devices():
         engine.dispose()
 
 
+def test_catalog_manager_cannot_bind_tenant_location_to_other_tenant_source():
+    engine = create_engine(settings.database_url)
+    org_a, org_b = uuid4(), uuid4()
+    fixtures = []
+    try:
+        with engine.begin() as connection:
+            for org in (org_a, org_b):
+                values = (org, uuid4(), uuid4(), uuid4(), uuid4())
+                _insert_tenant_fixture(connection, *values)
+                fixtures.append(values)
+
+        with pytest.raises(DBAPIError):
+            with engine.begin() as connection:
+                connection.execute(text("SET LOCAL ROLE maalenex_geo_catalog_manager"))
+                connection.execute(text("""
+                    SELECT pg_catalog.set_config(
+                        'app.current_organization_id', :org, true
+                    )
+                """), {"org": str(org_a)})
+                connection.execute(text("""
+                    INSERT INTO geo.locations (
+                        id, organization_id, name, location_type, status,
+                        source_id, publication_eligible
+                    ) VALUES (
+                        :location, :org_a, 'Cross-tenant source test',
+                        'boarding_point', 'draft', :source_b, false
+                    )
+                """), {
+                    "location": uuid4(), "org_a": org_a, "source_b": fixtures[1][3],
+                })
+    finally:
+        engine.dispose()
+
+
 def test_rls_is_enabled_on_all_canonical_geo_tables():
     engine = create_engine(settings.database_url)
     expected = {
