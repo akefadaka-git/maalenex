@@ -12,6 +12,15 @@ class GeoAuthorizationError(PermissionError):
     """Raised when a user cannot access geographic data for a tenant."""
 
 
+_DATABASE_ROLE_BY_PERMISSION = {
+    "platform.geo.internal.read": "maalenex_geo_internal_reader",
+    "platform.tracking.read": "maalenex_geo_internal_reader",
+    "platform.tracking.manage": "maalenex_geo_tenant_manager",
+    "platform.geo.manage": "maalenex_geo_catalog_manager",
+    "platform.geo.publish": "maalenex_geo_catalog_manager",
+}
+
+
 def require_geo_permission(
     db: Session, *, user_id: UUID, organization_id: UUID, permission_code: str,
 ) -> None:
@@ -41,23 +50,22 @@ def require_geo_permission(
     raise GeoAuthorizationError("Active organization membership and permission are required")
 
 
-def set_geo_tenant_context(db: Session, *, organization_id: UUID) -> None:
-    """Set PostgreSQL RLS context for the current transaction only."""
-    if organization_id is None:
-        raise GeoAuthorizationError("An organization context is required")
+def authorize_geo_tenant_context(
+    db: Session, *, user_id: UUID, organization_id: UUID, permission_code: str,
+) -> None:
+    """Authorize, assume the least-privilege DB role, then set transaction-local tenant context."""
+    require_geo_permission(
+        db, user_id=user_id, organization_id=organization_id,
+        permission_code=permission_code,
+    )
+    database_role = _DATABASE_ROLE_BY_PERMISSION.get(permission_code)
+    if database_role is None:
+        raise GeoAuthorizationError("No database capability is mapped to this permission")
+
+    # Role names come only from the static allowlist above, never from request input.
+    db.execute(text(f"SET LOCAL ROLE {database_role}"))
     db.execute(text("""
         SELECT pg_catalog.set_config(
             'app.current_organization_id', :organization_id, true
         )
     """), {"organization_id": str(organization_id)})
-
-
-def authorize_geo_tenant_context(
-    db: Session, *, user_id: UUID, organization_id: UUID, permission_code: str,
-) -> None:
-    """Authorize the tenant, then set its transaction-local RLS context."""
-    require_geo_permission(
-        db, user_id=user_id, organization_id=organization_id,
-        permission_code=permission_code,
-    )
-    set_geo_tenant_context(db, organization_id=organization_id)

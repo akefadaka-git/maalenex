@@ -4,34 +4,36 @@
 **Migration:** `0023_geo_tenant_rls_permissions`  
 **Parent:** `0022_geo_publication_views`
 
-## 1. Tenant context
+## 1. Tenant context and application authorization
 
-The database reads the transaction-local setting `app.current_organization_id` through `geo.current_organization_id()`. Missing, empty or malformed values return NULL. All tenant policies compare the row's tenant to this value, so absent context returns no tenant rows and rejects tenant writes.
+The database reads the transaction-local setting `app.current_organization_id` through `geo.current_organization_id()`. Missing, empty or malformed values return NULL. Tenant policies compare each row's tenant to this value, so absent context returns no tenant rows and rejects tenant writes.
 
-The application helper `authorize_geo_tenant_context` requires either (a) active organization membership plus a non-revoked organization-scoped role grant, or (b) an explicit platform-wide grant for a `platform.*` permission. Only after authorization does it call `set_config(..., true)`, which limits context to the current database transaction. The caller must keep protected queries in that same transaction; commit/rollback clears the context.
+The application helper `authorize_geo_tenant_context` requires either (a) active organization membership plus a non-revoked organization-scoped role grant, or (b) an explicit platform-wide grant for a `platform.*` permission. Only after authorization does it assume a static, least-privilege database capability role and call `set_config(..., true)`. The role switch and tenant context last only for the current transaction. Commit/rollback clears the context and role switch.
+
+The application database login must be granted membership (with SET capability) in the relevant NOLOGIN capability roles out-of-band. If role assumption is unavailable, protected access fails closed. The app must not connect as a table owner, database owner, superuser or migration principal.
 
 ## 2. RLS coverage
 
 RLS is enabled on:
 - `geo.data_sources`, `locations`, `terminals`, `routes`, `route_stops`, `boundaries`
 - `geo.route_versions` (tenant inherited through parent route)
-- `geo.roads` (tenant inherited through provenance source)
+- `geo.roads` (tenant inherited from provenance source)
 - `geo.devices`, `device_vehicle_assignments`, `vehicle_positions`
 - `geo.publications`
 - `geo.legacy_tracking_quarantine` (no policy: default deny)
 
-Nullable/global catalog rows do not become tenant-visible. Road and route-version access is derived from tenant-owned parent/provenance records. Quarantine remains inaccessible until its records have a separately trusted tenant attribution.
+Nullable/global catalog rows do not become tenant-visible. Road and route-version access is derived from tenant-owned parent/provenance records. Quarantine remains inaccessible until its records have separately trusted tenant attribution.
 
-RLS is enabled but not forced on table owners. This preserves the A3.4 owner-permission public views. It also means the application and tile services must never connect as table owner, database owner, superuser or migration principal. A non-owner service principal with only the grants it needs is required for RLS to be effective.
+RLS is enabled but not forced on table owners. This preserves the A3.4 owner-permission public views. Runtime requests must explicitly assume a non-owner capability role before querying protected data.
 
-## 3. Internal tracking role
+## 3. Database capability roles
 
-`maalenex_geo_internal_reader` remains NOLOGIN and receives:
-- USAGE on `geo` and `geo_internal`
-- SELECT on `geo.vehicle_positions` and `geo_internal.vehicle_positions`
-- EXECUTE on the tenant-context function
+All roles are NOLOGIN, NOSUPERUSER, NOCREATEDB and NOCREATEROLE:
+- `maalenex_geo_internal_reader`: SELECT only on vehicle positions and its invoker-security view.
+- `maalenex_geo_tenant_manager`: SELECT positions; SELECT/INSERT/UPDATE devices and assignments.
+- `maalenex_geo_catalog_manager`: SELECT/INSERT/UPDATE tenant-owned geography, provenance and publication tables.
 
-The view is invoker-security. Both direct base-table reads and view reads are filtered by the same vehicle-position RLS policy. It receives no access to device credentials, device assignments or quarantine. Credentials and writes remain outside this read-only role.
+No role receives access to the legacy quarantine table. Roles do not receive DELETE or TRUNCATE privileges. Deployment-specific login membership is not created by migrations and must be provisioned only for trusted backend principals.
 
 ## 4. Permission catalogue and grants
 
@@ -61,6 +63,7 @@ Platform grants are explicit null-organization assignments. Operator grants requ
 - [ ] Verify tenant A cannot read tenant B's positions through the invoker view or base table.
 - [ ] Verify internal reader cannot access credentials, assignments or quarantine.
 - [ ] Verify application authorization rejects missing/revoked membership and ungranted users.
+- [ ] Verify capability-role switching is denied to principals without explicit role membership.
 - [ ] Run Alembic graph, metadata parity, downgrade and clean re-upgrade.
 
 **Security caveat:** RLS context is a trusted application-set session variable, not an authentication credential. It must only be set after server-side identity, membership and permission validation. No endpoint or service may accept a tenant setting directly from an untrusted client.

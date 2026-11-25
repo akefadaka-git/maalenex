@@ -116,12 +116,51 @@ WITH CHECK (EXISTS (
     # non-owner access until a separately reconciled tenant attribution exists.
     op.execute("ALTER TABLE geo.legacy_tracking_quarantine ENABLE ROW LEVEL SECURITY")
 
+    op.execute("""
+DO $geo_roles$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'maalenex_geo_tenant_manager') THEN
+        CREATE ROLE maalenex_geo_tenant_manager NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'maalenex_geo_catalog_manager') THEN
+        CREATE ROLE maalenex_geo_catalog_manager NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+    END IF;
+END;
+$geo_roles$
+""")
+
     # The internal reader receives only SELECT on the position relation/view.
     # Invoker-security view means its SELECT is filtered by the same RLS policy.
     op.execute("GRANT USAGE ON SCHEMA geo, geo_internal TO maalenex_geo_internal_reader")
     op.execute("GRANT SELECT ON geo.vehicle_positions TO maalenex_geo_internal_reader")
     op.execute("GRANT SELECT ON geo_internal.vehicle_positions TO maalenex_geo_internal_reader")
     op.execute("GRANT EXECUTE ON FUNCTION geo.current_organization_id() TO maalenex_geo_internal_reader")
+
+    op.execute("""
+GRANT USAGE ON SCHEMA geo TO maalenex_geo_tenant_manager
+""")
+    op.execute("""
+GRANT SELECT ON geo.vehicle_positions TO maalenex_geo_tenant_manager
+""")
+    op.execute("""
+GRANT SELECT, INSERT, UPDATE ON
+    geo.devices, geo.device_vehicle_assignments
+TO maalenex_geo_tenant_manager
+""")
+    op.execute("""
+GRANT USAGE ON SCHEMA geo TO maalenex_geo_catalog_manager
+""")
+    op.execute("""
+GRANT SELECT, INSERT, UPDATE ON
+    geo.data_sources, geo.locations, geo.terminals, geo.routes,
+    geo.route_stops, geo.route_versions, geo.boundaries, geo.roads,
+    geo.publications
+TO maalenex_geo_catalog_manager
+""")
+    op.execute("""
+GRANT EXECUTE ON FUNCTION geo.current_organization_id()
+TO maalenex_geo_tenant_manager, maalenex_geo_catalog_manager
+""")
 
     # Add stable permission identifiers and least-privilege role mappings.
     uuid = postgresql.UUID(as_uuid=True)
@@ -203,3 +242,7 @@ def downgrade() -> None:
     op.execute("REVOKE ALL ON geo.vehicle_positions FROM maalenex_geo_internal_reader")
     op.execute("REVOKE ALL ON geo_internal.vehicle_positions FROM maalenex_geo_internal_reader")
     op.execute("REVOKE USAGE ON SCHEMA geo, geo_internal FROM maalenex_geo_internal_reader")
+    op.execute("REVOKE ALL ON geo.vehicle_positions, geo.devices, geo.device_vehicle_assignments FROM maalenex_geo_tenant_manager")
+    op.execute("REVOKE ALL ON geo.data_sources, geo.locations, geo.terminals, geo.routes, geo.route_stops, geo.route_versions, geo.boundaries, geo.roads, geo.publications FROM maalenex_geo_catalog_manager")
+    op.execute("REVOKE USAGE ON SCHEMA geo FROM maalenex_geo_tenant_manager, maalenex_geo_catalog_manager")
+    op.execute("REVOKE EXECUTE ON FUNCTION geo.current_organization_id() FROM maalenex_geo_tenant_manager, maalenex_geo_catalog_manager")
