@@ -93,6 +93,9 @@ describe("InternalGeoMap", () => {
     render(<InternalGeoMap />);
     await screen.findByText("Staff sign-in is required.");
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String(fetchMock.mock.calls[0][0])).toContain("/auth/sessions/current");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/auth/sessions/current",
+      expect.objectContaining({ credentials: "include" }),
+    );
   });
 });
