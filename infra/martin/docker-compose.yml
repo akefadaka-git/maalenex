@@ -1,6 +1,6 @@
 services:
   maalenex-martin:
-    image: ghcr.io/maplibre/martin:v0.19.3
+    image: ghcr.io/maplibre/martin:2.0.0-beta.7
     command: ["--config", "/etc/martin/config.yaml"]
     environment:
       MAALENEX_GEO_PUBLIC_DATABASE_URL: ${MAALENEX_GEO_PUBLIC_DATABASE_URL:?Set a dedicated public-reader connection string}
