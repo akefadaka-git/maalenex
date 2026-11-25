@@ -100,7 +100,7 @@ jobs:
           docker run -d --name maalenex-martin-smoke --network host \
             -e MAALENEX_GEO_PUBLIC_DATABASE_URL='postgresql://maalenex_martin_login:ci-only-secret@127.0.0.1:5432/maalenex_dev' \
             -v "$GITHUB_WORKSPACE/infra/martin/config.yaml:/etc/martin/config.yaml:ro" \
-            ghcr.io/maplibre/martin:v0.19.3 --config /etc/martin/config.yaml
+            ghcr.io/maplibre/martin:2.0.0-beta.7 --config /etc/martin/config.yaml
       - name: Verify Martin catalog and public TileJSON sources
         run: |
           for attempt in $(seq 1 30); do
