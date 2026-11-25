@@ -1,0 +1,75 @@
+# Martin publishes only the explicitly listed sanitized geo_public views.
+# MAALENEX_GEO_PUBLIC_DATABASE_URL must use a dedicated login granted only
+# maalenex_geo_public_reader; never use the application or migration DB role.
+listen_addresses: 0.0.0.0:3000
+route_prefix: /martin
+web_ui: disable
+cors: false
+on_invalid: abort
+postgres:
+  connection_string: ${MAALENEX_GEO_PUBLIC_DATABASE_URL}
+  auto_publish: false
+  auto_bounds: quick
+  default_srid: 4326
+  pool_size: 5
+  tables:
+    locations:
+      schema: geo_public
+      table: locations
+      geometry_column: geom
+      srid: 4326
+      properties:
+        id: uuid
+        name: text
+        location_type: text
+    terminals:
+      schema: geo_public
+      table: terminals
+      geometry_column: geom
+      srid: 4326
+      properties:
+        id: uuid
+        location_id: uuid
+        name: text
+    routes:
+      schema: geo_public
+      table: routes
+      geometry_column: geom
+      srid: 4326
+      properties:
+        id: uuid
+        code: text
+        origin_location_id: uuid
+        destination_location_id: uuid
+    route_stops:
+      schema: geo_public
+      table: route_stops
+      geometry_column: geom
+      srid: 4326
+      properties:
+        id: uuid
+        route_id: uuid
+        location_id: uuid
+        terminal_id: uuid
+        sequence_number: int4
+        boarding_allowed: bool
+        alighting_allowed: bool
+    boundaries:
+      schema: geo_public
+      table: boundaries
+      geometry_column: geom
+      srid: 4326
+      properties:
+        id: uuid
+        code: text
+        name: text
+        boundary_type: text
+    roads:
+      schema: geo_public
+      table: roads
+      geometry_column: geom
+      srid: 4326
+      properties:
+        id: uuid
+        road_class: text
+        name: text
