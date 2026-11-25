@@ -2,11 +2,10 @@
 import os
 from uuid import uuid4
 
+from app.core.config import settings
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import DBAPIError
-
-from app.core.config import settings
 
 
 pytestmark = pytest.mark.skipif(
@@ -83,8 +82,7 @@ def test_source_evidence_is_tenant_scoped_and_append_only():
 def test_publication_eligibility_requires_independent_license_review():
     engine = create_engine(settings.database_url)
     try:
-        with engine.begin() as connection:
-            with pytest.raises(DBAPIError), connection.begin_nested():
+        with engine.begin() as connection, pytest.raises(DBAPIError), connection.begin_nested():
                 connection.execute(text("""
                     INSERT INTO geo.data_sources (
                         provider, source_name, license_identifier, license_name,
