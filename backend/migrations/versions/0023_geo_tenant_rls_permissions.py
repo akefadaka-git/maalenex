@@ -218,12 +218,6 @@ def downgrade() -> None:
     )
     connection = op.get_bind()
     permission_ids = [_id("permission", code) for code in PERMISSIONS]
-    role_ids = {
-        code: connection.execute(
-            sa.select(roles.c.id).where(roles.c.code == code)
-        ).scalar_one_or_none()
-        for code in ROLE_GRANTS
-    }
     link_ids = [
         _id("role-permission", f"{role}:{permission}")
         for role, grants in ROLE_GRANTS.items() for permission in grants
@@ -231,12 +225,26 @@ def downgrade() -> None:
     connection.execute(links.delete().where(links.c.id.in_(link_ids)))
     connection.execute(permissions.delete().where(permissions.c.id.in_(permission_ids)))
 
-    for table in (
-        "data_sources", "locations", "terminals", "routes", "route_stops",
-        "boundaries", "devices", "device_vehicle_assignments",
-        "vehicle_positions", "publications", "route_versions", "roads",
-        "legacy_tracking_quarantine",
-    ):
+    policy_tables = {
+        "data_sources": "p_data_sources_tenant_isolation",
+        "locations": "p_locations_tenant_isolation",
+        "terminals": "p_terminals_tenant_isolation",
+        "routes": "p_routes_tenant_isolation",
+        "route_stops": "p_route_stops_tenant_isolation",
+        "boundaries": "p_boundaries_tenant_isolation",
+        "devices": "p_devices_tenant_isolation",
+        "device_vehicle_assignments": "p_device_vehicle_assignments_tenant_isolation",
+        "vehicle_positions": "p_vehicle_positions_tenant_isolation",
+        "publications": "p_publications_tenant_isolation",
+        "route_versions": "p_route_versions_tenant_isolation",
+        "roads": "p_roads_tenant_isolation",
+    }
+    for table, policy in policy_tables.items():
+        op.execute(f"DROP POLICY IF EXISTS {policy} ON geo.{table}")
+    op.execute(
+        "ALTER TABLE geo.legacy_tracking_quarantine DISABLE ROW LEVEL SECURITY"
+    )
+    for table in policy_tables:
         op.execute(f"ALTER TABLE geo.{table} DISABLE ROW LEVEL SECURITY")
     op.execute("DROP FUNCTION IF EXISTS geo.current_organization_id()")
     op.execute("REVOKE ALL ON geo.vehicle_positions FROM maalenex_geo_internal_reader")
