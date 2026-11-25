@@ -22,7 +22,7 @@ RLS is enabled on:
 - `geo.publications`
 - `geo.legacy_tracking_quarantine` (no policy: default deny)
 
-Nullable/global catalog rows do not become tenant-visible. Road and route-version access is derived from tenant-owned parent/provenance records. Quarantine remains inaccessible until its records have separately trusted tenant attribution.
+Nullable/global catalog rows do not become tenant-visible. Restrictive relationship policies additionally require same-tenant provenance sources and parent references for locations, terminals, routes, route stops, boundaries, publications and route versions. Roads and route versions inherit tenant ownership from their provenance and parent records. Quarantine remains inaccessible until its records have separately trusted tenant attribution.
 
 RLS is enabled but not forced on table owners. This preserves the A3.4 owner-permission public views. Runtime requests must explicitly assume a non-owner capability role before querying protected data.
 

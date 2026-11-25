@@ -134,3 +134,34 @@ def test_geo_write_roles_are_non_login_and_cannot_bypass_rls():
                 assert tuple(role) == (False, False, False, False, False, False)
     finally:
         engine.dispose()
+
+def test_geo_permission_catalog_and_least_privilege_role_grants():
+    engine = create_engine(settings.database_url)
+    expected = {
+        ("platform_operations_manager", "platform.geo.internal.read"),
+        ("platform_operations_manager", "platform.tracking.read"),
+        ("platform_dispatch_manager", "platform.geo.internal.read"),
+        ("platform_dispatch_manager", "platform.tracking.read"),
+        ("platform_dispatch_manager", "platform.tracking.manage"),
+        ("platform_catalog_manager", "platform.geo.manage"),
+        ("platform_catalog_manager", "platform.geo.publish"),
+        ("platform_auditor", "platform.geo.audit.read"),
+        ("operator_manager", "platform.tracking.read"),
+        ("operator_manager", "platform.tracking.manage"),
+        ("operator_dispatcher", "platform.tracking.read"),
+        ("operator_fleet_manager", "platform.tracking.read"),
+        ("operator_fleet_manager", "platform.tracking.manage"),
+    }
+    try:
+        with engine.connect() as connection:
+            actual = set(connection.execute(text("""
+                SELECT r.code, p.code
+                FROM access_role_permissions rp
+                JOIN access_roles r ON r.id = rp.role_id
+                JOIN access_permissions p ON p.id = rp.permission_id
+                WHERE p.code LIKE 'platform.geo.%'
+                   OR p.code LIKE 'platform.tracking.%'
+            """)).all())
+        assert expected <= actual
+    finally:
+        engine.dispose()
