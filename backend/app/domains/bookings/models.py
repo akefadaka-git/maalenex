@@ -1,7 +1,21 @@
 from datetime import datetime
 from uuid import UUID, uuid4
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, JSON, String, Uuid, UniqueConstraint, func, text
+
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    Uuid,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db.base import Base
 
 class BookingContact(Base):
