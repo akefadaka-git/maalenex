@@ -178,6 +178,20 @@ jobs:
       - name: Stop disposable Martin service
         if: always()
         run: docker rm -f maalenex-martin-smoke || true
+      - name: Inventory PostgreSQL extension-owned relations
+        run: |
+          psql "postgresql://postgres:postgres@localhost:5432/maalenex_dev" -X -v ON_ERROR_STOP=1 -c "
+            SELECT extension.extname, namespace.nspname AS schema_name, relation.relname AS relation_name
+            FROM pg_depend AS dependency
+            JOIN pg_extension AS extension ON extension.oid = dependency.refobjid
+            JOIN pg_class AS relation ON relation.oid = dependency.objid
+            JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+            WHERE dependency.classid = 'pg_class'::regclass
+              AND dependency.refclassid = 'pg_extension'::regclass
+              AND dependency.deptype = 'e'
+              AND relation.relkind IN ('r', 'p')
+            ORDER BY extension.extname, namespace.nspname, relation.relname;
+          "
       - name: Check Alembic metadata parity
         run: python -m alembic check
       - name: Downgrade A3.3 and verify legacy source preservation
