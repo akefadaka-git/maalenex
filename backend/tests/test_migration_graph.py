@@ -12,7 +12,7 @@ def migration_scripts() -> ScriptDirectory:
 
 
 def test_consolidated_migration_history_has_one_head() -> None:
-    assert migration_scripts().get_heads() == ["0022_geo_publication_views"]
+    assert migration_scripts().get_heads() == ["0023_geo_tenant_rls_permissions"]
 
 
 def test_merge_revision_preserves_both_stream_heads() -> None:
@@ -40,3 +40,8 @@ def test_publication_views_follow_mitp_backfill() -> None:
     publication = migration_scripts().get_revision("0022_geo_publication_views")
     assert publication is not None
     assert publication.down_revision == "0021_mitp_tracking_to_geo"
+
+def test_tenant_rls_follows_publication_views() -> None:
+    rls = migration_scripts().get_revision("0023_geo_tenant_rls_permissions")
+    assert rls is not None
+    assert rls.down_revision == "0022_geo_publication_views"

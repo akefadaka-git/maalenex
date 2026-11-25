@@ -104,12 +104,12 @@ def test_internal_reader_is_fail_closed_and_tenant_scoped():
 def test_internal_reader_cannot_read_sensitive_device_or_quarantine_tables():
     engine = create_engine(settings.database_url)
     try:
-        with engine.begin() as connection:
-            connection.execute(text("SET LOCAL ROLE maalenex_geo_internal_reader"))
-            for relation in (
-                "geo.devices", "geo.device_vehicle_assignments",
-                "geo.legacy_tracking_quarantine",
-            ):
+        for relation in (
+            "geo.devices", "geo.device_vehicle_assignments",
+            "geo.legacy_tracking_quarantine",
+        ):
+            with engine.begin() as connection:
+                connection.execute(text("SET LOCAL ROLE maalenex_geo_internal_reader"))
                 with pytest.raises(Exception):
                     connection.execute(text(f"SELECT * FROM {relation} LIMIT 1"))
     finally:

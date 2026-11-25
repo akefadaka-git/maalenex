@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -65,7 +66,7 @@ def test_revoked_membership_cannot_authorize_tenant_even_with_role_grant(db):
     db.add_all([
         OrganizationMembership(
             user_id=user.id, organization_id=org.id,
-            membership_status="active", revoked_at=__import__("datetime").datetime.now(),
+            membership_status="active", revoked_at=datetime.now(timezone.utc),
         ),
         RolePermission(role_id=role.id, permission_id=permission.id),
         RoleAssignment(

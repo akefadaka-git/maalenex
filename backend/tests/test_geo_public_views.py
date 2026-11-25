@@ -92,15 +92,26 @@ def test_internal_reader_has_no_a3_4_access_grants():
                 FROM pg_roles WHERE rolname = 'maalenex_geo_internal_reader'
             """)).one()
             assert tuple(role) == (False, False, False, False)
-            assert not connection.execute(text("""
+            assert connection.execute(text("""
                 SELECT has_schema_privilege(
                     'maalenex_geo_internal_reader', 'geo_internal', 'USAGE'
                 )
             """)).scalar_one()
-            assert not connection.execute(text("""
+            assert connection.execute(text("""
+                SELECT has_schema_privilege(
+                    'maalenex_geo_internal_reader', 'geo', 'USAGE'
+                )
+            """)).scalar_one()
+            assert connection.execute(text("""
                 SELECT has_table_privilege(
                     'maalenex_geo_internal_reader',
                     'geo_internal.vehicle_positions', 'SELECT'
+                )
+            """)).scalar_one()
+            assert connection.execute(text("""
+                SELECT has_table_privilege(
+                    'maalenex_geo_internal_reader',
+                    'geo.vehicle_positions', 'SELECT'
                 )
             """)).scalar_one()
     finally:
