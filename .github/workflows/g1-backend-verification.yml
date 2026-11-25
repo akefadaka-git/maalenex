@@ -86,126 +86,7 @@ jobs:
         run: python -m alembic upgrade head
       - name: Inventory PostgreSQL extension-owned relations
         run: |
-          psql "postgresql://postgres:postgres@localhost:5432/maalenex_dev" -X -v ON_ERROR_STOP=1 -At -F 
-      - name: Check Alembic metadata parity
-        run: python -m alembic check
-      - name: Backend tests
-        run: python -m pytest -q
-      - name: Verify tenant-safe MITP backfill and quarantine
-        env:
-          RUN_MITP_BACKFILL_INTEGRATION: "1"
-        run: python -m pytest -q tests/test_mitp_geo_backfill.py
-      - name: Verify canonical PostGIS schema and tenant-bound tracking keys
-        env:
-          RUN_GEO_SCHEMA_INTEGRATION: "1"
-        run: python -m pytest -q tests/test_geo_schema.py
-      - name: Verify A3.4 public and internal view privileges
-        env:
-          RUN_GEO_PUBLIC_VIEWS_INTEGRATION: "1"
-        run: python -m pytest -q tests/test_geo_public_views.py
-      - name: Verify A3.5 tenant RLS and cross-tenant isolation
-        env:
-          RUN_GEO_RLS_INTEGRATION: "1"
-        run: python -m pytest -q tests/test_geo_tenant_rls.py
-      - name: Verify A3.7 tenant and public publication leakage boundaries
-        env:
-          RUN_GEO_LEAKAGE_INTEGRATION: "1"
-        run: python -m pytest -q tests/test_geo_publication_leakage.py
-      - name: Verify A3.8 geographic provenance and licensing controls
-        env:
-          RUN_GEO_PROVENANCE_INTEGRATION: "1"
-        run: python -m pytest -q tests/test_geo_provenance.py
-      - name: Seed disposable approved and unverified public tile fixtures
-        run: |
-          psql "postgresql://postgres:postgres@localhost:5432/maalenex_dev" -v ON_ERROR_STOP=1 <<'SQL'
-          INSERT INTO geo.data_sources (
-            id, provider, source_name, license_identifier, license_name,
-            attribution_text, source_srid, collected_at, verification_status,
-            verified_at, license_review_status, license_reviewed_at,
-            license_reviewed_by, responsible_actor_type, responsible_actor_id,
-            publication_eligible
-          ) VALUES
-            ('a3700000-0000-4000-8000-000000000001', 'A3.7 CI', 'approved tile fixture',
-             'INTERNAL_TEST', 'Synthetic only', 'No external data', 4326, now(),
-             'verified', now(), 'approved', now(), 'a3.7-ci-reviewer',
-             'test', 'a3.7-ci', true),
-            ('a3700000-0000-4000-8000-000000000002', 'A3.7 CI', 'unverified tile fixture',
-             'INTERNAL_TEST', 'Synthetic only', 'No external data', 4326, now(),
-             'unverified', NULL, 'pending', NULL, NULL, 'test', 'a3.7-ci-private', false);
-          INSERT INTO geo.locations (
-            id, name, location_type, status, geom, source_id, publication_eligible
-          ) VALUES
-            ('a3700000-0000-4000-8000-000000000011', 'A37_APPROVED_TILE_FEATURE',
-             'boarding_point', 'published', ST_SetSRID(ST_MakePoint(-1, 0), 4326),
-             'a3700000-0000-4000-8000-000000000001', true),
-            ('a3700000-0000-4000-8000-000000000012', 'A37_PRIVATE_MUST_NOT_LEAK',
-             'private_business', 'published', ST_SetSRID(ST_MakePoint(-1, 0), 4326),
-             'a3700000-0000-4000-8000-000000000002', true);
-          INSERT INTO geo.publications (entity_type, entity_id, source_id, status)
-          VALUES
-            ('location', 'a3700000-0000-4000-8000-000000000011',
-             'a3700000-0000-4000-8000-000000000001', 'published'),
-            ('location', 'a3700000-0000-4000-8000-000000000012',
-             'a3700000-0000-4000-8000-000000000002', 'published');
-          SQL
-      - name: Provision disposable least-privilege Martin reader
-        run: |
-          psql "postgresql://postgres:postgres@localhost:5432/maalenex_dev" -v ON_ERROR_STOP=1 <<'SQL'
-          CREATE ROLE maalenex_martin_login LOGIN PASSWORD 'ci-only-secret';
-          GRANT CONNECT ON DATABASE maalenex_dev TO maalenex_martin_login;
-          GRANT maalenex_geo_public_reader TO maalenex_martin_login;
-          SQL
-      - name: Start Martin with the dedicated public-reader login
-        run: |
-          docker run -d --name maalenex-martin-smoke --network host \
-            -e MAALENEX_GEO_PUBLIC_DATABASE_URL='postgresql://maalenex_martin_login:ci-only-secret@127.0.0.1:5432/maalenex_dev' \
-            -v "$GITHUB_WORKSPACE/infra/martin/config.yaml:/etc/martin/config.yaml:ro" \
-            ghcr.io/maplibre/martin:2.0.0-beta.7 --config /etc/martin/config.yaml
-      - name: Verify Martin catalog and public TileJSON sources
-        run: |
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:3000/martin/catalog -o /tmp/martin-catalog.json; then break; fi
-            sleep 2
-          done
-          test -s /tmp/martin-catalog.json
-          for source in locations terminals routes route_stops boundaries roads; do
-            curl --fail --silent "http://127.0.0.1:3000/martin/$source" -o "/tmp/martin-$source.json"
-            test -s "/tmp/martin-$source.json"
-          done
-          ! grep -q "vehicle_positions\|device_identifier\|credential_ciphertext" /tmp/martin-catalog.json
-      - name: Verify actual Martin MVT tile contains approved features only
-        run: |
-          curl --fail --silent --show-error \
-            http://127.0.0.1:3000/martin/locations/0/0/0 \
-            -o /tmp/martin-approved-locations.pbf
-          test -s /tmp/martin-approved-locations.pbf
-          strings /tmp/martin-approved-locations.pbf | grep -q "A37_APPROVED_TILE_FEATURE"
-          if strings /tmp/martin-approved-locations.pbf | grep -q "A37_PRIVATE_MUST_NOT_LEAK"; then
-            echo "Unverified private location leaked into public vector tile"
-            exit 1
-          fi
-      - name: Verify Martin login cannot read internal tracking tables
-        run: |
-          if PGPASSWORD=ci-only-secret psql -h 127.0.0.1 -U maalenex_martin_login -d maalenex_dev -v ON_ERROR_STOP=1 -c "SELECT 1 FROM geo.vehicle_positions LIMIT 1"; then
-            echo "Martin public reader unexpectedly accessed internal vehicle positions"
-            exit 1
-          fi
-          if PGPASSWORD=ci-only-secret psql -h 127.0.0.1 -U maalenex_martin_login -d maalenex_dev -v ON_ERROR_STOP=1 -c "SELECT 1 FROM geo.devices LIMIT 1"; then
-            echo "Martin public reader unexpectedly accessed device records"
-            exit 1
-          fi
-      - name: Stop disposable Martin service
-        if: always()
-        run: docker rm -f maalenex-martin-smoke || true
-      - name: Downgrade A3.3 and verify legacy source preservation
-        run: python -m alembic downgrade 0020_canonical_postgis_schema
-      - name: Assert A3.3 rollback retained legacy MITP records
-        env:
-          RUN_MITP_BACKFILL_DOWNGRADE: "1"
-        run: python -m pytest -q tests/test_mitp_geo_downgrade.py
-      - name: Test full migration downgrade and clean re-upgrade
-        run: python -m alembic downgrade base && python -m alembic upgrade head
-\\t' -c "
+          psql "postgresql://postgres:postgres@localhost:5432/maalenex_dev" -X -v ON_ERROR_STOP=1 -At -F "\\t" -c "
             SELECT extension.extname, namespace.nspname, relation.relname
             FROM pg_depend AS dependency
             JOIN pg_extension AS extension ON extension.oid = dependency.refobjid
@@ -329,15 +210,12 @@ jobs:
         if: always()
         run: docker rm -f maalenex-martin-smoke || true
       - name: Downgrade A3.3 and verify legacy source preservation
-        if: always() && !cancelled()
         run: python -m alembic downgrade 0020_canonical_postgis_schema
       - name: Assert A3.3 rollback retained legacy MITP records
-        if: always() && !cancelled()
         env:
           RUN_MITP_BACKFILL_DOWNGRADE: "1"
         run: python -m pytest -q tests/test_mitp_geo_downgrade.py
       - name: Test full migration downgrade and clean re-upgrade
-        if: always() && !cancelled()
         run: python -m alembic downgrade base && python -m alembic upgrade head
 
   frontend-build:
