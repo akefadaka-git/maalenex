@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgis/postgis:16-3.4
         env:
           POSTGRES_DB: maalenex_dev
           POSTGRES_USER: postgres
@@ -59,6 +59,10 @@ jobs:
         run: python -m pytest -q
       - name: Apply baseline migration to empty database
         run: python -m alembic upgrade head
+      - name: Verify canonical PostGIS schema and tenant-bound tracking keys
+        env:
+          RUN_GEO_SCHEMA_INTEGRATION: "1"
+        run: python -m pytest -q tests/test_geo_schema.py
       - name: Check Alembic metadata parity
         run: python -m alembic check
       - name: Test full migration downgrade and clean re-upgrade
