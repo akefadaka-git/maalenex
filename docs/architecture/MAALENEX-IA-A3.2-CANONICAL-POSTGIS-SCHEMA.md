@@ -46,7 +46,7 @@ No authoritative Maale Woreda boundary or road-network source is introduced by t
 
 ## 5. Tenant integrity
 
-Tracking devices and vehicle positions require an organization. Composite foreign keys bind each device and vehicle reference to the same organization, preventing cross-tenant device/vehicle assignment and position rows at the database constraint layer. Vehicle composite identity is represented in ORM metadata so public-schema Alembic metadata checks can account for the supporting unique index.
+Tracking devices and vehicle positions require an organization. Composite foreign keys bind each device and vehicle reference to the same organization, preventing cross-tenant device/vehicle assignment and position rows at the database constraint layer. Each position also requires a provenance source record. Vehicle composite identity is represented in ORM metadata so public-schema Alembic metadata checks can account for the supporting unique index.
 
 API authorization, tenant-aware queries, RLS, restricted database roles and sanitized public views remain separate A3.4/A3.5 deliverables; this schema alone is not an authorization boundary.
 
@@ -60,7 +60,7 @@ API authorization, tenant-aware queries, RLS, restricted database roles and sani
 
 ## 7. Verification evidence required
 
-The backend verification workflow now uses `postgis/postgis:16-3.4` and includes a post-upgrade schema test for the expected tables, EPSG:4326 geometry types and tenant-bound tracking foreign keys.
+The backend verification workflow now uses `postgis/postgis:16-3.4` and includes a post-upgrade schema test for the expected tables, EPSG:4326 geometry types, mandatory position provenance and tenant-bound tracking foreign keys. Alembic's environment excludes the PostGIS-owned `spatial_ref_sys` reference table from application metadata comparison.
 
 Still required:
 - [ ] Exact-head CI run on this branch/PR.
