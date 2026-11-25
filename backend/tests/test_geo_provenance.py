@@ -21,15 +21,14 @@ def _source(connection, *, eligible=False):
         INSERT INTO geo.data_sources (
             id, provider, source_name, license_identifier, license_name,
             attribution_text, source_srid, collected_at, verification_status,
-            verified_at, verified_by, license_review_status, license_reviewed_at,
+            verified_at, license_review_status, license_reviewed_at,
             license_reviewed_by, responsible_actor_type, responsible_actor_id,
             publication_eligible
         ) VALUES (
             :id, 'A3.8 synthetic', 'Provenance fixture',
             'INTERNAL_TEST', 'Synthetic test terms', 'Synthetic data only',
             4326, now(), 'verified', now(),
-            (SELECT id FROM public.staff_users LIMIT 1),
-            'approved', now(), (SELECT id FROM public.staff_users LIMIT 1),
+            'approved', now(), 'a3.8-ci-reviewer',
             'test', 'a3.8-ci', :eligible
         )
     """), {"id": source_id, "eligible": eligible})
@@ -90,14 +89,13 @@ def test_publication_eligibility_requires_independent_license_review():
                     INSERT INTO geo.data_sources (
                         provider, source_name, license_identifier, license_name,
                         attribution_text, source_srid, collected_at,
-                        verification_status, verified_at, verified_by,
+                        verification_status, verified_at,
                         responsible_actor_type, responsible_actor_id,
                         publication_eligible
                     ) VALUES (
                         'A3.8 synthetic', 'Missing license review',
                         'UNKNOWN', 'Unknown terms', 'Synthetic attribution',
                         4326, now(), 'verified', now(),
-                        (SELECT id FROM public.staff_users LIMIT 1),
                         'test', 'a3.8-ci', true
                     )
                 """))
