@@ -12,7 +12,7 @@ def migration_scripts() -> ScriptDirectory:
 
 
 def test_consolidated_migration_history_has_one_head() -> None:
-    assert migration_scripts().get_heads() == ["0023_geo_tenant_rls_permissions"]
+    assert migration_scripts().get_heads() == ["0024_geo_provenance_licensing"]
 
 
 def test_merge_revision_preserves_both_stream_heads() -> None:
