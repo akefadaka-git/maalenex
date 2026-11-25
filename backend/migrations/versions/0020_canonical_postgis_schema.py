@@ -337,6 +337,7 @@ CREATE UNIQUE INDEX uq_geo_active_device_assignment_vehicle
             organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE RESTRICT,
             device_id uuid NOT NULL,
             vehicle_id uuid NOT NULL,
+            source_id uuid NOT NULL REFERENCES geo.data_sources(id) ON DELETE RESTRICT,
             sequence integer NOT NULL,
             recorded_at timestamptz NOT NULL,
             received_at timestamptz NOT NULL DEFAULT now(),
