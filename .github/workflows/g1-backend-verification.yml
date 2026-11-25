@@ -63,7 +63,7 @@ jobs:
       - name: Install backend and test dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
       - name: Ruff
-        run: python -m ruff check app/routers/geo.py tests/test_geo_internal_positions_api.py
+        run: python -m ruff check app/routers/geo.py tests/test_geo_internal_positions_api.py tests/test_geo_publication_leakage.py
       - name: Backend tests
         run: python -m pytest -q
       - name: Apply schema through canonical PostGIS baseline
@@ -148,6 +148,17 @@ jobs:
             test -s "/tmp/martin-$source.json"
           done
           ! grep -q "vehicle_positions\|device_identifier\|credential_ciphertext" /tmp/martin-catalog.json
+      - name: Verify actual Martin MVT tile contains approved features only
+        run: |
+          curl --fail --silent --show-error \
+            http://127.0.0.1:3000/martin/locations/0/0/0.pbf \
+            -o /tmp/martin-approved-locations.pbf
+          test -s /tmp/martin-approved-locations.pbf
+          strings /tmp/martin-approved-locations.pbf | grep -q "A37_APPROVED_TILE_FEATURE"
+          if strings /tmp/martin-approved-locations.pbf | grep -q "A37_PRIVATE_MUST_NOT_LEAK"; then
+            echo "Unverified private location leaked into public vector tile"
+            exit 1
+          fi
       - name: Verify Martin login cannot read internal tracking tables
         run: |
           if PGPASSWORD=ci-only-secret psql -h 127.0.0.1 -U maalenex_martin_login -d maalenex_dev -v ON_ERROR_STOP=1 -c "SELECT 1 FROM geo.vehicle_positions LIMIT 1"; then
