@@ -63,7 +63,7 @@ jobs:
       - name: Install backend and test dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
       - name: Ruff
-        run: python -m ruff check app/routers/geo.py tests/test_geo_internal_positions_api.py
+        run: python -m ruff check app/routers/geo.py tests/test_geo_internal_positions_api.py tests/test_geo_provenance.py tests/test_geo_publication_leakage.py
       - name: Backend tests
         run: python -m pytest -q
       - name: Apply schema through canonical PostGIS baseline
@@ -92,18 +92,24 @@ jobs:
         env:
           RUN_GEO_LEAKAGE_INTEGRATION: "1"
         run: python -m pytest -q tests/test_geo_publication_leakage.py
+      - name: Verify A3.8 geographic provenance and licensing controls
+        env:
+          RUN_GEO_PROVENANCE_INTEGRATION: "1"
+        run: python -m pytest -q tests/test_geo_provenance.py
       - name: Seed disposable approved and unverified public tile fixtures
         run: |
           psql "postgresql://postgres:postgres@localhost:5432/maalenex_dev" -v ON_ERROR_STOP=1 <<'SQL'
           INSERT INTO geo.data_sources (
             id, provider, source_name, license_identifier, license_name,
             attribution_text, source_srid, collected_at, verification_status,
-            verified_at, responsible_actor_type, responsible_actor_id,
+            verified_at, license_review_status, license_reviewed_at,
+            license_reviewed_by, responsible_actor_type, responsible_actor_id,
             publication_eligible
           ) VALUES
             ('a3700000-0000-4000-8000-000000000001', 'A3.7 CI', 'approved tile fixture',
              'INTERNAL_TEST', 'Synthetic only', 'No external data', 4326, now(),
-             'verified', now(), 'test', 'a3.7-ci', true),
+             'verified', now(), 'approved', now(), 'a3.7-ci-reviewer',
+             'test', 'a3.7-ci', true),
             ('a3700000-0000-4000-8000-000000000002', 'A3.7 CI', 'unverified tile fixture',
              'INTERNAL_TEST', 'Synthetic only', 'No external data', 4326, now(),
              'unverified', NULL, 'test', 'a3.7-ci-private', false);
