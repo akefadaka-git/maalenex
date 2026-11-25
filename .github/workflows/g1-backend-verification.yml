@@ -111,10 +111,10 @@ jobs:
             id, name, location_type, status, geom, source_id, publication_eligible
           ) VALUES
             ('a3700000-0000-4000-8000-000000000011', 'A37_APPROVED_TILE_FEATURE',
-             'boarding_point', 'published', ST_SetSRID(ST_MakePoint(0, 0), 4326),
+             'boarding_point', 'published', ST_SetSRID(ST_MakePoint(-1, 0), 4326),
              'a3700000-0000-4000-8000-000000000001', true),
             ('a3700000-0000-4000-8000-000000000012', 'A37_PRIVATE_MUST_NOT_LEAK',
-             'private_business', 'published', ST_SetSRID(ST_MakePoint(0, 0), 4326),
+             'private_business', 'published', ST_SetSRID(ST_MakePoint(-1, 0), 4326),
              'a3700000-0000-4000-8000-000000000002', true);
           INSERT INTO geo.publications (entity_type, entity_id, source_id, status)
           VALUES
@@ -151,7 +151,7 @@ jobs:
       - name: Verify actual Martin MVT tile contains approved features only
         run: |
           curl --fail --silent --show-error \
-            http://127.0.0.1:3000/martin/locations/0/0/0.pbf \
+            http://127.0.0.1:3000/martin/locations/0/0/0 \
             -o /tmp/martin-approved-locations.pbf
           test -s /tmp/martin-approved-locations.pbf
           strings /tmp/martin-approved-locations.pbf | grep -q "A37_APPROVED_TILE_FEATURE"
