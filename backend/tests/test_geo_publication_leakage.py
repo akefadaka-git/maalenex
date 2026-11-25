@@ -25,12 +25,14 @@ def _tenant_catalog_fixture(connection, organization_id):
         INSERT INTO geo.data_sources (
             id, organization_id, provider, source_name, license_identifier,
             license_name, attribution_text, source_srid, collected_at,
-            verification_status, verified_at, responsible_actor_type,
+            verification_status, verified_at, license_review_status,
+            license_reviewed_at, license_reviewed_by, responsible_actor_type,
             responsible_actor_id, publication_eligible
         ) VALUES (
             :source, :org, 'A3.7 synthetic', 'Tenant fixture',
             'INTERNAL_TEST', 'Synthetic only', 'No external data',
-            4326, now(), 'verified', now(), 'test', 'a3.7-test', true
+            4326, now(), 'verified', now(), 'approved', now(),
+            'a3.7-ci-reviewer', 'test', 'a3.7-test', true
         )
     """), {"source": source_id, "org": organization_id})
     for location_id, name, lon in (
@@ -138,12 +140,14 @@ def test_public_reader_sees_only_verified_published_and_allowlisted_features():
                 INSERT INTO geo.data_sources (
                     id, provider, source_name, license_identifier, license_name,
                     attribution_text, source_srid, collected_at, verification_status,
-                    verified_at, responsible_actor_type, responsible_actor_id,
+                    verified_at, license_review_status, license_reviewed_at,
+                    license_reviewed_by, responsible_actor_type, responsible_actor_id,
                     publication_eligible
                 ) VALUES (
                     :source, 'A3.7 synthetic', 'Approved public fixture',
                     'INTERNAL_TEST', 'Synthetic only', 'No external data',
-                    4326, now(), 'verified', now(), 'test', 'a3.7-public', true
+                    4326, now(), 'verified', now(), 'approved', now(),
+                    'a3.7-ci-reviewer', 'test', 'a3.7-public', true
                 )
             """), {"source": source_public})
             connection.execute(text("""
