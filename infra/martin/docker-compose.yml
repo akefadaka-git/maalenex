@@ -1,0 +1,13 @@
+services:
+  maalenex-martin:
+    image: ghcr.io/maplibre/martin:v0.19.3
+    command: ["--config", "/etc/martin/config.yaml"]
+    environment:
+      MAALENEX_GEO_PUBLIC_DATABASE_URL: ${MAALENEX_GEO_PUBLIC_DATABASE_URL:?Set a dedicated public-reader connection string}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./config.yaml:/etc/martin/config.yaml:ro
+    restart: unless-stopped
