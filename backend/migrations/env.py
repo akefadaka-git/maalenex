@@ -80,6 +80,10 @@ def run_migrations_online() -> None:
                 """
             )
         ).all()
+        # SQLAlchemy 2.x autobegins a transaction for the catalog SELECT above.
+        # Close that read-only transaction before Alembic opens its migration
+        # transaction; otherwise connection teardown rolls back every migration.
+        connection.commit()
         EXTENSION_OWNED_RELATIONS.clear()
         EXTENSION_OWNED_RELATIONS.update(
             (schema_name, relation_name)
