@@ -18,6 +18,7 @@ _DATABASE_ROLE_BY_PERMISSION = {
     "platform.tracking.manage": "maalenex_geo_tenant_manager",
     "platform.geo.manage": "maalenex_geo_catalog_manager",
     "platform.geo.publish": "maalenex_geo_catalog_manager",
+    "platform.geo.audit.read": "maalenex_geo_audit_reader",
 }
 
 
@@ -69,3 +70,20 @@ def authorize_geo_tenant_context(
             'app.current_organization_id', :organization_id, true
         )
     """), {"organization_id": str(organization_id)})
+    if permission_code == "platform.geo.audit.read":
+        action = "audit_read"
+    elif permission_code.endswith(".read"):
+        action = "read"
+    elif permission_code.endswith(".publish"):
+        action = "publish"
+    else:
+        action = "manage"
+    db.execute(text("""
+        SELECT geo_audit.record_access_event(
+            :actor_user_id, :permission_code, :action
+        )
+    """), {
+        "actor_user_id": user_id,
+        "permission_code": permission_code,
+        "action": action,
+    })

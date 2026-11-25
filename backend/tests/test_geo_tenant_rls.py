@@ -203,6 +203,57 @@ def test_catalog_manager_cannot_bind_tenant_location_to_other_tenant_source():
         engine.dispose()
 
 
+def test_geo_audit_events_are_tenant_scoped_and_append_only():
+    engine = create_engine(settings.database_url)
+    org_a, org_b = uuid4(), uuid4()
+    fixtures = []
+    try:
+        with engine.begin() as connection:
+            for org in (org_a, org_b):
+                values = (org, uuid4(), uuid4(), uuid4(), uuid4())
+                _insert_tenant_fixture(connection, *values)
+                fixtures.append(values)
+
+        with engine.begin() as connection:
+            connection.execute(text("SET LOCAL ROLE maalenex_geo_internal_reader"))
+            connection.execute(text("""
+                SELECT pg_catalog.set_config(
+                    'app.current_organization_id', :org, true
+                )
+            """), {"org": str(org_a)})
+            connection.execute(text("""
+                SELECT geo_audit.record_access_event(
+                    NULL, 'platform.tracking.read', 'read'
+                )
+            """))
+
+        with engine.begin() as connection:
+            connection.execute(text("SET LOCAL ROLE maalenex_geo_audit_reader"))
+            connection.execute(text("""
+                SELECT pg_catalog.set_config(
+                    'app.current_organization_id', :org, true
+                )
+            """), {"org": str(org_a)})
+            events = connection.execute(text("""
+                SELECT organization_id, permission_code, action, outcome
+                FROM geo_audit.events
+            """)).all()
+            assert len(events) == 1
+            assert events[0][0] == org_a
+            assert events[0][1:] == (
+                "platform.tracking.read", "read", "authorized",
+            )
+            with pytest.raises(Exception):
+                connection.execute(text("UPDATE geo_audit.events SET action = 'manage'"))
+
+        with engine.begin() as connection:
+            connection.execute(text("SET LOCAL ROLE maalenex_geo_internal_reader"))
+            with pytest.raises(Exception):
+                connection.execute(text("SELECT * FROM geo_audit.events"))
+    finally:
+        engine.dispose()
+
+
 def test_rls_is_enabled_on_all_canonical_geo_tables():
     engine = create_engine(settings.database_url)
     expected = {
@@ -222,5 +273,13 @@ def test_rls_is_enabled_on_all_canonical_geo_tables():
                   AND c.relrowsecurity
             """)))
         assert expected <= enabled
+        with engine.connect() as connection:
+            audit_enabled = connection.scalar(text("""
+                SELECT c.relrowsecurity
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'geo_audit' AND c.relname = 'events'
+            """))
+        assert audit_enabled is True
     finally:
         engine.dispose()

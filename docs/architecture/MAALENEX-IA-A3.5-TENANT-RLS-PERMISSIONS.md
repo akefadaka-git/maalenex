@@ -3,6 +3,7 @@
 **Status:** Implemented on integration branch; PostgreSQL execution and verification pending  
 **Migration:** `0023_geo_tenant_rls_permissions`  
 **Parent:** `0022_geo_publication_views`
+**Audit schema:** `geo_audit`
 
 ## 1. Tenant context and application authorization
 
@@ -22,7 +23,7 @@ RLS is enabled on:
 - `geo.publications`
 - `geo.legacy_tracking_quarantine` (no policy: default deny)
 
-Nullable/global catalog rows do not become tenant-visible. Restrictive relationship policies additionally require same-tenant provenance sources and parent references for locations, terminals, routes, route stops, boundaries, publications and route versions. Roads and route versions inherit tenant ownership from their provenance and parent records. Quarantine remains inaccessible until its records have separately trusted tenant attribution.
+Nullable/global catalog rows do not become tenant-visible. Restrictive relationship policies additionally require same-tenant provenance sources and parent references for locations, terminals, routes, route stops, boundaries, publications and route versions. Roads and route versions inherit tenant ownership from their provenance and parent records. Quarantine remains inaccessible until its records have separately trusted tenant attribution. The `geo_audit.events` table is tenant-scoped and append-only; the security-definer audit function derives the organization only from the transaction-local context.
 
 RLS is enabled but not forced on table owners. This preserves the A3.4 owner-permission public views. Runtime requests must explicitly assume a non-owner capability role before querying protected data.
 
@@ -32,6 +33,7 @@ All roles are NOLOGIN, NOSUPERUSER, NOCREATEDB and NOCREATEROLE:
 - `maalenex_geo_internal_reader`: SELECT only on vehicle positions and its invoker-security view.
 - `maalenex_geo_tenant_manager`: SELECT positions; SELECT/INSERT/UPDATE devices and assignments.
 - `maalenex_geo_catalog_manager`: SELECT/INSERT/UPDATE tenant-owned geography, provenance and publication tables.
+- `maalenex_geo_audit_reader`: SELECT only on tenant-scoped audit events.
 
 No role receives access to the legacy quarantine table. Roles do not receive DELETE or TRUNCATE privileges. Deployment-specific login membership is not created by migrations and must be provisioned only for trusted backend principals.
 
@@ -54,7 +56,7 @@ Least-privilege mappings:
 - Operator dispatcher: tracking read within assigned organization
 - Operator fleet manager: tracking read/manage within assigned organization
 
-Platform grants are explicit null-organization assignments. Operator grants require active membership and an organization-scoped role assignment. The permission `platform.geo.audit.read` is catalogued and assigned; a dedicated geo audit event sink remains a later integration item and is not claimed as implemented here.
+Platform grants are explicit null-organization assignments. Operator grants require active membership and an organization-scoped role assignment. Authorized geo access-context changes are recorded in `geo_audit.events` through a controlled security-definer function. The event is transactional with the protected request; it is not an independent tamper-proof external audit service.
 
 ## 5. Verification requirements
 

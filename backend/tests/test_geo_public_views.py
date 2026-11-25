@@ -124,7 +124,7 @@ def test_geo_write_roles_are_non_login_and_cannot_bypass_rls():
     try:
         with engine.connect() as connection:
             for role_name in (
-                "maalenex_geo_tenant_manager", "maalenex_geo_catalog_manager"
+                "maalenex_geo_tenant_manager", "maalenex_geo_catalog_manager", "maalenex_geo_audit_reader"
             ):
                 role = connection.execute(text("""
                     SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole,
