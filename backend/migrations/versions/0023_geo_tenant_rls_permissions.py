@@ -454,7 +454,12 @@ def downgrade() -> None:
         for role, grants in ROLE_GRANTS.items() for permission in grants
     ]
     connection.execute(links.delete().where(links.c.id.in_(link_ids)))
-    connection.execute(permissions.delete().where(permissions.c.id.in_(permission_ids)))
+    connection.execute(permissions.delete().where(
+        permissions.c.id.in_(permission_ids),
+        ~sa.exists(sa.select(links.c.id).where(
+            links.c.permission_id == permissions.c.id,
+        )),
+    ))
 
     policy_tables = {
         "data_sources": "p_data_sources_tenant_isolation",
