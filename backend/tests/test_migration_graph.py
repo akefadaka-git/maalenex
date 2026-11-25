@@ -12,7 +12,7 @@ def migration_scripts() -> ScriptDirectory:
 
 
 def test_consolidated_migration_history_has_one_head() -> None:
-    assert migration_scripts().get_heads() == ["0021_mitp_tracking_to_geo"]
+    assert migration_scripts().get_heads() == ["0022_geo_publication_views"]
 
 
 def test_merge_revision_preserves_both_stream_heads() -> None:
@@ -34,3 +34,9 @@ def test_mitp_backfill_follows_canonical_geo_schema() -> None:
     backfill = migration_scripts().get_revision("0021_mitp_tracking_to_geo")
     assert backfill is not None
     assert backfill.down_revision == "0020_canonical_postgis_schema"
+
+
+def test_publication_views_follow_mitp_backfill() -> None:
+    publication = migration_scripts().get_revision("0022_geo_publication_views")
+    assert publication is not None
+    assert publication.down_revision == "0021_mitp_tracking_to_geo"
