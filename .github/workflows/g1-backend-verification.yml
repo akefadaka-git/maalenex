@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - "frontend/**"
+      - "infra/martin/**"
       - ".github/workflows/g1-backend-verification.yml"
   workflow_dispatch:
 
@@ -21,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgis/postgis:16-3.4
+        image: postgis/postgis:16-3.5
         env:
           POSTGRES_DB: maalenex_dev
           POSTGRES_USER: postgres
@@ -79,6 +81,44 @@ jobs:
         env:
           RUN_GEO_RLS_INTEGRATION: "1"
         run: python -m pytest -q tests/test_geo_tenant_rls.py
+      - name: Provision disposable least-privilege Martin reader
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE maalenex_martin_login LOGIN PASSWORD 'ci-only-secret';
+          GRANT CONNECT ON DATABASE maalenex_dev TO maalenex_martin_login;
+          GRANT maalenex_geo_public_reader TO maalenex_martin_login;
+          SQL
+      - name: Start Martin with the dedicated public-reader login
+        run: |
+          docker run -d --name maalenex-martin-smoke --network host \
+            -e MAALENEX_GEO_PUBLIC_DATABASE_URL='postgresql://maalenex_martin_login:ci-only-secret@127.0.0.1:5432/maalenex_dev' \
+            -v "$GITHUB_WORKSPACE/infra/martin/config.yaml:/etc/martin/config.yaml:ro" \
+            ghcr.io/maplibre/martin:v0.19.3 --config /etc/martin/config.yaml
+      - name: Verify Martin catalog and public TileJSON sources
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3000/martin/catalog -o /tmp/martin-catalog.json; then break; fi
+            sleep 2
+          done
+          test -s /tmp/martin-catalog.json
+          for source in locations terminals routes route_stops boundaries roads; do
+            curl --fail --silent "http://127.0.0.1:3000/martin/$source" -o "/tmp/martin-$source.json"
+            test -s "/tmp/martin-$source.json"
+          done
+          ! grep -q "vehicle_positions\|device_identifier\|credential_ciphertext" /tmp/martin-catalog.json
+      - name: Verify Martin login cannot read internal tracking tables
+        run: |
+          if PGPASSWORD=ci-only-secret psql -h 127.0.0.1 -U maalenex_martin_login -d maalenex_dev -v ON_ERROR_STOP=1 -c "SELECT 1 FROM geo.vehicle_positions LIMIT 1"; then
+            echo "Martin public reader unexpectedly accessed internal vehicle positions"
+            exit 1
+          fi
+          if PGPASSWORD=ci-only-secret psql -h 127.0.0.1 -U maalenex_martin_login -d maalenex_dev -v ON_ERROR_STOP=1 -c "SELECT 1 FROM geo.devices LIMIT 1"; then
+            echo "Martin public reader unexpectedly accessed device records"
+            exit 1
+          fi
+      - name: Stop disposable Martin service
+        if: always()
+        run: docker rm -f maalenex-martin-smoke || true
       - name: Check Alembic metadata parity
         run: python -m alembic check
       - name: Downgrade A3.3 and verify legacy source preservation
@@ -89,3 +129,22 @@ jobs:
         run: python -m pytest -q tests/test_mitp_geo_downgrade.py
       - name: Test full migration downgrade and clean re-upgrade
         run: python -m alembic downgrade base && python -m alembic upgrade head
+
+  frontend-build:
+    name: Frontend TypeScript and production build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+      - name: TypeScript and Vite production build
+        working-directory: frontend
+        run: npm run build
