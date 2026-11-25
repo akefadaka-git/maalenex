@@ -71,6 +71,10 @@ jobs:
         env:
           RUN_GEO_SCHEMA_INTEGRATION: "1"
         run: python -m pytest -q tests/test_geo_schema.py
+      - name: Verify A3.4 public and internal view privileges
+        env:
+          RUN_GEO_PUBLIC_VIEWS_INTEGRATION: "1"
+        run: python -m pytest -q tests/test_geo_public_views.py
       - name: Check Alembic metadata parity
         run: python -m alembic check
       - name: Downgrade A3.3 and verify legacy source preservation
