@@ -53,7 +53,7 @@ def test_mitp_legacy_rows_are_migrated_or_quarantined_without_tenant_guessing() 
                    ST_X(p.geom) AS longitude, ST_Y(p.geom) AS latitude,
                    p.is_synthetic
             FROM geo.vehicle_positions p
-            WHERE p.id = 'a3300000-0000-4000-8000-000000000001'
+            WHERE p.id = 'a3300000-0000-4000-8000-000000000041'
         """)).mappings().one()
         assert str(migrated["organization_id"]) == "a3300000-0000-4000-8000-000000000001"
         assert migrated["source_id"] is not None
