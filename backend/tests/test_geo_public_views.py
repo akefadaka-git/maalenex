@@ -135,6 +135,22 @@ def test_geo_write_roles_are_non_login_and_cannot_bypass_rls():
     finally:
         engine.dispose()
 
+def test_audit_reader_can_read_only_tenant_scoped_audit_events():
+    engine = create_engine(settings.database_url)
+    try:
+        with engine.connect() as connection:
+            privileges = connection.execute(text("""
+                SELECT
+                    has_schema_privilege('maalenex_geo_audit_reader', 'geo_audit', 'USAGE'),
+                    has_schema_privilege('maalenex_geo_audit_reader', 'geo', 'USAGE'),
+                    has_table_privilege('maalenex_geo_audit_reader', 'geo_audit.events', 'SELECT'),
+                    has_table_privilege('maalenex_geo_audit_reader', 'geo.vehicle_positions', 'SELECT')
+            """)).one()
+        assert tuple(privileges) == (True, True, True, False)
+    finally:
+        engine.dispose()
+
+
 def test_geo_permission_catalog_and_least_privilege_role_grants():
     engine = create_engine(settings.database_url)
     expected = {
