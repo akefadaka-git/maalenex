@@ -25,7 +25,7 @@ MIGRATION_MANAGED_SCHEMAS = {"geo"}
 # Populated from pg_depend at runtime. This is extension ownership, not a
 # name-based allowlist: only relations PostgreSQL records as members of an
 # installed extension are excluded from application metadata parity.
-EXTENSION_OWNED_RELATIONS: set[tuple[str, str]] = set()
+EXTENSION_OWNED_RELATIONS: set[tuple[str | None, str]] = set()
 
 
 def include_object(object, name, type_, reflected, compare_to):
@@ -65,7 +65,8 @@ def run_migrations_online() -> None:
         extension_relations = connection.execute(
             text(
                 """
-                SELECT namespace.nspname, relation.relname
+                SELECT namespace.nspname, relation.relname,
+                       pg_table_is_visible(relation.oid) AS is_visible
                 FROM pg_depend AS dependency
                 JOIN pg_extension AS extension
                   ON extension.oid = dependency.refobjid
@@ -85,10 +86,12 @@ def run_migrations_online() -> None:
         # transaction; otherwise connection teardown rolls back every migration.
         connection.commit()
         EXTENSION_OWNED_RELATIONS.clear()
-        EXTENSION_OWNED_RELATIONS.update(
-            (schema_name, relation_name)
-            for schema_name, relation_name in extension_relations
-        )
+        for schema_name, relation_name, is_visible in extension_relations:
+            EXTENSION_OWNED_RELATIONS.add((schema_name, relation_name))
+            # SQLAlchemy reflects relations found through search_path with
+            # schema=None; match only the extension object actually visible.
+            if is_visible:
+                EXTENSION_OWNED_RELATIONS.add((None, relation_name))
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
