@@ -64,6 +64,14 @@ def test_canonical_geometry_columns_use_epsg_4326() -> None:
             """))
         }
         assert expected <= actual
+        source_nullable = connection.scalar(text("""
+            SELECT is_nullable
+            FROM information_schema.columns
+            WHERE table_schema = 'geo'
+              AND table_name = 'vehicle_positions'
+              AND column_name = 'source_id'
+        """))
+        assert source_nullable == "NO"
     engine.dispose()
 
 
@@ -74,6 +82,7 @@ def test_tracking_foreign_keys_bind_devices_and_vehicles_to_tenant() -> None:
         "fk_geo_assignment_vehicle_tenant",
         "fk_geo_position_device_tenant",
         "fk_geo_position_vehicle_tenant",
+        "vehicle_positions_source_id_fkey",
     }
     with engine.connect() as connection:
         actual = set(connection.scalars(text("""
