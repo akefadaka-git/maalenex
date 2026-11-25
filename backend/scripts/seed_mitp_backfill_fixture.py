@@ -31,13 +31,13 @@ def main() -> None:
     engine = create_engine(settings.database_url)
     with engine.begin() as connection:
         connection.execute(text("""
-            INSERT INTO organizations (id, organization_type, display_name, status)
+            INSERT INTO public.organizations (id, organization_type, display_name, status)
             VALUES
               (:org_a, 'operator', 'Synthetic operator A', 'active'),
               (:org_b, 'operator', 'Synthetic operator B', 'active')
         """), {"org_a": ORG_A, "org_b": ORG_B})
         connection.execute(text("""
-            INSERT INTO vehicles (id, organization_id, vehicle_reference, status, review_status)
+            INSERT INTO public.vehicles (id, organization_id, vehicle_reference, status, review_status)
             VALUES
               (:vehicle_a, :org_a, 'SYNTH-A3301', 'active', 'approved'),
               (:vehicle_b, :org_b, 'SYNTH-A3302', 'active', 'approved')
@@ -46,7 +46,7 @@ def main() -> None:
             "org_a": ORG_A, "org_b": ORG_B,
         })
         connection.execute(text("""
-            INSERT INTO tracking_devices (
+            INSERT INTO public.tracking_devices (
                 id, device_identifier, credential_ciphertext, credential_version,
                 status, last_sequence, created_at
             ) VALUES
@@ -58,7 +58,7 @@ def main() -> None:
             "cross": DEVICE_CROSS_TENANT, "now": now,
         })
         connection.execute(text("""
-            INSERT INTO vehicle_device_assignments (
+            INSERT INTO public.vehicle_device_assignments (
                 id, device_id, vehicle_id, assigned_at, unassigned_at
             ) VALUES
               (:valid_assignment, :valid_device, :vehicle_a, :start, NULL),
@@ -72,7 +72,7 @@ def main() -> None:
             "middle": now - timedelta(days=1),
         })
         connection.execute(text("""
-            INSERT INTO vehicle_telemetry (
+            INSERT INTO public.vehicle_telemetry (
                 id, device_id, vehicle_id, sequence, recorded_at, received_at,
                 latitude, longitude, speed_kph, heading_degrees, accuracy_meters,
                 is_synthetic
