@@ -32,6 +32,38 @@ CREATE INDEX ix_geo_legacy_tracking_quarantine_source
 ON geo.legacy_tracking_quarantine(source_table, source_id)
 """)
 
+    # Never overwrite canonical records or silently absorb identity collisions.
+    op.execute("""
+DO $
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM public.tracking_devices legacy
+        JOIN geo.devices canonical
+          ON canonical.id = legacy.id
+          OR canonical.device_identifier = legacy.device_identifier
+    ) THEN
+        RAISE EXCEPTION 'A3.3 device identity collision; reconcile before backfill';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM public.vehicle_device_assignments legacy
+        JOIN geo.device_vehicle_assignments canonical
+          ON canonical.id = legacy.id
+    ) THEN
+        RAISE EXCEPTION 'A3.3 assignment identity collision; reconcile before backfill';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM public.vehicle_telemetry legacy
+        JOIN geo.vehicle_positions canonical
+          ON canonical.id = legacy.id
+          OR (canonical.device_id = legacy.device_id
+              AND canonical.sequence = legacy.sequence)
+    ) THEN
+        RAISE EXCEPTION 'A3.3 telemetry identity collision; reconcile before backfill';
+    END IF;
+END;
+$
+""")
+
     # A device is tenant-owned only when every historical vehicle assignment
     # resolves to exactly one and the same organization.
     op.execute("""
