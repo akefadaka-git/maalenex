@@ -8,7 +8,6 @@ from sqlalchemy.exc import DBAPIError
 
 from app.core.config import settings
 
-
 pytestmark = pytest.mark.skipif(
     os.getenv("RUN_GEO_LEAKAGE_INTEGRATION") != "1",
     reason="requires disposable PostGIS database with A3.5 migrations applied",
