@@ -1,5 +1,6 @@
 export function apiUrl(path: string): string {
-  const configured = import.meta.env.VITE_API_BASE_URL?.trim() ?? "";
+  const env = (import.meta as ImportMeta & { env?: { VITE_API_BASE_URL?: string } }).env;
+  const configured = env?.VITE_API_BASE_URL?.trim() ?? "";
   if (!path.startsWith("/api/")) {
     throw new Error("API paths must be rooted under /api/.");
   }
