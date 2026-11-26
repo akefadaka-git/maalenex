@@ -4,3 +4,26 @@
 .details-form input,.details-form textarea{width:100%;min-height:44px;padding:10px 12px;border:1px solid #cbd4ca;border-radius:8px;background:#fbfcf9;color:#172b28;font:inherit}
 .details-form textarea{resize:vertical;line-height:1.6}
 .secondary-button:disabled{opacity:.55;cursor:not-allowed}
+
+
+.about-nav{border:1px solid #b9c5ba;border-radius:99px;padding:8px 14px;color:#163a35;background:#fff;cursor:pointer;font:inherit;font-size:13px}
+.about-nav[aria-pressed="true"]{background:#163a35;color:#fff;border-color:#163a35}
+.about-page{width:min(100%,1080px);margin:auto;padding:54px 0 64px}
+.about-heading{max-width:760px;margin-bottom:32px}
+.about-heading h1{font-size:clamp(38px,7vw,68px)}
+.about-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.about-card{padding:26px;background:#fff;border:1px solid #d8ded5;border-radius:14px;box-shadow:0 12px 32px #183b3208}
+.about-card h2{margin:8px 0 14px;color:#163a35;font-size:clamp(20px,2.5vw,27px);line-height:1.35}
+.about-card p,.about-card li{color:#607069;font-size:14px;line-height:1.85}
+.about-card ul{padding-left:22px;margin-bottom:0}
+.about-kicker{margin:0;color:#8b643d!important;font-size:11px!important;font-weight:800;letter-spacing:.14em}
+.about-status{border-color:#c8d7c9}
+.about-status-label{display:inline-flex;margin-top:8px;padding:8px 11px;border-radius:7px;background:#edf4ec;color:#315a3e;font-size:11px;font-weight:800;letter-spacing:.04em}
+.about-creator{grid-column:1/-1}
+.about-contact-list,.about-socials{display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:16px}
+.about-contact-list a,.about-socials a{color:#163a35;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+.about-portfolio{margin-top:22px;padding-top:16px;border-top:1px solid #e3e8e1;color:#53645c;font-size:13px}
+.about-portfolio p{margin:5px 0 0}
+.about-actions{margin-top:24px}
+@media(max-width:700px){.about-grid{grid-template-columns:1fr}.about-creator{grid-column:auto}.about-card{padding:20px}.about-page{padding:38px 0 48px}.about-nav{padding:8px 10px}.top-actions{gap:8px}.environment{display:none}}
+@media(max-width:420px){.about-nav{font-size:12px;padding:7px 8px}.topbar{gap:8px}.brand{font-size:11px;letter-spacing:.08em}}
