@@ -69,9 +69,20 @@ These are account-owner actions in provider dashboards. No credentials, API toke
 2. Create a new project named `maalenex-pilot` under the Free plan.
 3. Select a region based on the available region list and measured latency from Ethiopia; do not assume the nearest advertised region is automatically best.
 4. Use a unique database password and store it only in the provider's password manager/secret store.
-5. In Database → Extensions, enable PostGIS into the `extensions` schema (never `public`).
-6. Do not run application migrations yet. Do not expose the database to the public Data API.
-7. Record only the project reference, region, PostgreSQL major version, PostGIS version/schema, and a redacted connection-host identifier. Never record the password or full connection URI in Git.
+5. In the project dashboard, open **Database → Extensions**, search for `postgis`, choose Enable, and keep the schema as `extensions`. Supabase's current official guide explicitly says not to install PostGIS into `public`: https://supabase.com/docs/guides/database/extensions/postgis
+6. After enabling, use the SQL Editor for this **read-only verification query**:
+   ```sql
+   select
+       e.extname,
+       n.nspname as installed_schema,
+       e.extversion
+   from pg_extension e
+   join pg_namespace n on n.oid = e.extnamespace
+   where e.extname = 'postgis';
+   ```
+   Expected result: one row with `extname = postgis` and `installed_schema = extensions`. If it reports `public`, stop; do not proceed or try to move the extension casually.
+7. Do not run application migrations yet. Do not expose the database to the public Data API or create application roles yet.
+8. Record only the project reference, region, PostgreSQL major version, PostGIS version/schema, and a redacted connection-host identifier. Never record the password, API secret, or full connection URI in Git or chat.
 
 ### B. Cloudflare Pages — frontend (not yet created)
 
