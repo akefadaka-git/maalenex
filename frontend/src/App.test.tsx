@@ -157,4 +157,33 @@ describe("passenger trip search shell", () => {
     await waitFor(() => expect(screen.getByText("MNM-SUP-TEST")).toBeTruthy());
   });
 
+
+  it("opens the bilingual About page and exposes creator contact and social links", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, json: async () => locations,
+    }));
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "ስለ MaaleNex" }));
+    expect(screen.getByRole("heading", { name: "ስለ MaaleNex" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Akefa Ayele Daka" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /0916546488/ }).getAttribute("href")).toBe("tel:0916546488");
+    expect(screen.getByRole("link", { name: "akefaayele@gmail.com" }).getAttribute("href")).toBe("mailto:akefaayele@gmail.com");
+    expect(screen.getByRole("link", { name: "Facebook" }).getAttribute("href")).toBe("https://www.facebook.com/akefa.ayele");
+    expect(screen.getByRole("link", { name: "Telegram" }).getAttribute("href")).toBe("https://t.me/akefaayle");
+    expect(screen.getByRole("link", { name: "YouTube" }).getAttribute("href")).toBe("https://www.youtube.com/@akefaayele6547");
+    fireEvent.click(screen.getByRole("button", { name: "ወደ ጉዞ ፍለጋ ተመለስ" }));
+    expect(screen.getByRole("heading", { name: "ጉዞዎን ያቅዱ።" })).toBeTruthy();
+  });
+
+  it("switches the About page copy to English", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, json: async () => locations,
+    }));
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "ስለ MaaleNex" }));
+    fireEvent.click(screen.getByRole("button", { name: "Switch language to English" }));
+    expect(screen.getByRole("heading", { name: "About MaaleNex" })).toBeTruthy();
+    expect(screen.getByText(/An Ethiopian mobility technology platform/)).toBeTruthy();
+  });
+
 });
