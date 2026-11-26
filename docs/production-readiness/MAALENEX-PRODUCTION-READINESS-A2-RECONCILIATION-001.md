@@ -228,3 +228,23 @@ PR #29, which had a similar full-platform experience scope, is closed and descri
 PR #30's head compared with current main is 150 commits ahead and 6 behind, with merge base `78884c0f2609edbfc94a24e42d84824bff9eed20`. PR #31 and PR #32 also compare against current main from that same merge base and are 165 and 196 commits ahead respectively, each 6 behind. This confirms the entire #30–#44 stack shares a substantially older ancestry point than current main. The PR base metadata is internally consistent within the stack, but it does not remove the need to reconcile the six later main commits and overlapping file changes.
 
 **Updated integration finding:** the candidate passenger platform is a long-lived stacked branch series (#30–#44), not a small feature PR. It must be treated as a controlled integration/reconciliation effort against current main, with a file-level ownership matrix and preservation of all post-merge-base main changes. No direct merge, rebase or cherry-pick is recommended until that matrix and the precise desired baseline are reviewed.
+
+
+## 12. Main-branch divergence content audit (2026-11-26)
+
+The six commits between the passenger stack's common merge base `78884c0f2609edbfc94a24e42d84824bff9eed20` and current main are:
+
+1. `b931e4decf71a2b8f27aab9ac5770fb55bf5c31e` — correct product name to MaaleNex.
+2. `0408df1c0b9b18b75664f362497fde3c21cec351` — add MITP A1 specification with Owner decisions.
+3. `e32c6b37a8d0642349422285f30735c882568269` — record Owner approval and close MITP A1 baseline.
+4. `0ec30fe935c16fe5dfe3c5e83c8bd533889a6952` — align MITP A1 status with approved closure.
+5. `1daf201bfb407280604534e28440b9fa83178efb` — reconcile MITP stage-gate language with Owner authorization.
+6. `c988b9d2a3b09c831daa4f1d17fa3b75f69e7e78` — freeze MaaleNex invisible-intelligence A1 specification.
+
+The GitHub compare response shows that these six commits modify only `README.md`, add `docs/architecture/MITP-A1-SPECIFICATION-v1.0.md`, and add `docs/architecture/MAALENEX-IA-A1-SPEC-001.md`. No backend, frontend, Android, migration, workflow or application source files changed on main in this six-commit interval.
+
+**Impact assessment:** the #30–#44 stack is old and very large, but its six-commit lag behind current main is documentation/product-governance drift, not six intervening application-code changes. The application-level integration risk remains in the large stacked feature set itself and in shared-file overlaps between feature branches. The README does overlap: current main retains the passenger-MVP/synthetic-only/development-only description, while PR #30's README describes a broader full-platform UI and marks identity/map/support as unconnected foundations. Any integration must preserve the stricter current governance and avoid overstating branch functionality. Do not simply take either README wholesale.
+
+PR #53 is based exactly on `1daf201bfb407280604534e28440b9fa83178efb`, the fifth of those six main commits. Its one-commit lag is therefore the final MaaleNex A1 freeze commit `c988b9d...`; the PR #53 compare shows no application-code commits missing from its base interval. Its own branch does include the MITP A1 specification and A3 implementation record. Preserve the frozen MaaleNex A1 specification and MITP A1 closure when reconciling that branch.
+
+**Updated finding:** no evidence of post-merge-base application-code changes on main was found. A controlled rebase/merge of the feature stack may be technically feasible after review, but the branch stack's large application changes, README semantics, PR dependency order, and the Alembic two-head issue still require a file-level integration plan and exact-SHA verification. This content audit does not authorize rebase, cherry-pick, merge or implementation.
