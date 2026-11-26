@@ -333,3 +333,208 @@ The following durations are estimates from the current repository state. They ar
 Indicative planning horizon: approximately 6–10 weeks from A1 review through an A4-ready release candidate, plus the A5 deployment window. This is conditional and may expand if integration, regulatory or independent security findings require remediation. A5 is not included in any automatic authorization.
 
 No deployment date is committed. No production host, production database, provider credentials, production secrets, or operational approval has been verified in this A2 inspection. No commercial operation, payment collection, ticket issuance or passenger boarding is authorized by this schedule.
+
+
+## 15. Sibling PR #42 / #43 exact-head reconciliation (2026-11-26)
+
+### 15.1 Repository facts
+
+| Item | PR #42 | PR #43 |
+|---|---|---|
+| Title | Enable passenger Android API connectivity foundation | Connect passenger Android shell to production-capable backend runtime |
+| Base branch | fix/passenger-password-minimum-six | fix/passenger-password-minimum-six |
+| Exact base SHA | 5640e9067aef5c8a1cb9fada32bf5123aa693162 | 5640e9067aef5c8a1cb9fada32bf5123aa693162 |
+| Current head SHA inspected | d3011e288c7487ebdca824d8c4dcd998ad3cfc7b | 20c855b881e30aacf97dbb0d8fbb85755eb7bdf5 |
+| Changed files | 4 | 33 |
+| Additions / deletions | 8 / 5 | 976 / 91 |
+| State | Open, draft, unmerged | Open, draft, unmerged |
+| Reviews / inline threads | None returned | None returned |
+
+Both PRs are sibling branches from the same #41 parent. Neither contains the other's commits. PR #43 is a much broader integration candidate, not a child of #42.
+
+### 15.2 PR #42 exact file ownership
+
+1. `.github/workflows/android-shell-verification.yml`: adds `fix/passenger-password-minimum-six` to the PR base-branch filter and adds a manifest assertion for Android INTERNET permission.
+2. `.github/workflows/g1-backend-verification.yml`: adds the same parent base branch to the PR trigger filter.
+3. `android/app/src/main/AndroidManifest.xml`: adds INTERNET permission.
+4. `backend/tests/test_passenger_identity.py`: moves Pydantic ValidationError and PassengerRegistration imports to module scope; the password-minimum test still uses try/except.
+
+### 15.3 PR #43 exact file ownership and overlap
+
+PR #43 changes the same four files above plus 29 other files. Its corresponding changes:
+- Android manifest: INTERNET, ACCESS_NETWORK_STATE, ACCESS_COARSE_LOCATION and ACCESS_FINE_LOCATION permissions.
+- Android MainActivity and WebView geolocation policy: permission prompt, trusted-origin checks and cookie handling for cross-origin API sessions.
+- Android and backend workflows: push triggers for the #43 feature branch, API-origin/CSP checks, Android build/emulator/SBOM/OSV coverage, Docker image build and HTTPS API/CORS/CSRF smoke steps.
+- Backend runtime: production configuration validation, database-backed readiness endpoint, Dockerfile, scheduler-worker entry point, deployment template and runtime documentation.
+- Passenger map: route/stop coordinate and geometry API types, route-list request, Google Maps renderer, map marker selection and route polyline behavior.
+- Passenger identity test: also changes the password test to pytest.raises; this is a cleaner form than #42's try/except version.
+
+The #43 PR description still states a previous head SHA (409a7d03efe3e07f71523f12b64d4e0109c54c1e), while current PR metadata reports 20c855b881e30aacf97dbb0d8fbb85755eb7bdf5. The PR description is stale and should be corrected by its maintainer before review/acceptance.
+
+### 15.4 Intended ownership decision for A3 planning
+
+- **PR #43 is the preferred integration owner for the broader Android/API runtime and passenger-map foundation**, subject to exact-head verification, security review and Owner-approved A3 scope. It includes the INTERNET permission and extends Android behavior beyond #42.
+- **PR #42 should not be merged as a separate sibling integration on top of #43.** Its narrow contribution is useful as independent baseline evidence and as a reference for the missing PR-base workflow filter. Its manifest and identity-test changes are duplicated or superseded in #43.
+- Preserve the best version of the identity test from #43 (`pytest.raises`) rather than carrying both sibling edits.
+- Reconcile workflow trigger filters explicitly. PR #42 added `fix/passenger-password-minimum-six` to PR branch filters. PR #43's pull_request branch filters do not include that base branch, although its workflows add push triggers for the #43 feature branch. Do not assume a PR-triggered check will run for #43 merely because its workflow file exists.
+- PR #43's Android manifest adds location permissions. Retain them only with a documented permission purpose, trusted-origin boundary, user-consent UX, denial/fallback behavior and tests. Do not treat manifest declarations as proof of working or compliant location capture.
+- PR #43 is not accepted for integration until its own exact head has passing backend and Android evidence. PR #42's green runs cannot be transferred to #43.
+
+### 15.5 Exact-head verification evidence
+
+PR #42 exact head `d3011e288c7487ebdca824d8c4dcd998ad3cfc7b` has two successful pull-request workflow runs:
+- [Android shell verification — run 45002401214](https://github.com/akefadaka-git/maalenex/actions/runs/45002401214): Android build/lint, frontend tests/build, manifest and CSP checks, emulator install/launch, Android unit tests, OSV scan and artifact uploads all completed successfully. The generated Gradle metadata commit job was skipped.
+- [G1 backend verification — run 45002401119](https://github.com/akefadaka-git/maalenex/actions/runs/45002401119): Ruff, backend tests, PostgreSQL migration upgrade, Alembic metadata parity and full downgrade/re-upgrade completed successfully.
+
+PR #43 exact head `20c855b881e30aacf97dbb0d8fbb85755eb7bdf5`: the pull-request-triggered workflow-run lookup returned no runs, and the commit status endpoint returned no status entries. This does not prove that no push-triggered workflow ever ran; the available workflow lookup is PR-triggered only. Exact-head PR verification is therefore NOT EVIDENCED. No workflow was dispatched or rerun.
+
+## 16. Alembic graph and model registry reconciliation
+
+### 16.1 Confirmed migration fork
+
+Two different revision IDs both descend directly from `0007_operator_invites_support`:
+
+- `0008_wallet_double_entry_ledger` (passenger/platform chain): creates `ledger_accounts`, `ledger_transactions`, and `ledger_postings` with double-entry and idempotency constraints.
+- `0008_mitp_tracking` (PR #53): creates `tracking_devices`, `vehicle_device_assignments`, and `vehicle_telemetry`, including unique active-device/vehicle assignment indexes and tracking permissions.
+
+The two revisions have distinct Alembic revision IDs and distinct primary table sets. They are parallel heads, not a filename collision. The passenger chain continues from the wallet revision through passenger identity, support, reports, wallet, notifications, booking ownership, scheduler/RBAC and fleet compliance, then:
+`0017_passenger_map_geometry` → `0018_koybe_boarding_point`.
+The map revision adds latitude/longitude/source fields to locations and JSON geometry/source fields to routes. The Koybe revision records the operator-confirmed terminal pin (5.7678630, 36.7985890) and intentionally preserves the created terminal/coordinates on downgrade.
+
+### 16.2 Safe graph reconciliation candidate — NOT IMPLEMENTED
+
+After confirming all deployed and non-production database revision states, preserve both existing migration files and add a no-op Alembic merge revision whose parents are:
+`down_revision = ("0018_koybe_boarding_point", "0008_mitp_tracking")`.
+
+This is a candidate graph design only. Before any migration is created or executed:
+1. Inventory every database's `alembic_version` rows and backup/restore status.
+2. Verify both branches upgrade cleanly from the common `0007_operator_invites_support` parent.
+3. Verify the merge produces exactly one Alembic head.
+4. Run metadata parity, full upgrade, downgrade and clean re-upgrade against disposable PostgreSQL.
+5. Confirm downgrade semantics for the Koybe data-preserving revision and all tracking tables/permissions.
+6. Verify no other PR or downstream branch adds a third head.
+
+No database state was queried and no migration was run in this A2 inspection. Applied revision state is UNKNOWN.
+
+### 16.3 Model registry union
+
+The #43 passenger/runtime branch's `backend/app/db/model_registry.py` includes audit, bookings, catalog, fares, fleet, identity, passenger identity, notifications, operations, organizations, reservations, support, passenger support, passenger reports, trips and wallet models.
+
+PR #53 directly adds the tracking domain model import to its older registry, alongside the baseline domain imports. It does not carry all the passenger-only imports present in the #43 stack. The correct integration rule is a union of the complete #43 registry and the tracking import:
+- retain all #43 passenger/platform imports;
+- add `app.domains.tracking.models`;
+- avoid dropping passenger identity, notifications, operations, passenger support, passenger reports or wallet imports;
+- run Alembic metadata parity and model-registration tests after integration.
+
+Correction to Section 13: PR #43 does not itself list model_registry.py among its 33 changed paths; it inherits the passenger registry from its parent stack. PR #53 is the branch that directly changes the registry for tracking. The required combined result is still the union described above.
+
+### 16.4 Config and application registration union
+
+- **config.py:** PR #43 adds a production-capable validation path while preserving strict synthetic/local-only development and test rules. PR #53 adds a SecretStr-based MITP device encryption key and accessor but only permits development/test. Reconcile by retaining #43's runtime validation and adding the tracking secret safely; require the key when the tracking credential-encryption feature is enabled. Never place the key in source, workflow logs or client bundles.
+- **main.py:** retain #43's passenger routers, readiness/liveness split, exact-origin credentialed CORS, allowed methods/headers and production-disabled interactive API docs; add the tracking router and its required MITP headers/methods. Keep tracking authorization staff-only. Do not replace the passenger router set with PR #53's older minimal router list.
+- **Alembic env/model registry:** import the combined registry before metadata is inspected. No table or migration is to be dropped to simplify the graph.
+
+## 17. Passenger UI, advanced UI and map integration
+
+### 17.1 Passenger application ownership
+
+- The existing passenger application remains the primary product shell and source of truth for passenger navigation and journeys.
+- PR #43 extends the passenger map page in `frontend/src/App.tsx` and the API contract in `frontend/src/passenger-api.ts`: published locations, route list, ordered stops, optional coordinates, GeoJSON LineString geometry and origin/destination selection.
+- Keep the map integrated as a passenger feature inside the existing shell. Do not replace the passenger application with the standalone tracking proof of concept.
+- The #43 map must show explicit missing-key, offline, missing-coordinate/geometry and API error states. It must never fabricate a route between endpoints.
+
+### 17.2 Two map implementations are not yet one architecture
+
+**Passenger map in PR #43:** Google Maps JavaScript API, configured through `VITE_GOOGLE_MAPS_API_KEY`; it draws catalog location markers and only published route geometry. The key is not evidenced as configured. Google Maps key use may require Google Cloud billing and restricted key management; no billing activation is authorized.
+
+**MITP map in PR #53:** MapLibre GL JS with a self-hosted Martin/PostGIS proof-of-concept tile service, a separate local style URL and synthetic tracking telemetry. It is a staff-oriented tracking demonstration, not a passenger journey map or verified production GIS platform. Its current `/tracking-demo` entry in `frontend/src/main.tsx` replaces the normal root application rather than registering a protected route within the shared application shell.
+
+### 17.3 Recommended target boundary for Owner review
+
+- Keep one shared map-rendering component/provider abstraction, but separate passenger journey layers from staff-only live/synthetic vehicle telemetry.
+- Prefer evaluating MapLibre as the common renderer because it avoids requiring a Google Maps API key and billing account; this remains a recommendation, not an approved provider decision. Self-hosted tile infrastructure, OpenStreetMap attribution/licensing, data freshness, bandwidth and hosting costs still require review.
+- Keep the passenger map data contract tied to published, verified stop coordinates and route geometry. Keep tracking telemetry behind staff authorization and never expose vehicle telemetry through the public passenger catalog.
+- Establish one authoritative geographic data model and source-of-truth database before publishing geometry. PR #43 currently stores route geometry as JSON; PR #53's PostGIS/Martin stack is a separate proof-of-concept database. They are not yet reconciled into a shared canonical PostGIS model.
+- Use Koybe's operator-confirmed pin only for that boarding point. Do not infer the Koybe–Jinka route trace, intermediate stops or schedule from endpoints.
+- Do not put map API keys or secrets into frontend source, APK assets or public repository variables that are readable by client builds.
+
+### 17.4 Advanced UI ownership and sequence
+
+1. Preserve the existing passenger-first app shell and its working passenger flows.
+2. Complete the passenger map/catalog contract and accessible map states inside the passenger shell.
+3. Register MITP TrackingMap as a protected staff feature/route, not a replacement root application. Reuse the shared design system, localization, navigation and API client.
+4. Add driver, agent, dispatch and administrator workspaces only after passenger regression and authorization boundaries are verified.
+5. Keep Amharic-first responsive layouts, keyboard/screen-reader semantics, clear loading/empty/error/offline states, visible synthetic-data labels and role-aware navigation as acceptance criteria.
+6. Use one shared API client/error/session layer. PR #53's TrackingMap currently calls fetch directly; it should be reconciled with the shared authenticated API client and staff permission handling.
+7. Treat PR #54 About/API-origin/Android work as a separate review unit. Preserve the “Coming soon” About status until a real corporate website exists.
+
+No visual regression suite, accessibility audit or integrated passenger-plus-staff UI verification has been evidenced for a single combined commit.
+
+## 18. Workflow and PR #55 recheck
+
+### 18.1 Workflow ownership and safety findings
+
+- PR #42's two workflows passed on its exact head, as recorded in Section 15.5.
+- PR #43 adds push triggers and broadens the Android/backend verification pipelines. Its pull_request branch filters do not include its actual base branch `fix/passenger-password-minimum-six`; verify trigger behavior and exact-head evidence before relying on the PR checks.
+- PR #43 Android verification consumes `VITE_API_BASE_URL` and `VITE_GOOGLE_MAPS_API_KEY` repository variables. Their presence, restrictions, billing state and secret handling are not established here.
+- PR #43's Android workflow contains a conditional job that can write generated Gradle verification metadata back to the PR head when a pull request targets main. This is an automated branch mutation. Review whether it should be removed or separately authorized before any future main-targeted workflow execution.
+- The backend workflow's Docker build and HTTPS/CORS/CSRF smoke checks are useful verification design, but workflow definitions are not evidence that they passed.
+- No workflow was dispatched, rerun or otherwise initiated for this inspection.
+
+### 18.2 PR #55 current state
+
+At the latest recheck:
+- State: OPEN, DRAFT, UNMERGED.
+- Base: main at `c988b9d2a3b09c831daa4f1d17fa3b75f69e7e78`.
+- Head: `docs/production-readiness-a1-a2` at `7a3d805a175fd3c178fa1a33f9aa674f4ea14d73`.
+- Changed files: two documentation files; six commits ahead, zero behind main.
+- Compare result: `ahead`, with the merge base equal to current main.
+- GitHub PR metadata: `mergeable = true` at recheck. This is a merge-conflict signal only; it is not an approval or readiness decision.
+- Reviews: none returned. Inline review threads: none returned. PR conversation comments: none returned.
+- PR-head workflow-run lookup: no runs returned. Commit status endpoint: no status entries returned.
+- No merge was attempted.
+
+The PR description still cites the prior head SHA `742f8279fb43c25f2f8db6468b19e2ff2ab0ebc3`; it must be refreshed after this report update. PR #55 remains draft and requires Owner review. Its documentation-only status does not authorize application changes.
+
+## 19. Consolidated A2 gap register for Owner review
+
+Statuses mean: PASS = directly evidenced for the stated scope; PARTIAL = some evidence exists but does not close the control; MISSING = required evidence is absent; UNRESOLVED = competing designs or decisions remain; UNKNOWN = state cannot be determined from available access; NOT RUN = verification was deliberately not performed.
+
+| ID | Area / finding | Status | Severity / gate | Required closure evidence |
+|---|---|---|---|---|
+| A2-01 | A1 product scope and target architecture not Owner-frozen | UNRESOLVED | Critical / A1 | Explicit Owner approval of versioned A1 baseline |
+| A2-02 | #42/#43 sibling ownership and integration policy | PARTIAL | High / A2 | Owner accepts #43 as integration candidate and #42 as baseline evidence, subject to exact-head verification |
+| A2-03 | PR #43 exact-head CI | MISSING | Critical / A2 | Successful backend and Android checks on exact SHA 20c855b881e30aacf97dbb0d8fbb85755eb7bdf5; no dispatch/rerun performed |
+| A2-04 | PR #43 workflow trigger filters and automatic metadata writeback | UNRESOLVED | High / A2 | Reviewed trigger matrix and approved non-mutating or explicitly authorized workflow behavior |
+| A2-05 | Parallel Alembic heads 0008 wallet / 0008 tracking | UNRESOLVED | Critical / A2 | Database revision inventory, approved merge-revision design and disposable-PostgreSQL verification plan |
+| A2-06 | Database migration state and backups | UNKNOWN | Critical / A2/A4 | Inventory all target DB alembic_version rows and backup/restore evidence |
+| A2-07 | Combined model registry | PARTIAL | High / A2 | Confirm full #43 passenger imports plus tracking import and Alembic metadata parity on integrated candidate |
+| A2-08 | Combined config.py/main.py | UNRESOLVED | Critical / A2 | Approved runtime policy, tracking secret handling, router/middleware registration and staff authorization review |
+| A2-09 | Passenger map provider and canonical GIS architecture | UNRESOLVED | High / A1/A2 | Owner decision on renderer/hosting/licensing and one authoritative geographic data model |
+| A2-10 | Authoritative route trace, stop sequence and provenance | MISSING | Critical / A2/A4 | Operator-verified route/stop dataset and approved geometry source; Koybe pin alone is insufficient |
+| A2-11 | Google Maps key/billing and MapLibre/Martin hosting | MISSING | High / A2/A5 | Approved provider, restricted credentials or self-hosted tile infrastructure, cost and licensing evidence |
+| A2-12 | Passenger UI + staff tracking UI integration | PARTIAL | High / A2/A4 | One shared shell, role-protected tracking route, shared API client, responsive/accessibility and regression evidence |
+| A2-13 | Advanced UI accessibility and device acceptance | MISSING | High / A4 | WCAG-oriented review, physical Android device test and user acceptance record |
+| A2-14 | PR #55 documentation evidence | PASS (docs-only scope) | Medium / A2 | Two docs present on branch; retain draft status pending Owner review |
+| A2-15 | PR #55 independent review and CI | MISSING | Medium / A2 | Owner/reviewer disposition and applicable documentation checks; none currently recorded |
+| A2-16 | Production host, domain, DB, secrets and monitoring | MISSING | Critical / A5 | Approved infrastructure inventory, secure secret delivery, observability and operations ownership |
+| A2-17 | Regulatory, privacy, insurance and commercial operating approvals | MISSING | Critical / A5 | Applicable Ethiopian transport, insurance, privacy and operating approvals evidenced before live service |
+| A2-18 | Notifications provider and consent/channel contracts | UNRESOLVED | Medium / A3/A4 | Provider selection, costs, consent, delivery/security contract and failure-mode tests |
+| A2-19 | Independent security review | MISSING | Critical / A4/A5 | Independent review of auth/session/CSRF, staff RBAC, tracking-device credentials, secrets, dependencies and production config |
+| A2-20 | Operational recovery and support | MISSING | High / A4/A5 | Backup/restore drill, rollback plan, incident/support owner, runbooks and monitoring evidence |
+| A2-21 | Exact integrated release candidate | NOT RUN | Critical / A4 | Frozen integration SHA with full regression, migration and security evidence |
+| A2-22 | Deployment and live operation | NOT AUTHORIZED | Critical / A5 | Separate explicit Owner A5 approval after A4 acceptance |
+
+### 19.1 A2 exit recommendation
+
+A2 remains **PARTIAL / NOT CLOSED**. The evidence is sufficient to identify the integration strategy and material blockers, but not to authorize integration or declare a production-ready system.
+
+Recommended order after Owner review:
+1. Freeze A1 scope and approve the #43/#42 disposition.
+2. Obtain exact-head #43 verification evidence through the normal approved CI path; do not treat #42's success as transferable.
+3. Approve the migration merge design and database inventory procedure.
+4. Approve one geographic architecture and passenger/staff map boundary.
+5. Complete the config/main/model-registry/workflow integration plan.
+6. Close the remaining security, regulatory, privacy, hosting and operations evidence gaps before A4/A5.
+
+No code, migration, workflow, deployment, branch history or main-branch changes were made by this A2 report update.
