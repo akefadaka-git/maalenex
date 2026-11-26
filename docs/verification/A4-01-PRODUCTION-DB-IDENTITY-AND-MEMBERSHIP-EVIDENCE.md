@@ -66,7 +66,7 @@ Record the cluster identifier from the hosting control plane separately. Do not 
 Set the psql variable to the actual username from the production `DATABASE_URL` secret metadata (username only):
 
 ```psql
-\\set runtime_login 'REPLACE_WITH_VERIFIED_RUNTIME_LOGIN'
+\set runtime_login 'REPLACE_WITH_VERIFIED_RUNTIME_LOGIN'
 ```
 
 ```sql
