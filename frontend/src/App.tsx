@@ -363,8 +363,8 @@ export default function App() {
     <main className="page" lang={language}>
       <a className="skip-link" href={showAbout ? "#about-title" : "#hero-title"}>{t.skip}</a>
       <header className="topbar">
-        <a className="brand" href="/" aria-label="MaaleNex Moto home">
-          <span className="brand-mark" aria-hidden="true">M</span> MAALE NEX MOTO
+        <a className="brand" href="/" aria-label="MaaleNex home">
+          <span className="brand-mark" aria-hidden="true">M</span> MAALENEX
         </a>
         <div className="top-actions">
           <span className="environment">{t.status}</span>
