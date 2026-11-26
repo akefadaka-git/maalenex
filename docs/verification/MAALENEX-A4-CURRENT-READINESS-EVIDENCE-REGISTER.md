@@ -49,3 +49,59 @@ A successful CI run proves only the tested commit and automated scope. It does n
 **A5 deployment: NOT AUTHORIZED.**
 
 The four gates above are assessed in order. Work remains read-only unless a separate implementation or operational action is explicitly authorized. No production credentials, secrets, real passenger data, production database access, migration execution, PR merge, deployment, or commercial activation is authorized by this register.
+
+
+## 6. Read-only gate inspection — 26 November 2026
+
+### A4-01 — Database principal and capability memberships
+
+**Finding: NOT READY — PRODUCTION DATABASE IDENTITY IS NOT CONFIGURABLE IN THE CURRENT G1 SETTINGS.**
+
+- `backend/app/core/config.py` defaults to `APP_ENV=development`, `SYNTHETIC_DATA_ONLY=true`, and `DATABASE_URL=postgresql+psycopg://localhost:5432/maalenex_dev`.
+- Its settings validator rejects environments other than development/test, rejects non-synthetic mode, rejects remote database hosts, and rejects database names other than `maalenex_dev`.
+- `backend/app/db/session.py` creates the SQLAlchemy engine directly from that validated `settings.database_url`.
+- Migration `0023_geo_tenant_rls_permissions` defines NOLOGIN capability roles. It does not create or grant memberships to the runtime login.
+- The A3.5/A3.6 records require out-of-band membership and explicitly state the actual runtime application login is unidentified.
+
+**Disposition:** production principal identity, membership, SET OPTION semantics and negative privilege checks are **MISSING / NOT RUN**. No database connection was attempted. Do not bypass the development guard or provision a production login as part of this read-only check.
+
+### A4-02 — Network and TLS boundary
+
+**Finding: LOCAL-ONLY NETWORK BINDING VERIFIED; PRODUCTION INGRESS/TLS NOT VERIFIED.**
+
+- `infra/martin/docker-compose.yml` publishes Martin as `127.0.0.1:3000:3000`; the container listens on `0.0.0.0:3000` internally. The host-side binding is loopback-only in the supplied Compose definition.
+- `infra/martin/config.yaml` disables its web UI and CORS and lists only the six sanitized `geo_public` sources.
+- `backend/app/core/config.py` exposes an explicit `secure_cookies` setting and uses HTTPS request scheme or that setting to select Secure cookies. However, the same settings validator prohibits a production environment and remote database.
+- No production reverse-proxy configuration, certificate chain, TLS policy, trusted-proxy configuration, firewall/security-group evidence, public DNS, ingress test, or production Martin login was found in the inspected repository paths.
+
+**Disposition:** local development binding is **PASS** as configured; production TLS/network boundary is **NOT RUN / UNVERIFIED**. No endpoint was exposed or probed.
+
+### A4-03 — Official geographic-source and license leads
+
+Read-only web research identified possible authoritative-source leads, but none is yet cleared for import or publication:
+
+1. **Ministry of Agriculture National Ag Datahub — Ethiopian Woreda Boundary.** The catalogue describes a Woreda boundary dataset with source attributed to CSA and downloadable WFS/GeoJSON/Shapefile resources. Its metadata shows dataset reference date 2020-04-25 and last catalogue update 2025-09-03. Critically, it states **No License Provided** and the access-constraints field says the original author did not specify a license. It is a candidate for a formal source request and content/version verification, not an approved production source: https://data.moa.gov.et/dataset/ethiopian-woreda-boundary2
+2. **Ministry of Agriculture National Ag Datahub — Ethiopian Administrative Boundary.** The catalogue identifies SSGI as organization and exposes WFS/GeoJSON/Shapefile resources, but states **No License Provided**. This is another candidate lead only: https://data.moa.gov.et/dataset/ethiopian-administrative-boundary
+3. **Ethiopian Roads Administration i-RAMS.** ERA describes GIS-based Federal Road Network information and road inventory/condition systems. The public information page does not establish a downloadable Maale rural-road dataset or a reuse/redistribution license. Its stated Federal Road Network scope is not proof of complete Woreda/local-road coverage: https://irams.era.gov.et/about
+4. **Ministry of Agriculture Woreda Participatory Land Use Planning toolkit.** The published toolkit describes use of CSA administrative maps as a guide and topographic maps / satellite imagery to prepare a Woreda base map; it is methodological guidance, not itself a Maale geometry dataset: https://www.moa.gov.et/wp-content/uploads/2024/11/201811_Woreda-Participatory-Land-Use-Planning-WPLUP-in-Pastoral-and-Agro-Pastoral-Areas-Volume-2-Toolkit-Worksheets.pdf
+
+The public catalogue evidence does not establish that the selected boundary layer contains the current Maale Woreda boundary, nor does it establish a usable license. No source file was downloaded, modified, imported, or added to the repository. No road dataset was acquired.
+
+**Disposition:** authoritative Maale boundary **UNRESOLVED**; authoritative road network **MISSING**; reuse/publication rights for the candidate boundary dataset **MISSING**; road-network license/access terms **MISSING**. Keep the A3.8 publication-eligibility gate closed.
+
+### A4-04 — IROKA endpoint and trust configuration
+
+PR #44 remains **OPEN / DRAFT / UNMERGED**, head `e2e997e1a6d48f8aeb041cd50339bebe4d434a60`. Its recorded scope is a versioned strict request/decision contract and disabled-by-default fail-closed adapter. The PR description explicitly says that no deployed IROKA HTTP service or stable endpoint has been verified and that production credentials, trust roots, key provisioning and real IROKA calls are absent.
+
+**Disposition:** contract boundary **PARTIAL**; deployed endpoint identity **MISSING**; production trust roots/key lifecycle **MISSING**; live end-to-end integration **NOT RUN**. Do not invent an endpoint or connect to an unverified service.
+
+## 7. Current gate summary after inspection
+
+| Gate | Updated status |
+|---|---|
+| A4-01 Runtime DB principal and role membership | **MISSING / NOT RUN** — current application settings remain local development/test only |
+| A4-02 Production network/TLS | **PARTIAL** — local loopback binding verified; production ingress/TLS not evidenced |
+| A4-03 Maale authoritative geography and licensing | **UNRESOLVED / MISSING** — catalogue leads found, no confirmed current Maale source or cleared license |
+| A4-04 IROKA endpoint/trust/live integration | **PARTIAL** — fail-closed contract only; no deployed endpoint or live trust |
+
+The A3.8 code and synthetic CI tests passing do not change the missing real-world source, legal-rights or production-operations evidence above.
