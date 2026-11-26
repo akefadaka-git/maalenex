@@ -93,3 +93,35 @@ The following remain unchanged unless a later evidence-backed amendment is separ
 | 0.1-draft | 2026-11-26 | Initial traceable register prepared from frozen v1.1, historical A2 closure, current PR #55 and Owner-approved strategy PR #57. | Not yet approved |
 
 **Disposition:** Controlled draft for Owner review. No source baseline was modified.
+
+
+## 8. Additional controlled reconciliation from MN-002
+
+| ID | v1.1 reference | Additional proposed treatment | Evidence | Status |
+|---|---|---|---|---|
+| CR-016 | §§3, 10–14 Scope authority and governance | Add a source-authority matrix distinguishing platform product-scope A1 v1.1 (PR #6), historical A2 (PR #8), passenger-first A1 closure record (PR #24), pending expanded-scope proposal (PR #26), frozen MaaleNex–IROKA A1 (main), production-readiness A1/A2 (PR #55), and proposed platform A1 v1.2 (PR #57). Do not treat these separate documents as interchangeable or silently supersede any frozen record. | MN-002 exact PR inventory and source reads, 2026-11-26. | PROPOSED / OWNER DECISION REQUIRED |
+| CR-017 | §§7, 10–12 Architecture, acceptance and gates | Add an explicit migration governance requirement: reconcile all parallel revision roots (platform identity, passenger/wallet, MITP, Move/location, Cargo retention) and require one verified Alembic graph/model registry before integration acceptance. | MN-002 migration source inspection; duplicate Cargo revision ID confirmed in PR #50/#51. | PROPOSED / BLOCKER |
+| CR-018 | §§5, 8, 10 Service scope and security | Require sibling PR overlap review and exact-head workflow evidence; passing CI on one sibling cannot be transferred to another. Specifically, PR #42 and #43 overlap on four files and PR #43 has no exact-head PR-triggered workflow run in the inspected lookup. | MN-002 exact PR diffs and workflow lookup. | PROPOSED |
+| CR-019 | §§11–12 Delivery and stage gates | Require every candidate integration branch to have an explicit PR path to current main or a documented reason it remains a separate branch. A documentation-only child PR does not expose its large unmerged parent stack to main. | MN-002 branch comparisons: A3 canonical PostGIS branch 196 commits ahead of main; PR #56 is one document on an A4 branch 203 commits ahead. | PROPOSED / A2 VALIDATION REQUIRED |
+
+### 8.1 A1 source-authority reconciliation question
+
+MN-002 confirms these are distinct records, not one continuous version history:
+
+- Platform product-scope A1 v1.1: PR #6, marked Owner-approved/frozen 2026-11-08.
+- Historical platform A2: PR #8, based on main `72550a2...`.
+- Passenger-first A1 closure record: PR #24, dated 2026-11-15, based on main `78884c0...`.
+- Expanded product scope amendment: PR #26, explicitly pending Owner approval.
+- MaaleNex–IROKA invisible-intelligence A1 v1.0: frozen on current main, a separate architecture baseline.
+- Production-readiness A1/A2: PR #55, draft/partial and expressly supplementary.
+- Platform A1 v1.2: proposed in PR #57, not frozen.
+
+The v1.2 freeze package must explicitly identify the controlling product-scope A1 record and explain how the passenger-first release decisions in PR #24 coexist with the eight-service target in PR #6. No historical document is to be edited or silently replaced.
+
+### 8.2 New open questions
+
+| ID | Question / evidence gap | Required resolution | Current status |
+|---|---|---|---|
+| OQ-11 | What is the explicit authority relationship between platform A1 v1.1 (PR #6), passenger-first A1 closure (PR #24), pending expanded-scope proposal (PR #26), and the frozen MaaleNex–IROKA A1? | Owner-approved source-authority matrix with scope, effective date, supersession/non-supersession relationships and exact source SHAs. | OPEN — A2/A1 CHANGE-CONTROL |
+| OQ-12 | Which Alembic root and service-domain migrations are authoritative for shared platform identity, passenger/wallet, MITP, Move/location and Cargo? | Full revision graph and model-registry inventory across all candidate branches, including explicit disposition of PR #50/#51 duplicate revision ID. | BLOCKED / NOT CLOSED |
+| OQ-13 | Which unmerged integration branch is the canonical A3/A4 candidate, and how is it to be presented for review against current main? | Owner-reviewed branch disposition and a traceable PR path; no branch retarget/PR creation is implied by this register. | OPEN |
