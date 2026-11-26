@@ -1,31 +1,33 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { apiUrl } from "./api";
+import { describe, expect, it } from "vitest";
+import { resolveApiUrl } from "./api";
 
 describe("API origin configuration", () => {
-  afterEach(() => vi.unstubAllEnvs());
-
   it("uses same-origin API paths when no external origin is configured", () => {
-    vi.stubEnv("VITE_API_BASE_URL", "");
-    expect(apiUrl("/api/v1/catalog/locations")).toBe("/api/v1/catalog/locations");
+    expect(resolveApiUrl("/api/v1/catalog/locations")).toBe("/api/v1/catalog/locations");
   });
 
   it("uses the configured HTTPS API origin for packaged clients", () => {
-    vi.stubEnv("VITE_API_BASE_URL", "https://api-test.example.org");
-    expect(apiUrl("/api/v1/trips/search")).toBe("https://api-test.example.org/api/v1/trips/search");
+    expect(resolveApiUrl("/api/v1/trips/search", "https://api-test.example.org"))
+      .toBe("https://api-test.example.org/api/v1/trips/search");
+  });
+
+  it("allows HTTP only for local development origins", () => {
+    expect(resolveApiUrl("/api/v1/health", "http://localhost:8000"))
+      .toBe("http://localhost:8000/api/v1/health");
   });
 
   it("rejects insecure non-local API origins", () => {
-    vi.stubEnv("VITE_API_BASE_URL", "http://api-test.example.org");
-    expect(() => apiUrl("/api/v1/catalog/locations")).toThrow(/HTTPS/);
+    expect(() => resolveApiUrl("/api/v1/catalog/locations", "http://api-test.example.org"))
+      .toThrow(/HTTPS/);
   });
 
   it("rejects API origins containing a path or credentials", () => {
-    vi.stubEnv("VITE_API_BASE_URL", "https://user:secret@api-test.example.org/v1");
-    expect(() => apiUrl("/api/v1/catalog/locations")).toThrow(/only an origin/);
+    expect(() => resolveApiUrl("/api/v1/catalog/locations", "https://user:secret@api-test.example.org/v1"))
+      .toThrow(/only an origin/);
   });
 
   it("rejects non-API paths", () => {
-    vi.stubEnv("VITE_API_BASE_URL", "https://api-test.example.org");
-    expect(() => apiUrl("/admin")).toThrow(/rooted under \/api\//);
+    expect(() => resolveApiUrl("/admin", "https://api-test.example.org"))
+      .toThrow(/rooted under \/api\//);
   });
 });
