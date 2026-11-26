@@ -1,0 +1,95 @@
+name: MaaleNex Android Debug APK
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/android-debug-apk.yml"
+      - "docs/ANDROID-DEBUG-APK.md"
+  push:
+    branches:
+      - feat/priority1-passenger-about
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-debug-apk:
+    name: Test, build and inspect Android debug APK
+    runs-on: ubuntu-latest
+    env:
+      VITE_API_BASE_URL: ${{ vars.MAALENEX_TEST_API_BASE_URL }}
+    steps:
+      - name: Checkout exact source commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Report API connectivity scope
+        run: |
+          if [ -n "$VITE_API_BASE_URL" ]; then
+            echo "Configured test API origin: $VITE_API_BASE_URL"
+          else
+            echo "::notice::MAALENEX_TEST_API_BASE_URL is not configured. APK will be a UI preview; server-backed passenger actions will not connect from the standalone WebView."
+          fi
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install --no-package-lock --no-audit --no-fund
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Build production web assets
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install pinned Capacitor Android toolchain
+        working-directory: frontend
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund \
+            @capacitor/core@6.2.1 \
+            @capacitor/cli@6.2.1 \
+            @capacitor/android@6.2.1
+
+      - name: Generate Android project and sync web assets
+        working-directory: frontend
+        run: |
+          npx --no-install cap add android
+          npx --no-install cap sync android
+
+      - name: Assemble debug APK
+        working-directory: frontend/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - name: Verify APK output
+        working-directory: frontend
+        run: |
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          sha256sum "$APK"
+          ls -lh "$APK"
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: maalenex-android-debug
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
