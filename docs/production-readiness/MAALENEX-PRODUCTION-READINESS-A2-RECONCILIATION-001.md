@@ -489,7 +489,7 @@ At the latest recheck:
 - Head: `docs/production-readiness-a1-a2` at `7a3d805a175fd3c178fa1a33f9aa674f4ea14d73`.
 - Changed files: two documentation files; six commits ahead, zero behind main.
 - Compare result: `ahead`, with the merge base equal to current main.
-- GitHub PR metadata: `mergeable = true` at recheck. This is a merge-conflict signal only; it is not an approval or readiness decision.
+- GitHub PR metadata: `mergeable = true` at the final recheck after the documentation and PR-description updates. The value fluctuated during successive metadata reads (false, then true); treat it as a transient merge-conflict signal only, not an approval or readiness decision.
 - Reviews: none returned. Inline review threads: none returned. PR conversation comments: none returned.
 - PR-head workflow-run lookup: no runs returned. Commit status endpoint: no status entries returned.
 - No merge was attempted.
