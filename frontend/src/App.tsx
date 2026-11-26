@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-
-type Language = "am" | "en";
+import AboutPage from "./AboutPage";
+import type { Language } from "./types";
 type LocationOption = { id: string; name: string; type: string };
 type TripResult = {
   id: string; departure_at: string; arrival_estimate_at: string | null;
@@ -28,7 +28,7 @@ type SupportCase = {
 
 const copy = {
   am: {
-    skip: "ወደ ዋና ይዘት ዝለል",
+    skip: "ወደ ዋና ይዘት ዝለል", about: "ስለ MaaleNex",
     eyebrow: "የተሳፋሪ መጓጓዣ", title: "ጉዞዎን ያቅዱ።",
     subtitle: "ከጂንካ የሚነሱ የታተሙ የጉዞ መርሐ ግብሮችን ይፈልጉ።",
     status: "የልማት አካባቢ · ሰው ሠራሽ መረጃ",
@@ -61,7 +61,7 @@ const copy = {
     footer: "በሙከራ ላይ ያለ መድረክ። እውነተኛ ቦታ ማስያዝ፣ ክፍያ ወይም መሳፈር አይፈቀድም።",
   },
   en: {
-    skip: "Skip to main content",
+    skip: "Skip to main content", about: "About MaaleNex",
     eyebrow: "PASSENGER MOBILITY", title: "Plan your journey.",
     subtitle: "Search published passenger schedules originating from Jinka.",
     status: "Development environment · Synthetic data",
@@ -108,6 +108,7 @@ function csrfCookie(): string {
 
 export default function App() {
   const [language, setLanguage] = useState<Language>("am");
+  const [showAbout, setShowAbout] = useState(false);
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [originId, setOriginId] = useState("");
   const [destinationId, setDestinationId] = useState("");
@@ -359,19 +360,20 @@ export default function App() {
 
   return (
     <main className="page" lang={language}>
-      <a className="skip-link" href="#hero-title">{t.skip}</a>
+      <a className="skip-link" href={showAbout ? "#about-title" : "#hero-title"}>{t.skip}</a>
       <header className="topbar">
         <a className="brand" href="/" aria-label="MaaleNex Moto home">
           <span className="brand-mark" aria-hidden="true">M</span> MAALE NEX MOTO
         </a>
         <div className="top-actions">
           <span className="environment">{t.status}</span>
+          <button className="about-nav" type="button" aria-pressed={showAbout} onClick={() => setShowAbout((value) => !value)}>{t.about}</button>
           <button className="language" type="button" aria-label={t.language}
             onClick={() => setLanguage(language === "am" ? "en" : "am")}>{language === "am" ? "EN" : "አማ"}</button>
         </div>
       </header>
 
-      <section className="hero" aria-labelledby="hero-title">
+      <section className="hero" aria-labelledby="hero-title" hidden={showAbout}>
         <p className="eyebrow">{t.eyebrow}</p>
         <h1 id="hero-title">{t.title}</h1>
         <p className="subtitle">{t.subtitle}</p>
@@ -486,7 +488,9 @@ export default function App() {
         </section>}
       </section>
 
-      <footer><span>{t.footer}</span><span>© MaaleNex Moto · 2026</span></footer>
+      {showAbout && <AboutPage language={language} onBack={() => setShowAbout(false)} />}
+
+      <footer><span>{t.footer}</span><span>© MaaleNex · 2026</span></footer>
     </main>
   );
 }
