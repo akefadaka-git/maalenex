@@ -1,0 +1,158 @@
+# MAALENEX-PRODUCTION-READINESS-A2-RECONCILIATION-001
+
+**Assessment date:** 2026-11-26  
+**Status:** A2 READ-ONLY RECONCILIATION — PARTIAL / NOT PRODUCTION-READY  
+**Canonical repository:** `akefadaka-git/maalenex`  
+**Main snapshot:** `c988b9d2a3b09c831daa4f1d17fa3b75f69e7e78`  
+**Method:** GitHub repository/PR/commit/file/CI evidence inspection only  
+**Changes made to application code, migrations, workflows or main:** None
+
+This report is specific to the production-readiness assessment. It does not replace, reopen or amend the frozen `MAALENEX-IA-A1-SPEC-001` or the previously recorded MaaleNex–IROKA A2 disposition.
+
+## 1. Executive disposition
+
+**Production readiness: NOT READY (indicative 2/10).** Current main explicitly enforces synthetic-only development/test operation and rejects production configuration. There is no verified production API hostname, hosted service, production database, production credentials or live deployment evidence.
+
+There is meaningful passenger and operational implementation in open, stacked pull requests, and several child-branch CI workflows pass. Those results do not mean the work is integrated into main or production-ready. The largest blockers are branch-stack integration, migration-head reconciliation, the canonical geographic data contract, unverified API/device connectivity, incomplete notification delivery, and production operational/security evidence.
+
+## 2. Repository baseline
+
+- Repository: public `akefadaka-git/maalenex`; default branch `main`.
+- Exact main HEAD at assessment: `c988b9d2a3b09c831daa4f1d17fa3b75f69e7e78`.
+- Existing frozen platform architecture: `docs/architecture/MAALENEX-IA-A1-SPEC-001.md`.
+- Main migration tree contains revisions `0001` through `0007`.
+- Main backend is FastAPI/Pydantic Settings/SQLAlchemy 2/Alembic/PostgreSQL; frontend is React 18/TypeScript/Vite/Vitest.
+- Main README describes an Amharic-first, online-first passenger MVP in development, synthetic-only, with payments/tickets/boarding disabled.
+
+## 3. Main-branch implementation evidence
+
+### 3.1 Backend/runtime
+
+**VERIFIED:** `backend/app/core/config.py` permits only `development` and `test`, requires `synthetic_data_only=true`, PostgreSQL/psycopg, local database host and database name `maalenex_dev`. The main health endpoint returns a static process status and does not check database readiness. Main registers staff auth, admin, booking and passenger catalog routers. OpenAPI/docs are enabled on main development runtime.
+
+**VERIFIED:** Existing staff identity code uses PBKDF2-HMAC-SHA256 with 600,000 iterations, opaque random session tokens stored as digests, eight-hour sessions, CSRF token verification and database-backed failed-login throttling. Guest booking access includes challenge verification, CSRF checks, per-IP limits and grant revocation.
+
+**VERIFIED:** Booking hold service uses an idempotency record, transaction-scoped row locks on trip and seat rows, inventory rechecks, active-hold expiry handling, ETB fare snapshots and audit events. Main includes PostgreSQL booking-concurrency tests.
+
+**GAP:** These controls do not establish production readiness. Main rejects production, has no database-aware readiness route, and lacks production deployment/operations evidence.
+
+### 3.2 Passenger UI
+
+**VERIFIED:** Main `frontend/src/App.tsx` contains the existing Amharic-first passenger journey: published trip search, seat selection, synthetic holds, contact verification, reservation confirmation/QR reference, booking recovery and support. It explicitly tells users that the current environment is synthetic and that a reservation QR is not a travel ticket.
+
+**GAP:** Main remains a relatively compact passenger application and does not contain the later NEXUS application shell, staff workspaces, passenger map or notification inbox. Those capabilities are in unmerged branches. Preserve the current journey and extend it incrementally; do not replace it.
+
+## 4. Open pull-request and branch reconciliation
+
+The passenger/runtime work is a stacked chain, not a set of independent PRs directly based on current main:
+
+| PR | Current branch/head | Base | Reconciliation |
+|---|---|---|---|
+| [#38](https://github.com/akefadaka-git/maalenex/pull/38) | `feat/passenger-notifications-service` / `046da5e6cb435f2c9baeb2228fc9918287bd584e` | `feat/passenger-wallet-service` / `94d15c8af349bc5b9c3fd9e9eef4a09859e93c45` | Open draft; notification inbox, booking ownership/claim and safe hold cancellation; depends on unmerged wallet branch |
+| [#39](https://github.com/akefadaka-git/maalenex/pull/39) | `feat/my-bookings-hold-expiry-notifications` / `63b85d65a2c6224f17c873a9dd6afbb6025cb58e` | PR #38 head | Open draft; My Bookings/hold expiry layer |
+| [#40](https://github.com/akefadaka-git/maalenex/pull/40) | `feat/scheduler-operations-rbac-dashboards` / `65fdbe86ad2054f11c2b341643957039ae48d286` | PR #39 head | Open draft; scheduler, RBAC, operations and staff workspaces |
+| [#41](https://github.com/akefadaka-git/maalenex/pull/41) | `fix/passenger-password-minimum-six` / `5640e9067aef5c8a1cb9fada32bf5123aa693162` | PR #40 head | Open draft; password minimum correction |
+| [#43](https://github.com/akefadaka-git/maalenex/pull/43) | `feat/passenger-backend-connectivity-foundation` / `20c855b881e30aacf97dbb0d8fbb85755eb7bdf5` | PR #41 head | Open draft; production-capable runtime, Android/API transport and passenger map changes |
+| [#44](https://github.com/akefadaka-git/maalenex/pull/44) | `feat/iroka-integration-contract-v1` / `e2e997e1a6d48f8aeb041cd50339bebe4d434a60` | PR #43 head | Open draft; one backend-only IROKA contract commit |
+
+The PR metadata confirms the exact base/head relationships above. The stack must be reconciled in dependency order. Do not cherry-pick or merge PR #43 as if it were a self-contained main-based patch. PR #54 is separate and directly based on current main. PR #53 is a separate MITP tracking/map branch.
+
+### 4.1 PR #43 production-runtime proposal
+
+PR #43 adds:
+- Production configuration validation requiring `APP_ENV=production`, `SYNTHETIC_DATA_ONLY=false`, secure cookies, remote PostgreSQL credentials, PostgreSQL TLS and exact HTTPS CORS origins.
+- A non-root Docker image and production environment template.
+- Separate liveness and database-aware readiness endpoints.
+- Production OpenAPI/docs disabling.
+- Separate scheduler worker configuration.
+- Passenger map coordinates/route geometry and Android API-origin/CSP transport work.
+
+These are useful implementation candidates, but remain in an open draft stack. The exact PR #43 head `20c855b881e30aacf97dbb0d8fbb85755eb7bdf5` had no PR-triggered workflow runs returned and no combined status checks returned in this inspection. PR #44's child head passed one backend workflow; that is not an exact-head PR #43 verification.
+
+The PR #43 runtime document itself lists remaining operational gates: backups/restore, object-storage configuration if enabled, monitoring/alerting, rate limits, trusted proxy configuration, end-to-end passenger tests, independent security review and separately authorized deployment.
+
+### 4.2 PR #54 About/API-origin/Android increment
+
+[PR #54](https://github.com/akefadaka-git/maalenex/pull/54) is open/draft, based on current main at `c988b9d2a3b09c831daa4f1d17fa3b75f69e7e78`, with exact head `34e4aab8d84561828fb0a1bc8bdce9f914bc32ca`.
+
+Exact-head workflow evidence:
+- Run [45765359641](https://github.com/akefadaka-git/maalenex/actions/runs/45765359641): frontend tests, TypeScript check and Vite build succeeded; deployment steps skipped.
+- Run [45765359628](https://github.com/akefadaka-git/maalenex/actions/runs/45765359628): frontend tests/build, Capacitor sync and Android debug APK assembly/artifact verification succeeded.
+
+**Not verified:** `MAALENEX_TEST_API_BASE_URL` was not configured, so the APK is a UI preview and server-backed passenger actions do not connect from that standalone WebView. Cross-origin API, CORS, cookie, CSRF and physical-device acceptance on this exact APK remain NOT VERIFIED / NOT RUN. No deployment occurred.
+
+## 5. Notification capability reconciliation
+
+Main has no passenger notification domain or notification router.
+
+The unmerged PR #38/#43 stack adds an authenticated, passenger-owned in-app inbox, read/unread state, deduplication and preferences. The inspected model has only `in_app_enabled`, `email_enabled` and `sms_enabled`; email/SMS default false. The preferences endpoint explicitly forces email and SMS false and reports delivery unavailable.
+
+**NOT FOUND in the inspected PR #43 tree:** WhatsApp or Telegram channels, provider adapters, a transactional delivery outbox, delivery worker, provider callback verification, delivery receipts, dead-letter handling or channel-specific consent records. Email/SMS delivery is described as disabled. The current scheduler worker is for booking-hold expiry, not notification delivery.
+
+**Recommended target:** in-app as the durable source of truth; WhatsApp Business as preferred outbound transactional channel for users who explicitly opt in; SMS for OTP/fallback; email for formal/security correspondence; Telegram only as an optional user-linked channel. Implement provider-neutral adapters and an outbox before connecting providers. Do not activate a provider or incur cost under this assessment.
+
+## 6. Geographic/map and migration reconciliation
+
+Three distinct approaches appear in the open branches:
+
+1. PR #43 adds nullable latitude/longitude and JSON route geometry to the operational schema and a passenger map component that loads Google Maps using `VITE_GOOGLE_MAPS_API_KEY`. This requires a separately configured external API key and is not the selected self-hosted-first direction.
+2. PR #53 adds a MapLibre tracking proof of concept, Martin vector tiles and a separate local PostGIS map database. Its documentation says the map database is separate from the application database; the CI job verifies synthetic road/polygon fixtures, not a real OSM extract or a browser-rendered operational map.
+3. The platform architecture and prior Owner-approved direction call for one canonical PostGIS in the primary PostgreSQL platform database, with `geo`, `geo_public`, `geo_internal`, `geo_audit` schemas, MapLibre/Martin and tenant-scoped public/internal access controls.
+
+These are not yet reconciled. The PR #43 passenger map also relies on Google Maps, while PR #53 is an isolated tracking/map proof of concept. Neither proves the canonical shared geographic model, RLS/tenant policy or licensed authoritative route data.
+
+### 6.1 Alembic conflict
+
+- PR #43's passenger/runtime stack contains `0008_wallet_double_entry_ledger`, whose `down_revision` is `0007_operator_invites_support`, followed by the later wallet/passenger/scheduler/fleet/map revisions through `0018_koybe_boarding_point`.
+- PR #53 contains a different `0008_mitp_tracking`, also with `down_revision = 0007_operator_invites_support`.
+
+Combining these histories without an explicit migration-graph reconciliation creates parallel Alembic heads. This is a blocking integration issue. Do not apply production migrations until one authoritative graph, model parity and upgrade/downgrade path are verified.
+
+PR #43's `0017_passenger_map_geometry` stores route geometry as JSON and location coordinates as floating-point columns; it is not the canonical PostGIS schema. PR #43's `0018_koybe_boarding_point` registers the supplied Koybe point as draft data and deliberately fails on ambiguous duplicate location/terminal records. Route geometry and stop sequence remain unverified; do not publish fabricated route traces.
+
+## 7. Exact-head CI evidence inspected
+
+| PR / SHA | Evidence found | Limits |
+|---|---|---|
+| #40 / `65fdbe86ad2054f11c2b341643957039ae48d286` | NEXUS UI, backend foundation and Android shell workflows succeeded (runs 44996800691, 44996800678, 44996800889) | Branch remains stacked and unmerged |
+| #41 / `5640e9067aef5c8a1cb9fada32bf5123aa693162` | NEXUS UI workflow succeeded (run 45001037944) | No backend exact-head run found |
+| #43 / `20c855b881e30aacf97dbb0d8fbb85755eb7bdf5` | No PR-triggered workflow run or combined status returned | Exact-head CI evidence missing |
+| #44 / `e2e997e1a6d48f8aeb041cd50339bebe4d434a60` | Backend workflow succeeded (run 45034367684), including container build, backend tests, PostgreSQL migration/parity/downgrade/re-upgrade and HTTPS session/CORS smoke flow | Child PR head, not PR #43 head or a live service |
+| #53 / `6d6a2de592381cd751c52f40824a9da1dd17b07a` | Backend, frontend and local PostGIS/Martin proof-of-concept workflows succeeded (runs 45155547829, 45155547922, 45155547849) | Synthetic fixtures; real OSM import and browser map acceptance not run; branch is behind current main |
+| #54 / `34e4aab8d84561828fb0a1bc8bdce9f914bc32ca` | Frontend build and Android debug APK workflows succeeded (runs 45765359641, 45765359628) | No configured test API origin; physical-device/API acceptance not run |
+
+No workflow was dispatched or rerun during this assessment.
+
+## 8. Production gaps and acceptance blockers
+
+| Area | Status | Evidence / required closure |
+|---|---|---|
+| Production API runtime | MISSING on main | Main rejects production; reconcile and verify PR #43 runtime |
+| PR stack integration | UNRESOLVED | Reconcile PRs #38–#44 and their base dependencies before integration |
+| Alembic graph | BLOCKED | Resolve competing 0008 branches; verify one head, metadata parity, clean upgrade/downgrade |
+| Passenger API end-to-end | PARTIAL | Verify real web/API and Android/API session, cookies, CORS, CSRF on exact build |
+| Android physical device | NOT RUN | Install and accept exact APK on target handset |
+| Passenger map | UNRESOLVED | Adopt canonical PostGIS/MapLibre architecture; source-verify route geometry and stop order |
+| Notifications | PARTIAL | In-app inbox exists only in unmerged stack; add outbox and provider adapters/consent |
+| WhatsApp/SMS/email/Telegram | MISSING | No provider selected or activated; sandbox, compliance and cost evaluation needed |
+| NEXUS UI | PARTIAL / UNMERGED | Design-system v2.0 and workspaces are on unmerged branch; reconcile with main passenger UI |
+| Backups/restore | NOT VERIFIED | Evidence of backup policy and witnessed restore required |
+| Monitoring/alerting | NOT VERIFIED | Production metrics, redacted logs, alert thresholds and incident runbook required |
+| Independent security review | NOT RUN | Complete after implementation/integration, before A5 |
+| Legal/privacy/operational readiness | NOT VERIFIED | Data-protection, transport, provider and commercial-operation gates remain separate |
+| Production deployment | NOT RUN / NOT AUTHORIZED | No verified host, production DB, credentials or deployment evidence |
+
+## 9. A2 disposition and carry-forward
+
+**A2 production-readiness reconciliation: PARTIAL — NOT CLOSED.** Repository and exact-head evidence is sufficient to identify the main blockers, but not to certify the complete stacked implementation or close all acceptance questions.
+
+Priority carry-forwards:
+1. Reconcile the full PR #38 → #39 → #40 → #41 → #43 → #44 stack against current main without discarding unrelated work.
+2. Reconcile the PR #53 tracking branch and resolve the parallel Alembic heads.
+3. Implement the Owner-approved canonical PostGIS schema and tenant-scoped access contract only after the integration design is frozen.
+4. Reconcile the Google Maps passenger map with the self-hosted MapLibre/Martin direction and verified route-source evidence.
+5. Complete passenger API connectivity and exact-build physical-device acceptance.
+6. Specify and later implement transactional notification outbox, consent and channel adapters; WhatsApp Business is the preferred outbound candidate, not an activated provider.
+7. Close production operations/security/privacy evidence before A4/A5.
+
+**No A3 code implementation, migration execution, provider activation, merge or deployment is performed or authorized by this A2 report.** A3 requires separate explicit authorization. A5 remains a separate Owner approval gate.
