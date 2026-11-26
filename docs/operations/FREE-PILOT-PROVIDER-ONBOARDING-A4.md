@@ -1,6 +1,6 @@
 # MaaleNex Free Pilot Provider Onboarding (A4)
 
-**Status:** PROVIDER OPTIONS VERIFIED — ACCOUNT/PROJECT SETUP NOT COMPLETED — DEPLOYMENT BLOCKED BY G1 GOVERNANCE  
+**Status:** PROVIDER OPTIONS VERIFIED — SUPABASE PROJECT REFERENCE RECEIVED — DATABASE/EXTENSION STATE NOT VERIFIED — DEPLOYMENT BLOCKED BY G1 GOVERNANCE  
 **Scope:** Documentation and read-only provider inspection only. This record does not authorize production deployment, a production-data migration, or a change to the G1 runtime boundary.
 
 ## 1. Owner decision and target topology
@@ -63,14 +63,15 @@ A separate Owner-approved change must define a **non-production hosted preview b
 
 These are account-owner actions in provider dashboards. No credentials, API tokens, passwords, or billing information should be sent in chat or committed to Git.
 
-### A. Supabase — database project (not yet created)
+### A. Supabase — database project (reference supplied; dashboard state not independently verified)
 
-1. Open https://supabase.com/ and create/sign into the account.
-2. Create a new project named `maalenex-pilot` under the Free plan.
-3. Select a region based on the available region list and measured latency from Ethiopia; do not assume the nearest advertised region is automatically best.
-4. Use a unique database password and store it only in the provider's password manager/secret store.
-5. In the project dashboard, open **Database → Extensions**, search for `postgis`, choose Enable, and keep the schema as `extensions`. Supabase's current official guide explicitly says not to install PostGIS into `public`: https://supabase.com/docs/guides/database/extensions/postgis
-6. After enabling, use the SQL Editor for this **read-only verification query**:
+Owner supplied the project-specific dashboard URL `https://supabase.com/dashboard/project/awftmlipjchlysjzqunm/branches`, yielding project reference `awftmlipjchlysjzqunm`. This establishes the intended project reference for this record, but the authenticated dashboard could not be inspected in this session. Project readiness, region, database version, PostGIS installation/schema, and project health remain **UNVERIFIED**. Do not infer these from the URL.
+
+1. Open the supplied project URL and confirm that the dashboard loads and the project is healthy.
+2. Record the actual project name, plan, region and PostgreSQL major version; confirm whether the name is `maalenex-pilot` and correct the record if it differs.
+3. Use a unique database password and store it only in the provider's password manager/secret store; never send it in chat.
+4. In the project dashboard, open **Database → Extensions**, search for `postgis`, and verify that it is enabled in schema `extensions`. If it is not enabled, enable it and keep the schema as `extensions`. Supabase's current official guide explicitly says not to install PostGIS into `public`: https://supabase.com/docs/guides/database/extensions/postgis
+5. After verifying, use the SQL Editor for this **read-only verification query**:
    ```sql
    select
        e.extname,
@@ -81,8 +82,8 @@ These are account-owner actions in provider dashboards. No credentials, API toke
    where e.extname = 'postgis';
    ```
    Expected result: one row with `extname = postgis` and `installed_schema = extensions`. If it reports `public`, stop; do not proceed or try to move the extension casually.
-7. Do not run application migrations yet. Do not expose the database to the public Data API or create application roles yet.
-8. Record only the project reference, region, PostgreSQL major version, PostGIS version/schema, and a redacted connection-host identifier. Never record the password, API secret, or full connection URI in Git or chat.
+6. Do not run application migrations yet. Do not expose the database to the public Data API or create application roles yet.
+7. Record only the project reference, region, PostgreSQL major version, PostGIS version/schema, and a redacted connection-host identifier. Never record the password, API secret, or full connection URI in Git or chat.
 
 ### B. Cloudflare Pages — frontend (not yet created)
 
@@ -124,7 +125,8 @@ The migration principal must be separate from the runtime principal. The applica
 
 ## 6. Closure evidence required
 
-- [ ] Supabase project reference, region, database version and PostGIS-in-`extensions` evidence.
+- [x] Supabase project reference received from Owner: `awftmlipjchlysjzqunm`.
+- [ ] Supabase dashboard health, project name/plan/region, database version and PostGIS-in-`extensions` evidence.
 - [ ] Supabase free-plan limits and backup/restore limitations acknowledged.
 - [ ] Runtime login name and live PostgreSQL role memberships verified read-only.
 - [ ] Dedicated migration identity and controlled migration procedure approved.
@@ -138,9 +140,9 @@ The migration principal must be separate from the runtime principal. The applica
 
 ## 7. Current disposition
 
-**PARTIAL — provider selection and onboarding procedure documented.**  
-**MISSING — provider projects, live database identity, runtime service, production API origin, TLS evidence and deployment verification.**  
+**PARTIAL — provider selection and onboarding procedure documented; Supabase project reference received but dashboard/database state remains unverified.**  
+**MISSING/UNVERIFIED — Supabase project configuration and PostGIS evidence, live database identity, Cloudflare project, Render runtime service, production API origin, TLS evidence and deployment verification.**  
 **NOT RUN — provider provisioning, database migrations, deployment and production tests.**  
 **NOT AUTHORIZED — production deployment and live-data use.**
 
-No provider resources were created or modified. No secrets were read or written. No database connection or migration was attempted. No CI workflow was dispatched. No merge, deployment or `main` modification occurred.
+The Supabase project reference was supplied by the Owner; no project settings were inspected or modified. No secrets were read or written. No database connection or migration was attempted. No CI workflow was dispatched. No merge, deployment or `main` modification occurred.
