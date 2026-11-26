@@ -156,3 +156,57 @@ Priority carry-forwards:
 7. Close production operations/security/privacy evidence before A4/A5.
 
 **No A3 code implementation, migration execution, provider activation, merge or deployment is performed or authorized by this A2 report.** A3 requires separate explicit authorization. A5 remains a separate Owner approval gate.
+
+
+## 10. Follow-up A2: full dependency chain and Alembic graph (2026-11-26)
+
+This section supersedes any shorthand that described PRs #38–#44 as the entire passenger stack. The upstream dependency chain begins earlier:
+
+| PR | Head branch | Base branch | Role in dependency chain |
+|---|---|---|---|
+| [#32](https://github.com/akefadaka-git/maalenex/pull/32) | `feat/passenger-identity-service` | `feat/acceptance-remediation` | Passenger registration and sessions |
+| [#33](https://github.com/akefadaka-git/maalenex/pull/33) | `feat/passenger-journey-search` | PR #32 head | Published journey search |
+| [#34](https://github.com/akefadaka-git/maalenex/pull/34) | `feat/passenger-booking-flow` | PR #33 head | Seat selection and reservation |
+| [#35](https://github.com/akefadaka-git/maalenex/pull/35) | `feat/passenger-support-service` | PR #34 head | Passenger support |
+| [#36](https://github.com/akefadaka-git/maalenex/pull/36) | `feat/passenger-reports-complaints` | PR #35 head | Passenger reports/complaints |
+| [#37](https://github.com/akefadaka-git/maalenex/pull/37) | `feat/passenger-wallet-service` | PR #36 head | ETB ledger and passenger wallet |
+| [#38](https://github.com/akefadaka-git/maalenex/pull/38) | `feat/passenger-notifications-service` | PR #37 head | In-app notification inbox and booking ownership/claim |
+| [#39](https://github.com/akefadaka-git/maalenex/pull/39) | `feat/my-bookings-hold-expiry-notifications` | PR #38 head | My Bookings and hold expiry |
+| [#40](https://github.com/akefadaka-git/maalenex/pull/40) | `feat/scheduler-operations-rbac-dashboards` | PR #39 head | Scheduler, RBAC and staff workspaces |
+| [#41](https://github.com/akefadaka-git/maalenex/pull/41) | `fix/passenger-password-minimum-six` | PR #40 head | Password policy correction |
+| [#43](https://github.com/akefadaka-git/maalenex/pull/43) | `feat/passenger-backend-connectivity-foundation` | PR #41 head | Runtime, Android/API connectivity and passenger map |
+| [#44](https://github.com/akefadaka-git/maalenex/pull/44) | `feat/iroka-integration-contract-v1` | PR #43 head | Backend-only IROKA contract |
+
+All PRs #32–#44 inspected here remain open/draft. PR #37's description reports backend/frontend exact-head CI success for its own head, but it is not merged into main. The branch chain is a set of dependent slices and must be treated as one integration program with staged review and exact-SHA verification, not as independent merge candidates. PR #43's comparison to current main is 672 commits ahead and 6 behind, with merge base `78884c0f2609edbfc94a24e42d84824bff9eed20`; this makes a direct merge/rebase decision especially sensitive to unrelated intervening history.
+
+### 10.1 Exact Alembic graph
+
+The current main migration head is `0007_operator_invites_support`.
+
+The passenger/runtime chain on PR #43 is linear:
+
+`0001_g1_foundation` → `0002_identity_audit_orgs` → `0003_passenger_domains` → `0004_staff_auth_controls` → `0005_booking_access_challenges` → `0006_guest_access_rate_limits` → `0007_operator_invites_support` → `0008_wallet_double_entry_ledger` → `0009_passenger_identity` → `0010_passenger_support_cases` → `0011_passenger_reports` → `0012_passenger_wallet` → `0013_passenger_notifications` → `0014_verified_booking_ownership` → `0015_scheduler_operations_rbac` → `0016_fleet_compliance` → `0017_passenger_map_geometry` → `0018_koybe_boarding_point`.
+
+The PR #53 tracking branch independently adds `0008_mitp_tracking`, whose `down_revision` is also `0007_operator_invites_support`. It is not a duplicate revision identifier; it is a second child of the same parent. When both feature histories are combined without a merge revision, Alembic will discover two heads: `0018_koybe_boarding_point` and `0008_mitp_tracking`.
+
+The migration bodies create distinct tables: the wallet branch creates `ledger_accounts`, `ledger_transactions` and `ledger_postings`; the tracking branch creates `tracking_devices`, `vehicle_device_assignments` and `vehicle_telemetry`, plus tracking permissions. No direct table-name collision was found in these two migration bodies. However, both branches modify `backend/app/db/model_registry.py`, so model imports must be combined rather than one side overwriting the other.
+
+**Preferred migration reconciliation candidate (design only; not implemented):** preserve both existing immutable revision files and add a no-op Alembic merge revision after the passenger chain, with `down_revision = ("0018_koybe_boarding_point", "0008_mitp_tracking")`. This creates a single descendant of both heads without renumbering or rewriting either historical migration. Before accepting this approach, verify that Alembic resolves one head, that the merge revision upgrades from a clean `0007` database through both branches, that downgrade/re-upgrade is deterministic, and that model metadata parity and migration checks pass. If any database has already applied either branch, inventory its actual `alembic_version` state first; do not assume an empty database. No migration has been executed in this assessment.
+
+### 10.2 Tracking branch freshness and scope
+
+PR #53 is based on main SHA `1daf201bfb407280604534e28440b9fa83178efb`, not current main. Compared with current main `c988b9d2a3b09c831daa4f1d17fa3b75f69e7e78`, its head `6d6a2de592381cd751c52f40824a9da1dd17b07a` is 97 commits ahead and 1 behind, with merge base equal to its recorded base SHA. The 1-commit divergence must be reconciled before accepting it.
+
+PR #53 adds tracking device credentials, vehicle/device assignments, synthetic telemetry ingestion/simulation, a tracking API and a MapLibre/Martin proof of concept. The inspected tracking model stores coordinates as numeric latitude/longitude; it does not itself establish the canonical PostGIS route/stop model, geographic schema boundaries or tenant row-level security. Its local map proof-of-concept uses a separate PostGIS database and synthetic fixtures. It is not a production geographic platform.
+
+### 10.3 Integration order (proposed, not authorized)
+
+1. Keep current `main` immutable during reconciliation.
+2. Reconcile the upstream passenger chain #32–#44 in dependency order, starting with its actual base `feat/acceptance-remediation`; inspect that base and every PR diff for overlap with current main before choosing a merge strategy.
+3. Preserve and verify the wallet ledger, passenger ownership, booking concurrency and support invariants; keep all real-money operations disabled.
+4. Reconcile PR #53 onto the selected passenger integration candidate, merge the two Alembic heads through a dedicated migration revision, combine model registry imports and test both branch upgrade paths from the shared `0007` parent.
+5. Replace the isolated map PoC and Google Maps passenger map with one explicitly approved shared PostGIS/MapLibre/Martin design only after route/stop evidence and data licensing are resolved.
+6. Run exact-head backend/frontend/Android and database migration verification on the resulting integration candidate. Do not infer success from child-branch CI.
+7. Keep PR #54 separate until its About/API-origin work is reviewed against the chosen passenger UI integration candidate; it is not a substitute for passenger API/device acceptance.
+
+This is a proposed reconciliation sequence only. It does not authorize branch rebasing, cherry-picking, code edits, migration execution, merge or deployment.
