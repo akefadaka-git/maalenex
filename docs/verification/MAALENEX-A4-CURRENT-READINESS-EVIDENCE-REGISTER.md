@@ -92,7 +92,7 @@ The public catalogue evidence does not establish that the selected boundary laye
 
 ### A4-04 — IROKA endpoint and trust configuration
 
-PR #44 remains **OPEN / DRAFT / UNMERGED**, head `e2e997e1a6d48f8aeb041cd50339bebe4d434a60`. Its recorded scope is a versioned strict request/decision contract and disabled-by-default fail-closed adapter. The PR description explicitly says that no deployed IROKA HTTP service or stable endpoint has been verified and that production credentials, trust roots, key provisioning and real IROKA calls are absent.
+PR #44 remains **OPEN / DRAFT / UNMERGED**, head `e2e997e1a6d48f8aeb041cd50339bebe4d434a60`. Its recorded scope is a versioned strict request/decision contract and disabled-by-default fail-closed adapter. The PR description explicitly says that no deployed IROKA HTTP service or stable endpoint has been verified and that production credentials, trust roots, key provisioning and real IROKA calls are absent. Exact-head CI run [#574](https://github.com/akefadaka-git/maalenex/actions/runs/45034367684) completed successfully on that same head SHA (one backend/PostgreSQL job). This verifies the synthetic contract implementation and tests; it does not verify a deployed endpoint, transport security, service identity or live trust.
 
 **Disposition:** contract boundary **PARTIAL**; deployed endpoint identity **MISSING**; production trust roots/key lifecycle **MISSING**; live end-to-end integration **NOT RUN**. Do not invent an endpoint or connect to an unverified service.
 
