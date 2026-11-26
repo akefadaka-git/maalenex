@@ -248,3 +248,88 @@ The GitHub compare response shows that these six commits modify only `README.md`
 PR #53 is based exactly on `1daf201bfb407280604534e28440b9fa83178efb`, the fifth of those six main commits. Its one-commit lag is therefore the final MaaleNex A1 freeze commit `c988b9d...`; the PR #53 compare shows no application-code commits missing from its base interval. Its own branch does include the MITP A1 specification and A3 implementation record. Preserve the frozen MaaleNex A1 specification and MITP A1 closure when reconciling that branch.
 
 **Updated finding:** no evidence of post-merge-base application-code changes on main was found. A controlled rebase/merge of the feature stack may be technically feasible after review, but the branch stack's large application changes, README semantics, PR dependency order, and the Alembic two-head issue still require a file-level integration plan and exact-SHA verification. This content audit does not authorize rebase, cherry-pick, merge or implementation.
+
+## 13. File-level integration ownership matrix and branch topology update (2026-11-26)
+
+A fresh GitHub metadata and per-PR compare inspection was performed for PRs #30–#44, #53 and #54. All 17 PRs were open and draft at the time of inspection. No PR was merged, no workflow was dispatched or rerun, and no application branch was modified.
+
+### 13.1 Confirmed dependency topology
+
+- #30 → #31 → #32 → #33 → #34 → #35 → #36 → #37 → #38 → #39 → #40 → #41 is the principal stacked passenger/platform chain.
+- #42 (feat/passenger-backend-functional-foundation, head d3011e288c7487ebdca824d8c4dcd998ad3cfc7b) and #43 (feat/passenger-backend-connectivity-foundation, head 20c855b881e30aacf97dbb0d8fbb85755eb7bdf5) are sibling branches: both use PR #41 head 5640e9067aef5c8a1cb9fada32bf5123aa693162 as their base. They are not sequential. Their intended overlap and selection/combination policy must be decided before A3.
+- #44 (head e2e997e1a6d48f8aeb041cd50339bebe4d434a60) is based on #43.
+- #53 is a separate MITP branch based on main SHA 1daf201bfb407280604534e28440b9fa83178efb.
+- #54 is a separate passenger About/API-origin/Android branch based on current main SHA c988b9d2a3b09c831daa4f1d17fa3b75f69e7e78.
+
+### 13.2 High-priority shared-file ownership
+
+| Path | PRs touching path | Ownership and reconciliation rule |
+|---|---|---|
+| frontend/src/App.tsx | #30–#41, #43, #54 | Highest-risk UI integration point. Preserve existing passenger flow; integrate dependent passenger additions in order; review #54 About page separately. |
+| frontend/src/App.test.tsx | #30–#38, #43, #54 | Reconcile tests against the integrated UI and API contract; do not select one branch's file wholesale. |
+| frontend/src/passenger-api.ts | #32–#39, #43 | One canonical client contract for identity, journeys, booking, support, reports, notifications and connectivity. |
+| backend/app/db/model_registry.py | #30, #32, #35, #36, #38, #40, #53 | Combine all approved model imports; preserve wallet/passenger and tracking registrations. |
+| backend/app/main.py | #32, #35–#40, #43, #53 | One router/lifecycle registry; reconcile startup/shutdown and scheduler registration. |
+| backend/app/core/config.py | #32, #40, #43, #53 | Consolidate settings and fail-closed synthetic-only/production configuration rules. |
+| backend/migrations/versions/* | #30, #32, #35–#38, #40, #43, #53 | Preserve immutable migrations; resolve parallel 0008 heads with an explicit merge revision after inventorying database revision state. |
+| .github/workflows/g1-backend-verification.yml | #30–#32, #34–#40, #42, #43, #53 | Consolidate one authoritative backend verification workflow; no dispatch/rerun during A2. |
+| .github/workflows/nexus-ui-verification-v2.yml | #30, #31, #35, #37–#40 | Consolidate UI verification and preserve exact-SHA evidence. |
+| .github/workflows/android-shell-verification.yml | #31, #40, #42, #43 | Reconcile Android build/CSP/geolocation verification. |
+| android/app/src/main/java/com/maalenex/moto/MainActivity.kt | #30, #31, #43 | Consolidate WebView navigation, API-origin and geolocation behavior; later verify on physical hardware. |
+| android/app/src/main/AndroidManifest.xml | #42, #43 | Reconcile network/security permissions and exported-component policy. |
+| frontend/src/styles.css | #30, #35, #38, #39, #40, #43, #54 | Integrate shared passenger shell and design system without regressions. |
+| frontend/src/main.tsx | #30, #31, #53 | Reconcile app entry point and tracking registration. |
+| frontend/vite.config.ts | #43, #53 | Reconcile API proxy/build configuration and map-related build settings. |
+| backend/app/routers/admin.py | #35, #36, #40 | Preserve admin authorization and integrate passenger support/report and staff operations routes. |
+| backend/app/routers/passenger_auth.py | #32, #38, #41 | Preserve identity/session behavior and notification/ownership integration. |
+| backend/app/domains/wallet/models.py | #30, #37 | Reconcile base double-entry ledger model with passenger wallet extension. |
+| backend/app/domains/bookings/models.py | #38, #40 | Preserve booking ownership/inventory invariants while integrating fleet/operations links. |
+| backend/app/jobs/scheduler_worker.py | #40, #43 | Preserve scheduler task boundaries and production worker runtime. |
+
+A shared path indicates multiple PRs change the same path; it does not prove a textual conflict. A three-way content review is required before integration. This matrix is an ownership-risk inventory, not authorization to modify any listed file.
+
+### 13.3 PR-level changed-file inventory
+
+| PR | Files changed | Distinct responsibility |
+|---|---:|---|
+| #30 | 32 | Full platform shell, Android shell, wallet ledger, UI and workflows |
+| #31 | 9 | Mobile acceptance remediation |
+| #32 | 13 | Passenger identity and sessions |
+| #33 | 3 | Passenger journey search UI/API |
+| #34 | 6 | Passenger seat selection and booking flow |
+| #35 | 13 | Passenger support |
+| #36 | 11 | Reports and complaints |
+| #37 | 10 | ETB wallet |
+| #38 | 26 | Notifications, booking ownership and client integration |
+| #39 | 11 | My Bookings and hold expiry |
+| #40 | 38 | Scheduler, RBAC, fleet/operations and staff workspaces |
+| #41 | 3 | Passenger password policy correction |
+| #42 | 4 | Android/API functional foundation |
+| #43 | 33 | Backend runtime, Android/API connectivity and passenger map |
+| #44 | 4 | Fail-closed IROKA integration contract |
+| #53 | 32 | MITP tracking and self-hosted map proof of concept |
+| #54 | 11 | About page, API URL resolver and Android debug packaging |
+
+### 13.4 A2 file-level disposition
+
+- CLEAN-CARRY CANDIDATES: newly added, isolated documentation and feature files may be carried forward only after dependency, licensing, security and product-scope review. A new file is not automatically approved for production.
+- CONTROLLED-INTEGRATION REQUIRED: App.tsx, App.test.tsx, passenger-api.ts, model_registry.py, main.py, config.py, admin.py, authentication, booking models, scheduler worker, Android shell/manifest, Vite config and shared workflows.
+- MIGRATION-BLOCKED: the wallet/passenger migration chain and MITP tracking migration must be reconciled as one Alembic graph; no revision rewrite or migration execution is authorized.
+- SEPARATE REVIEW: PR #54 About/API origin and PR #53 map PoC should remain separate review units until the passenger and geographic target architectures are frozen.
+- NOT ACCEPTED AS PRODUCTION EVIDENCE: synthetic tracking fixtures, local PostGIS/Martin PoC, UI-only APK behavior and child-branch CI do not prove live passenger operations.
+
+## 14. Development and deployment schedule baseline (planning estimate, not committed dates)
+
+The following durations are estimates from the current repository state. They are not completion promises, scheduled GitHub milestones or Owner approvals. Durations assume timely access to authoritative route/stop, legal, privacy and hosting evidence and no major rework.
+
+| Stage | Work package | Entry condition | Estimate | Exit evidence |
+|---|---|---|---:|---|
+| A1 — Assessment/specification/freeze | Confirm passenger MVP scope, platform architecture, map/notification decisions, acceptance criteria and non-goals | Owner review of current A1 drafts | 3–5 working days | Explicit Owner approval and frozen version/hash |
+| A2 — Read-only reconciliation | Complete PR/file ownership review, dependency graph, Alembic plan, exact-SHA CI inventory, security and operational gap register | A1 scope available for reconciliation | 5–10 working days | Reconciled A2 report with PASS/PARTIAL/MISSING/UNRESOLVED labels; Owner closure decision |
+| A3 — Implementation | Integrate approved passenger chain, resolve sibling #42/#43 policy, migration graph, map architecture, notifications and runtime; retain synthetic-only restrictions until separately approved | A1 frozen and A2 closed; explicit A3 authorization | 3–6 weeks | Reviewed implementation candidate, migration plan and exact commit SHAs |
+| A4 — Verification/acceptance | Backend/frontend regression, migration upgrade/downgrade, security review, API/device session tests, route/map validation, backup/restore and operational acceptance | A3 implementation complete and candidate frozen | 1–2 weeks | Exact-SHA test evidence, independent security review and signed acceptance/gap disposition |
+| A5 — Deployment | Provision approved hosting, secrets, production DB, monitoring, backup/restore, migration and rollback; controlled release | A4 accepted and separate explicit A5 authorization | 3–7 working days | Deployment SHA, environment evidence, migration record, smoke checks, monitoring and rollback evidence |
+
+Indicative planning horizon: approximately 6–10 weeks from A1 review through an A4-ready release candidate, plus the A5 deployment window. This is conditional and may expand if integration, regulatory or independent security findings require remediation. A5 is not included in any automatic authorization.
+
+No deployment date is committed. No production host, production database, provider credentials, production secrets, or operational approval has been verified in this A2 inspection. No commercial operation, payment collection, ticket issuance or passenger boarding is authorized by this schedule.
