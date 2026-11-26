@@ -210,3 +210,21 @@ PR #53 adds tracking device credentials, vehicle/device assignments, synthetic t
 7. Keep PR #54 separate until its About/API-origin work is reviewed against the chosen passenger UI integration candidate; it is not a substitute for passenger API/device acceptance.
 
 This is a proposed reconciliation sequence only. It does not authorize branch rebasing, cherry-picking, code edits, migration execution, merge or deployment.
+
+
+## 11. Upstream integration ancestry follow-up (2026-11-26)
+
+The passenger implementation stack extends earlier than PR #32:
+
+| PR | Head branch | Base branch | State / role |
+|---|---|---|---|
+| [#30](https://github.com/akefadaka-git/maalenex/pull/30) | `feat/full-platform-clean` / `ec5f8060855869c7eba8905e87216d5c8ada93b9` | `feat/a3-passenger-only-integration` / `bab7aa9f6eb202a58415e54ad0c6aae67a995a66` | Open draft; full mobility/digital-services experience |
+| [#31](https://github.com/akefadaka-git/maalenex/pull/31) | `feat/acceptance-remediation` / `9ece201039df2ad2426637e0f8aa93310baa6b00` | PR #30 head | Open draft; mobile acceptance remediation |
+| [#32](https://github.com/akefadaka-git/maalenex/pull/32) | `feat/passenger-identity-service` / `83bb469057a8246f0a330430573646377d5b11f1` | PR #31 head | Open draft; passenger identity/session foundation |
+| [#33–#44](#10-follow-up-a2-full-dependency-chain-and-alembic-graph-2026-11-26) | As recorded above | Sequential dependent PR heads | Open drafts; passenger capability/runtime chain |
+
+PR #29, which had a similar full-platform experience scope, is closed and described as superseded; it is not an active integration candidate.
+
+PR #30's head compared with current main is 150 commits ahead and 6 behind, with merge base `78884c0f2609edbfc94a24e42d84824bff9eed20`. PR #31 and PR #32 also compare against current main from that same merge base and are 165 and 196 commits ahead respectively, each 6 behind. This confirms the entire #30–#44 stack shares a substantially older ancestry point than current main. The PR base metadata is internally consistent within the stack, but it does not remove the need to reconcile the six later main commits and overlapping file changes.
+
+**Updated integration finding:** the candidate passenger platform is a long-lived stacked branch series (#30–#44), not a small feature PR. It must be treated as a controlled integration/reconciliation effort against current main, with a file-level ownership matrix and preservation of all post-merge-base main changes. No direct merge, rebase or cherry-pick is recommended until that matrix and the precise desired baseline are reviewed.
