@@ -1,0 +1,24 @@
+export function apiUrl(path: string): string {
+  const configured = import.meta.env.VITE_API_BASE_URL?.trim() ?? "";
+  if (!path.startsWith("/api/")) {
+    throw new Error("API paths must be rooted under /api/.");
+  }
+  if (!configured) return path;
+
+  let base: URL;
+  try {
+    base = new URL(configured);
+  } catch {
+    throw new Error("VITE_API_BASE_URL must be a valid absolute URL.");
+  }
+
+  const localHttp = base.protocol === "http:" && ["localhost", "127.0.0.1"].includes(base.hostname);
+  if (base.protocol !== "https:" && !localHttp) {
+    throw new Error("The configured API origin must use HTTPS.");
+  }
+  if (base.pathname !== "/" || base.search || base.hash || base.username || base.password) {
+    throw new Error("VITE_API_BASE_URL must contain only an origin, without credentials, path, query or fragment.");
+  }
+
+  return new URL(path, base.origin).toString();
+}
