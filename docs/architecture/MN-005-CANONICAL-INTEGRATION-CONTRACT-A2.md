@@ -1,5 +1,6 @@
 # MN-005 — Canonical Integration Contract (A2 Candidate)
-Version: 1.0.0-draft
+Version: 1.0.1-draft
+Amendment: MN-005-ODR-001 — Owner decisions recorded 2026-11-26; original draft preserved in Git history
 Status: PROPOSED / NOT OWNER-APPROVED / NOT IMPLEMENTATION AUTHORITY
 Prepared: 2026-11-26
 Repository: `akefadaka-git/maalenex`
@@ -167,13 +168,36 @@ Any database execution, migration, seed, data mutation, credential use, paid ser
 
 | Decision ID | Decision required | Current status |
 |---|---|---|
-| MN-005-D01 | Select Cargo retention alternative A (PR #50 lineage) or B (PR #51 lineage), or approve a separately designed replacement | OPEN — Owner decision required |
-| MN-005-D02 | Approve the proposed three-stream merge topology (GIS + platform/Move + selected Cargo), subject to verified ancestry | PROPOSED |
-| MN-005-D03 | Confirm the canonical model-domain ownership and module manifest | OPEN |
-| MN-005-D04 | Confirm PR #43 workflow/security remediation acceptance criteria | OPEN |
-| MN-005-D05 | Confirm whether the candidate unified branch is the sole A3 integration target after A2 closure | OPEN |
+| MN-005-D01 | Select Cargo retention alternative A (PR #50 lineage) or B (PR #51 lineage), or approve a separately designed replacement | **OWNER DECISION RECORDED: C — separately designed replacement.** Neither existing retention lineage is selected as-is. |
+| MN-005-D02 | Approve the proposed three-stream merge topology (GIS + platform/Move + selected Cargo), subject to verified ancestry | **OWNER DECISION RECORDED: A — conditionally approve the three-stream topology**, subject to exact ancestry, revision-ID and parent verification. |
+| MN-005-D03 | Confirm the canonical model-domain ownership and module manifest | **OWNER DECISION RECORDED: C — hybrid domain-owned manifests feeding one central registry**, with import-once and metadata-integrity controls. |
+| MN-005-D04 | Confirm PR #43 workflow/security remediation acceptance criteria | **OWNER DECISION RECORDED: C — split acceptance by subsystem.** Accept only independently verified portions; retain workflow, Android geolocation, map provenance and security gaps as separate gates. |
+| MN-005-D05 | Confirm whether the candidate unified branch is the sole A3 integration target after A2 closure | **OWNER DECISION RECORDED: A — one candidate integration branch after A2 closure**, conditional on a verified integration contract and separate A3 authorization. |
 
-This document intentionally does not answer those Owner decisions on the Owner's behalf.
+### 7.1 Formal Owner decision record
+
+**Decision authority:** Owner  
+**Decision date:** 2026-11-26  
+**Record status:** OWNER DECISIONS RECORDED — IMPLEMENTATION NOT AUTHORIZED
+
+| ID | Selected choice | Recorded decision and constraints |
+|---|---|---|
+| D1 | C | Design a replacement Cargo retention model. Preserve PR #50 and PR #51 as competing historical evidence; do not merge either unchanged. The replacement requires legal, privacy, audit, records-retention and operational reconciliation before implementation. |
+| D2 | A | Conditionally approve the proposed three-stream Alembic topology: passenger/MITP/GIS + platform/Move + one reconciled Cargo stream. Approval is architectural only; exact branch tips, parents, revision IDs, graph validity and downgrade implications must be verified before A3. |
+| D3 | C | Adopt a hybrid registry: domain-owned model manifests feeding one central registry. Require explicit module ownership, import-once behavior, duplicate table/class detection, metadata completeness and migration-to-model coverage. |
+| D4 | C | Use split/subsystem acceptance for PR #43. Evidence for one subsystem must not be treated as acceptance of another. Workflow event coverage, Android permission lifecycle, map provenance, API-origin/session boundary and security review remain independently tracked acceptance gates. |
+| D5 | A | Designate one candidate unified A3 integration branch only after A2 closure. This is not permission to create or modify that branch now, implement code, merge PRs, dispatch workflows or deploy. |
+
+These decisions resolve the five Owner-choice questions in MN-005. They do **not** establish that the associated technical conditions have been satisfied. Recommendations and conditional approvals remain subject to the verification gates stated above.
+
+### 7.2 Decision effect and stage boundary
+
+- D1 authorizes the **design and reconciliation of a replacement proposal only**; no migration or retention implementation is authorized.
+- D2 and D5 establish conditional architecture direction; neither authorizes branch creation, branch retargeting, migration edits or A3 work.
+- D3 establishes the target registry governance pattern; no model or registry code changes are authorized.
+- D4 establishes the subsystem acceptance approach; it does not mark PR #43 accepted or close any outstanding finding.
+- **A2 remains OPEN** until all technical and documentary reconciliation conditions are verified and an evidence-backed A2 closure record is prepared.
+- **A3 remains NOT AUTHORIZED. A5 remains NOT AUTHORIZED.**
 
 ## 8. Explicit exclusions and non-actions
 
