@@ -7,13 +7,14 @@ on:
       - "frontend/**"
       - ".github/workflows/android-debug-apk.yml"
       - "docs/ANDROID-DEBUG-APK.md"
-  push:
-    branches:
-      - feat/priority1-passenger-about
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: maalenex-android-debug-apk-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-debug-apk:
