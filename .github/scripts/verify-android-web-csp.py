@@ -50,9 +50,9 @@ required = {
     "script-src-attr": ["'none'"],
     "style-src": ["'self'"],
     # Google Maps may add style elements at runtime; style attributes remain blocked.
-    "style-src-elem": ["'self'", "'unsafe-inline'"],
+    "style-src-elem": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
     "style-src-attr": ["'none'"],
-    "img-src": ["'self'", "data:", "https://*.googleapis.com", "https://*.gstatic.com", "https://*.google.com", "https://*.googleusercontent.com"],
+    "img-src": ["'self'", "data:", "https://maps.googleapis.com", "https://maps.gstatic.com", "https://*.googleapis.com", "https://*.gstatic.com", "https://*.google.com", "https://*.googleusercontent.com"],
     "font-src": ["'self'", "https://fonts.gstatic.com"],
     "media-src": ["'self'"],
     "worker-src": ["'self'", "blob:"],
@@ -63,7 +63,7 @@ for name, expected in required.items():
         raise SystemExit(f"FAIL: CSP directive {name} expected {expected}, got {directives.get(name)}")
 
 connect_sources = directives.get("connect-src", [])
-google_connect = ["https://*.googleapis.com", "https://*.google.com", "https://*.gstatic.com"]
+google_connect = ["https://maps.googleapis.com", "https://maps.gstatic.com", "https://*.googleapis.com", "https://*.google.com", "https://*.gstatic.com"]
 if not connect_sources or connect_sources[0] != "'self'" or not all(source in connect_sources for source in google_connect):
     raise SystemExit(f"FAIL: connect-src must include self and the explicit Google Maps service domains: {connect_sources}")
 api_sources = [source for source in connect_sources[1:] if source not in google_connect]
