@@ -55,8 +55,11 @@ class Settings(BaseSettings):
             if not database.username or not database.password:
                 raise ValueError("Production DATABASE_URL must include database credentials.")
             sslmode = database.query.get("sslmode")
-            if sslmode not in {"require", "verify-ca", "verify-full"}:
-                raise ValueError("Production PostgreSQL must require TLS using sslmode=require or stronger.")
+            if sslmode != "verify-full":
+                raise ValueError("Production PostgreSQL must use sslmode=verify-full for TLS identity verification.")
+            sslrootcert = database.query.get("sslrootcert")
+            if not sslrootcert:
+                raise ValueError("Production PostgreSQL must configure sslrootcert for provider CA verification.")
             origins = self.allowed_origins
             if not origins:
                 raise ValueError("Production must explicitly configure CORS_ORIGINS.")
