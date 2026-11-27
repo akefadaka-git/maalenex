@@ -23,10 +23,10 @@ describe("PassengerGoogleMap", () => {
     const extend = vi.fn();
     const addListener = vi.fn();
     const setMap = vi.fn();
-    const mapConstructor = vi.fn(() => ({ panTo: vi.fn(), fitBounds }));
-    const markerConstructor = vi.fn(() => ({ addListener }));
-    const polylineConstructor = vi.fn(() => ({ setMap }));
-    const boundsConstructor = vi.fn(() => ({ extend, isEmpty: () => false }));
+    const mapConstructor = vi.fn(function MapMock() { return { panTo: vi.fn(), fitBounds }; });
+    const markerConstructor = vi.fn(function MarkerMock() { return { addListener }; });
+    const polylineConstructor = vi.fn(function PolylineMock() { return { setMap }; });
+    const boundsConstructor = vi.fn(function BoundsMock() { return { extend, isEmpty: () => false }; });
 
     Reflect.set(window, "google", {
       maps: {
