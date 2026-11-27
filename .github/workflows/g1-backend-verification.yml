@@ -148,10 +148,10 @@ jobs:
           app/jobs/scheduler_worker.py
           migrations/versions/0015_scheduler_operations_rbac.py
           scripts/seed_synthetic_admin.py
-      - name: Backend tests
-        run: python -m pytest -q
       - name: Apply baseline migration to empty database
         run: python -m alembic upgrade head
+      - name: Backend tests
+        run: python -m pytest -q
       - name: Exercise HTTPS passenger API session and CORS flow
         shell: bash
         run: |
