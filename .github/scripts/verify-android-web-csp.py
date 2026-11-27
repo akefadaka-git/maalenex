@@ -48,8 +48,10 @@ required = {
     "form-action": ["'self'"],
     "script-src": ["'self'", "https://maps.googleapis.com", "https://maps.gstatic.com"],
     "script-src-attr": ["'none'"],
-    "style-src": ["'self'", "'unsafe-inline'"],
-    "style-src-attr": ["'unsafe-inline'"],
+    "style-src": ["'self'"],
+    # Google Maps may add style elements at runtime; style attributes remain blocked.
+    "style-src-elem": ["'self'", "'unsafe-inline'"],
+    "style-src-attr": ["'none'"],
     "img-src": ["'self'", "data:", "https://*.googleapis.com", "https://*.gstatic.com", "https://*.google.com", "https://*.googleusercontent.com"],
     "font-src": ["'self'", "https://fonts.gstatic.com"],
     "media-src": ["'self'"],
@@ -85,9 +87,9 @@ for name, sources in directives.items():
         "https://*.google.com", "https://*.googleusercontent.com",
     } for source in sources):
         raise SystemExit(f"FAIL: non-Google wildcard source in {name}: {sources}")
-    if "'unsafe-inline'" in sources and name not in {"style-src", "style-src-attr"}:
-        raise SystemExit(f"FAIL: unsafe-inline is only permitted for Google Maps generated styles: {name} {sources}")
+    if "'unsafe-inline'" in sources and name != "style-src-elem":
+        raise SystemExit(f"FAIL: unsafe-inline is only permitted for Google Maps style elements: {name} {sources}")
 print("PASS: exactly one CSP policy is present in packaged index.html")
 for name, sources in directives.items():
     print(f"PASS: CSP {name} = {' '.join(sources)}")
-print("PASS: no unrestricted wildcard or unsafe-eval; Google Maps inline styles are the only inline-style exception")
+print("PASS: inline style attributes and inline scripts are blocked; only style elements retain the Maps compatibility exception")
