@@ -4,7 +4,7 @@ import { PassengerGoogleMap } from "./PassengerGoogleMap";
 
 afterEach(() => {
   cleanup();
-  delete (window as Window & { google?: unknown }).google;
+  Reflect.deleteProperty(window, "google");
   vi.unstubAllEnvs();
 });
 
@@ -28,14 +28,14 @@ describe("PassengerGoogleMap", () => {
     const polylineConstructor = vi.fn(() => ({ setMap }));
     const boundsConstructor = vi.fn(() => ({ extend, isEmpty: () => false }));
 
-    (window as Window & { google?: unknown }).google = {
+    Reflect.set(window, "google", {
       maps: {
         Map: mapConstructor,
         Marker: markerConstructor,
         Polyline: polylineConstructor,
         LatLngBounds: boundsConstructor,
       },
-    };
+    });
 
     const locations = [
       { id: "origin", name: "Koybe", type: "boarding_point", coordinates: { latitude: 5.767863, longitude: 36.798589, source: "operator_confirmed_terminal_pin" } },
