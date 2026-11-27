@@ -52,6 +52,7 @@ jobs:
     env:
       APP_ENV: test
       SYNTHETIC_DATA_ONLY: "true"
+      RUN_POSTGRES_INTEGRATION: "1"
       DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/maalenex_dev
       OBJECT_STORAGE_ENABLED: "true"
       OBJECT_STORAGE_PROVIDER: r2
