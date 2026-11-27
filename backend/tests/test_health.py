@@ -10,7 +10,8 @@ from app.main import app
 client = TestClient(app)
 
 PRODUCTION_DATABASE_URL = (
-    "postgresql+psycopg://maalenex:secret@db.example.net:5432/maalenex?sslmode=require"
+    "postgresql+psycopg://maalenex:secret@db.example.net:5432/maalenex"
+    "?sslmode=verify-full&sslrootcert=/path/to/provider-ca.pem"
 )
 PRODUCTION_CORS_ORIGINS = (
     "https://passenger.example.com,https://appassets.androidplatform.net"
@@ -96,9 +97,11 @@ def test_production_runtime_requires_secure_cookies() -> None:
         production_settings(secure_cookies=False)
 
 
-def test_production_runtime_requires_tls_database_connection() -> None:
+def test_production_runtime_requires_tls_database_identity_verification() -> None:
     with pytest.raises(ValidationError):
-        production_settings(database_url=PRODUCTION_DATABASE_URL.replace("?sslmode=require", ""))
+        production_settings(database_url=PRODUCTION_DATABASE_URL.replace("sslmode=verify-full", "sslmode=require"))
+    with pytest.raises(ValidationError):
+        production_settings(database_url=PRODUCTION_DATABASE_URL.replace("&sslrootcert=/path/to/provider-ca.pem", ""))
 
 
 def test_production_runtime_rejects_wildcard_or_insecure_cors_origins() -> None:
