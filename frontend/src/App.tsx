@@ -40,6 +40,13 @@ import { Icon } from "./components/nexus-icons";
 
 type Language = "am" | "en";
 type Page = "dashboard" | "map" | "wallet" | "bookings" | "notifications" | "profile" | "help" | "report" | "login" | "register" | "forgot" | "about" | "staff";
+
+// Build-only CI fixture. It is absent from ordinary production builds and never represents a service location.
+const MAP_RUNTIME_SMOKE = import.meta.env.VITE_MAP_RUNTIME_SMOKE === "true";
+const MAP_RUNTIME_FIXTURE: PassengerLocation[] = [{
+ id: "ci-map-fixture", name: "CI map fixture (not a service location)", type: "test_fixture",
+ coordinates: { latitude: 37.422, longitude: -122.0841, source: "ci_test_fixture" },
+}];
 const labels = {
   am: { dashboard:"ዳሽቦርድ", map:"ካርታ", wallet:"ቦርሳ", profile:"መገለጫ", help:"እገዛ", report:"ሪፖርት", login:"ግባ", register:"መለያ ፍጠር", about:"ስለ እኛ", welcome:"ወደ MaaleNex እንኳን በደህና መጡ", subtitle:"የጉዞዎን ቀጣይ እርምጃ በአንድ ቦታ ያቀናብሩ።", search:"መነሻ ወይም መድረሻ ይፈልጉ", quick:"ፈጣን አገልግሎቶች", journeys:"የጉዞ መረጃ", empty:"የተረጋገጠ የጉዞ መረጃ ሲገኝ እዚህ ይታያል።", balance:"የቦርሳ ቀሪ ሂሳብ", demo:"የማሳያ ሁኔታ", noFunds:"የእውነተኛ ገንዘብ ግብይት አልነቃም።", mapNote:"ካርታው የታተመና የተረጋገጠ የመስመር ጂኦሜትሪ ብቻ ያሳያል።", name:"ሙሉ ስም", phone:"ስልክ ቁጥር", password:"የይለፍ ቃል", email:"ኢሜይል", submit:"ቀጥል", coming:"ይህ ባህሪ ከደህንነት እና ከአገልግሎት ማገናኛ ማረጋገጫ በኋላ ይነቃል።", support:"እንዴት ልንርዳዎ?", reportTitle:"ችግር ሪፖርት ያድርጉ", message:"መልዕክትዎ", send:"ሪፖርት ላክ", sent:"የማሳያ ሪፖርት ተመዝግቧል። አሁንም ወደ ድጋፍ ሰርቨር አልተላከም።", account:"መለያዎን ያስተዳድሩ", language:"ቋንቋ", notifications:"ማሳወቂያዎች", bookings:"ማስያዣዎች", staff:"የሰራተኛ ማዕከል", signout:"ውጣ", noLogin:"አሁን የማሳያ ሁኔታ ብቻ ነው።" },
   en: { dashboard:"Dashboard", map:"Map", wallet:"Wallet", profile:"Profile", help:"Help", report:"Report", login:"Log in", register:"Create account", about:"About", welcome:"Welcome to MaaleNex", subtitle:"Your mobility tools, information and support in one place.", search:"Search origin or destination", quick:"Quick access", journeys:"Journey information", empty:"Verified journey information will appear here when published.", balance:"Wallet balance", demo:"DEMO MODE", noFunds:"Real-money transactions are not enabled.", mapNote:"The map draws only published, verified route geometry; it never infers a route from endpoints.", name:"Full name", phone:"Phone number", password:"Password", email:"Email", submit:"Continue", coming:"This capability will activate after security and service-provider verification.", support:"How can we help?", reportTitle:"Report an issue", message:"Your message", send:"Submit report", sent:"Demo report captured locally. It has not been sent to a support server.", account:"Manage your account", language:"Language", notifications:"Notifications", bookings:"My Bookings", staff:"Staff workspace", signout:"Sign out", noLogin:"This is currently a demonstration session only." }
@@ -56,8 +63,8 @@ function Tile({title,detail,onClick,icon}:{title:string;detail:string;onClick:()
 }
 
 export default function App() {
- const [language,setLanguage]=useState<Language>("am");
- const [page,setPage]=useState<Page>("dashboard");
+ const [language,setLanguage]=useState<Language>(MAP_RUNTIME_SMOKE?"en":"am");
+ const [page,setPage]=useState<Page>(MAP_RUNTIME_SMOKE?"map":"dashboard");
  const [notice,setNotice]=useState("");
  const [report,setReport]=useState("");
  const [reportType,setReportType]=useState<PassengerReport["report_type"]>("report");
@@ -100,10 +107,10 @@ export default function App() {
  const [authPassword,setAuthPassword]=useState("");
  const [authConfirmPassword,setAuthConfirmPassword]=useState("");
  const [authBusy,setAuthBusy]=useState(false);
- const [locations,setLocations]=useState<PassengerLocation[]>([]);
+ const [locations,setLocations]=useState<PassengerLocation[]>(MAP_RUNTIME_SMOKE?MAP_RUNTIME_FIXTURE:[]);
  const [routes,setRoutes]=useState<PassengerRoute[]>([]);
  const [mapPickTarget,setMapPickTarget]=useState<"origin"|"destination">("origin");
- const [originId,setOriginId]=useState("");
+ const [originId,setOriginId]=useState(MAP_RUNTIME_SMOKE?"ci-map-fixture":"");
  const [destinationId,setDestinationId]=useState("");
  const [travelDate,setTravelDate]=useState(()=>{const now=new Date();return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);});
  const [passengerCount,setPassengerCount]=useState(1);
@@ -151,7 +158,7 @@ export default function App() {
  },[page,passenger]);
 
  useEffect(()=>{
-  if(page!=="map")return;
+  if(page!=="map"||MAP_RUNTIME_SMOKE)return;
   let active=true;
   Promise.all([listPassengerLocations(),listPassengerRoutes()]).then(([items,routeItems])=>{
    if(!active)return;
