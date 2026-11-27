@@ -104,7 +104,8 @@ attempt=0
 while [ "$attempt" -lt 45 ]; do
   adb_cmd logcat -d -v brief > "$ARTIFACT_DIR/logcat-live.txt" 2>/dev/null || true
   if grep -F "MaaleNexWebView" "$ARTIFACT_DIR/logcat-live.txt" | grep -F "WEBVIEW_PAGE_FINISHED" >/dev/null 2>&1 &&
-     grep -F "MaaleNexWebView" "$ARTIFACT_DIR/logcat-live.txt" | grep -F "WEBVIEW_JS_PROBE_JSON" >/dev/null 2>&1; then
+     grep -F "MaaleNexWebView" "$ARTIFACT_DIR/logcat-live.txt" | grep -F "WEBVIEW_JS_PROBE_JSON" >/dev/null 2>&1 &&
+     grep -F "MaaleNexWebView" "$ARTIFACT_DIR/logcat-live.txt" | grep -F "WEBVIEW_MAP_RUNTIME_JSON" >/dev/null 2>&1; then
     webview_ready=true
     break
   fi
@@ -192,6 +193,53 @@ probe_path.write_text(raw_json + "\n", encoding="utf-8")
 print("PASS: WEBVIEW_PAGE_FINISHED for the packaged document")
 print(f"PASS: exactly one decoded probe record from app PID {pid}")
 print(f"WEBVIEW_JS_PROBE_JSON {raw_json}")
+# The map probe is emitted by the real Android WebView after the React map
+# component reaches a terminal state. It distinguishes provider success from
+# the expected no-key fallback without exposing the API key.
+map_marker = "WEBVIEW_MAP_RUNTIME_JSON "
+map_records = [
+    (line, line.split(map_marker, 1)[1])
+    for line in full_log.splitlines()
+    if pid_marker.search(line) and map_marker in line
+]
+if len(map_records) != 1:
+    fail(f"expected exactly one map runtime probe from app PID; observed {len(map_records)}")
+try:
+    map_payload = json.loads(map_records[0][1])
+except Exception as error:
+    fail(f"map runtime probe was not valid JSON ({type(error).__name__})")
+map_expected = {
+    "schemaVersion", "status", "mapsApiLoaded", "mapDomPresent",
+    "googleMapsScriptPresent", "mapTileImageCount",
+}
+if not isinstance(map_payload, dict) or set(map_payload) != map_expected:
+    fail("map runtime probe keys did not match schema version 1")
+if type(map_payload["schemaVersion"]) is not int or map_payload["schemaVersion"] != 1:
+    fail("map runtime probe schemaVersion must be integer 1")
+if type(map_payload["status"]) is not str:
+    fail("map runtime status must be a string")
+for field in ("mapsApiLoaded", "mapDomPresent", "googleMapsScriptPresent"):
+    if type(map_payload[field]) is not bool:
+        fail(f"map runtime {field} must be boolean")
+if type(map_payload["mapTileImageCount"]) is not int or map_payload["mapTileImageCount"] < 0:
+    fail("map runtime tile image count must be a non-negative integer")
+if "WEBVIEW_MAP_CONSOLE_ERROR" in full_log:
+    fail("Google Maps JavaScript API reported a provider/authentication error")
+if map_payload["status"] == "ready":
+    if not all(map_payload[field] for field in ("mapsApiLoaded", "mapDomPresent", "googleMapsScriptPresent")):
+        fail("map component reported ready without the Google Maps API and map DOM")
+    print("PASS: Google Maps JavaScript API loaded in Android WebView")
+    print("PASS: Google Maps map DOM initialized in Android WebView")
+    print(f"MAPS_PROVIDER_RUNTIME=PASS tile_image_count={map_payload['mapTileImageCount']}")
+elif map_payload["status"] == "missing-key":
+    if map_payload["mapsApiLoaded"] or map_payload["mapDomPresent"] or map_payload["googleMapsScriptPresent"]:
+        fail("missing-key fallback unexpectedly reports a loaded provider map")
+    print("PASS: Android WebView map component exposes the explicit missing-key fallback")
+    print("MAPS_PROVIDER_RUNTIME=NOT RUN (VITE_GOOGLE_MAPS_API_KEY is not configured for this workflow)")
+else:
+    fail(f"unexpected passenger map runtime status: {map_payload['status']}")
+print(f"WEBVIEW_MAP_RUNTIME_JSON {json.dumps(map_payload, separators=(',', ':'))}")
+
 for check in (
     "schemaVersion == 1",
     'readyState == "complete"',
