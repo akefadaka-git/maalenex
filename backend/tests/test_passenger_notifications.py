@@ -78,9 +78,9 @@ def test_mark_read_is_csrf_protected_and_audited():
             dedupe_key="support-created:one",
         )
         db.commit()
+        client.cookies.set("mnm_passenger_csrf", csrf)
         response = client.post(
             f"/api/v1/passenger/notifications/{item.id}/read",
-            cookies={"mnm_passenger_csrf": csrf},
             headers={"X-CSRF-Token": csrf},
         )
         assert response.status_code == 200
@@ -120,10 +120,10 @@ def test_notification_dedupe_and_disabled_in_app_preference():
 def test_notification_preferences_never_enable_unconfigured_email_or_sms():
     client, db, _passenger, _other, engine, csrf = _client()
     try:
+        client.cookies.set("mnm_passenger_csrf", csrf)
         response = client.patch(
             "/api/v1/passenger/notifications/preferences",
             json={"in_app_enabled": True, "email_enabled": True, "sms_enabled": True},
-            cookies={"mnm_passenger_csrf": csrf},
             headers={"X-CSRF-Token": csrf},
         )
         assert response.status_code == 200
