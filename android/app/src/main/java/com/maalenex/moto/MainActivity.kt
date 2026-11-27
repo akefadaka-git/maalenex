@@ -98,6 +98,20 @@ class MainActivity : Activity() {
                     ) {
                         android.util.Log.e(TAG, "WEBVIEW_CSP_VIOLATION $message")
                     }
+                    if (message.startsWith("WEBVIEW_MAP_RUNTIME_JSON ")) {
+                        android.util.Log.i(TAG, message)
+                    }
+                    if (message.contains("Google Maps JavaScript API error", ignoreCase = true) ||
+                        message.contains("RefererNotAllowedMapError", ignoreCase = true) ||
+                        message.contains("InvalidKeyMapError", ignoreCase = true) ||
+                        message.contains("ApiNotActivatedMapError", ignoreCase = true) ||
+                        message.contains("BillingNotEnabledMapError", ignoreCase = true)
+                    ) {
+                        val safeMessage = Regex("([?&]key=)[^&\\s]+").replace(message) {
+                            "${it.groupValues[1]}[REDACTED]"
+                        }
+                        android.util.Log.e(TAG, "WEBVIEW_MAP_CONSOLE_ERROR ${safeMessage.take(400)}")
+                    }
                     return true
                 }
             }
@@ -130,6 +144,7 @@ class MainActivity : Activity() {
                     ) { result ->
                         logDecodedProbe(result)
                     }
+                    probeMapRuntime(view)
                     checkWebContentReady()
                 }
 
@@ -361,6 +376,34 @@ class MainActivity : Activity() {
             MotionEvent.ACTION_CANCEL -> touchStartScale = Float.NaN
         }
         return super.dispatchTouchEvent(event)
+    }
+
+    private fun probeMapRuntime(view: WebView) {
+        // CI builds set VITE_MAP_RUNTIME_SMOKE=true to mount the real map component
+        // with a clearly labelled, non-production fixture. Poll until it reaches a
+        // terminal state, then emit only non-secret runtime facts (never the API key).
+        val script = """
+            (function poll(attempt) {
+              const section = document.querySelector(".passenger-map");
+              const status = section?.getAttribute("data-map-status") || "not-mounted";
+              if ((section && status !== "loading") || attempt >= 90) {
+                const payload = {
+                  schemaVersion: 1,
+                  status,
+                  mapsApiLoaded: Boolean(window.google?.maps),
+                  mapDomPresent: Boolean(section?.querySelector(".gm-style")),
+                  googleMapsScriptPresent: Array.from(document.scripts).some(
+                    item => item.src.startsWith("https://maps.googleapis.com/maps/api/js")
+                  ),
+                  mapTileImageCount: section?.querySelectorAll(".gm-style img").length || 0
+                };
+                console.log("WEBVIEW_MAP_RUNTIME_JSON " + JSON.stringify(payload));
+                return;
+              }
+              setTimeout(() => poll(attempt + 1), 500);
+            })(0);
+        """.trimIndent()
+        view.evaluateJavascript(script, null)
     }
 
     private fun logDecodedProbe(callbackValue: String?) {
