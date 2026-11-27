@@ -49,7 +49,7 @@ export function PassengerGoogleMap({locations,routes,originId,destinationId,lang
  },[key,locations,routes,originId,destinationId,routePoints.length]);
  const locate=()=>{setGpsMessage("");if(!navigator.geolocation){setGpsMessage("Location is not supported by this WebView.");return;}navigator.geolocation.getCurrentPosition(position=>{mapRef.current?.panTo({lat:position.coords.latitude,lng:position.coords.longitude});setGpsMessage("Showing your device location. This is not driver tracking.");},error=>{setGpsMessage(error.code===1?"Location permission was denied. You can still select published locations manually.":error.code===2?"Your device location is unavailable.":"Location request timed out. Try again or choose a location manually.");},{enableHighAccuracy:true,timeout:10000,maximumAge:60000});};
  const am=language==="am";
- return <section className="passenger-map" aria-label={am?"የጉዞ ካርታ":"Passenger journey map"}>
+ return <section className="passenger-map" data-map-status={status} aria-label={am?"የጉዞ ካርታ":"Passenger journey map"}>
   {status==="ready"&&<button className="map-gps-action" type="button" onClick={locate}>{am?"አሁን ያለሁበትን አሳይ":"Use my location"}</button>}
   <div className="passenger-map-canvas" ref={host} role="application" aria-label="Google Map" />
   {status!=="ready"&&<div className="map-state" role="status"><strong>{status==="loading"?(am?"ካርታው በመጫን ላይ…":"Loading Google Maps…"):status==="missing-key"?(am?"የካርታ ቁልፍ አልተዋቀረም":"Google Maps key not configured"):status==="missing-data"?(am?"የተረጋገጠ የካርታ መረጃ የለም":"Verified map data not published"):status==="offline"?(am?"ከመስመር ውጭ ነዎት":"Map unavailable offline"):"Google Maps unavailable"}</strong><p>{message}</p></div>}
