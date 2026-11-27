@@ -2,15 +2,6 @@ name: MaaleNex Android shell verification
 # Exact-head transport checks validate configured API origin injection and reject insecure remote API URLs.
 
 on:
-  push:
-    branches: [feat/passenger-backend-connectivity-foundation]
-    paths:
-      - "android/**"
-      - "frontend/**"
-      - "backend/**"
-      - "docs/deployment/**"
-      - ".github/workflows/android-shell-verification.yml"
-      - ".github/workflows/g1-backend-verification.yml"
   pull_request:
     branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards, fix/passenger-password-minimum-six]
     paths:
@@ -27,6 +18,12 @@ on:
 
 permissions:
   contents: read
+
+# This branch is PR-governed; pull_request is the single CI trigger to avoid
+# duplicate push + PR Android emulator builds and unnecessary dependency traffic.
+concurrency:
+  group: android-shell-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   android-build-and-emulator:
