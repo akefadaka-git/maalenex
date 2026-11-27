@@ -78,3 +78,15 @@ The operations integration fixture uses a direct fixture path that bypasses the 
 ## Current stage decision
 
 A4 remains **PARTIAL / NOT CLOSED**. The new map unit tests improve deterministic component coverage but do not close S1. No merge or deployment is performed by this record. Continue with real Google Maps WebView runtime evidence when the restricted test key and source-valid map fixture are available. A5 remains separate and requires explicit Owner authorization.
+
+
+## A4 continuation implementation and verification
+
+- Commit `2604a2af7d354bb52f0a3d7a4693fcf5e52568c0`: expose the map component's current state through a non-sensitive `data-map-status` attribute for automated evidence.
+- Commit `0247625eebdff478aff8ad89bcb2ccced44beae7`: add controlled Maps API component coverage for missing-key fallback and map/marker/published-geometry initialization.
+- Commit `830f5f3a5542fd35f9e6fa640c3dfe42c2a73387`: correct the test fixture's JavaScript constructor semantics after CI exposed that arrow-function mocks cannot be called with `new`.
+- Commit `28dfade3b6f562444a9a5a56adeb4945595d4d58`: final test-fixture correction using constructable function mocks.
+- Exact-head frontend verification run [#45980451633](https://github.com/akefadaka-git/maalenex/actions/runs/45980451633): SUCCESS at `28dfade3b6f562444a9a5a56adeb4945595d4d58`; 20 frontend tests passed, TypeScript typecheck passed, production build passed, and Android resource validation passed.
+- Exact-head Android run [#45980452198](https://github.com/akefadaka-git/maalenex/actions/runs/45980452198): frontend tests, packaged CSP verifier and API-origin validation passed at the time of this record; Android SDK/emulator stages were still in progress.
+
+The initial map fixture attempt failed because its mocked constructors were not constructable. That failure was corrected in commit `28dfade3b6f562444a9a5a56adeb4945595d4d58`; the final frontend test suite then passed. This is test-harness remediation, not a production Google Maps runtime result.
