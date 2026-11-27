@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
@@ -29,8 +29,18 @@ from app.routers import admin
     else ["sqlite"]
 ))
 def operations_client(request, monkeypatch):
+    schema_name = None
+    root_engine = None
     if request.param == "postgresql":
-        engine = create_engine(os.environ["DATABASE_URL"], pool_pre_ping=True)
+        schema_name = "mnm_test_" + uuid4().hex
+        root_engine = create_engine(os.environ["DATABASE_URL"], pool_pre_ping=True)
+        with root_engine.begin() as connection:
+            connection.execute(text(f'CREATE SCHEMA "{schema_name}"'))
+        engine = create_engine(
+            os.environ["DATABASE_URL"],
+            connect_args={"options": f"-csearch_path={schema_name}"},
+            pool_pre_ping=True,
+        )
     else:
         engine = create_engine(
             "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool,
@@ -57,7 +67,7 @@ def operations_client(request, monkeypatch):
 
     users = {
         name: User(
-            login_identifier=f"{name}@example.test",
+            login_identifier=f"{name}-{uuid4().hex}@example.test",
             display_name=f"Synthetic {name}",
             status="active",
         )
@@ -80,7 +90,7 @@ def operations_client(request, monkeypatch):
         "fare_publisher": ("platform.fare.publish",),
     }
     for name, codes in grants.items():
-        role = Role(code=f"test_{name}_role", description=f"Integration role for {name}")
+        role = Role(code=f"test_{name}_{uuid4().hex}", description=f"Integration role for {name}")
         db.add(role)
         db.flush()
         for code in codes:
@@ -135,8 +145,11 @@ def operations_client(request, monkeypatch):
     app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(admin.current_staff_context, None)
     db.close()
-    Base.metadata.drop_all(engine, tables=tables)
     engine.dispose()
+    if schema_name is not None and root_engine is not None:
+        with root_engine.begin() as connection:
+            connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE'))
+        root_engine.dispose()
 
 
 def test_catalog_to_fleet_dispatch_fare_and_trip_publication_chain(operations_client):
