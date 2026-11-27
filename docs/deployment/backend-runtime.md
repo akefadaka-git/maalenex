@@ -14,10 +14,10 @@ Production startup validation requires:
 - `APP_ENV=production`
 - `SYNTHETIC_DATA_ONLY=false`
 - `SECURE_COOKIES=true`
-- Remote PostgreSQL using the psycopg driver, a non-development database name, credentials and `sslmode=require` or stronger
+- Remote PostgreSQL using the psycopg driver, a non-development database name, credentials, `sslmode=verify-full`, and the managed provider's CA certificate configured through `sslrootcert`
 - Exact HTTPS CORS origins, including `https://appassets.androidplatform.net` for the packaged Android WebView and the actual passenger/admin web origins
 
-Development and test remain local-PostgreSQL, synthetic-only environments. Production cannot silently fall back to local development settings.
+Do not weaken PostgreSQL certificate and hostname verification to `sslmode=require` or `verify-ca` in production. Obtain the CA bundle and connection details from the managed database provider. Development and test remain local-PostgreSQL, synthetic-only environments. Production cannot silently fall back to local development settings.
 
 ## Build and release
 
