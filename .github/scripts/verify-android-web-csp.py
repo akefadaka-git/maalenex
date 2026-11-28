@@ -66,7 +66,9 @@ if not connect_sources or connect_sources[0] != "'self'":
     raise SystemExit(f"FAIL: connect-src must begin with self: {connect_sources}")
 if connect_sources.count("https://tiles.openfreemap.org") != 1:
     raise SystemExit(f"FAIL: connect-src must allow the exact OpenFreeMap tile origin: {connect_sources}")
-api_sources = [source for source in connect_sources[1:] if source != "https://tiles.openfreemap.org"]
+if connect_sources.count("https://unpkg.com") != 1:
+    raise SystemExit(f"FAIL: connect-src must allow UNPKG for MapLibre's cross-origin worker fetch: {connect_sources}")
+api_sources = [source for source in connect_sources[1:] if source not in {"https://tiles.openfreemap.org", "https://unpkg.com"}]
 if len(api_sources) > 1:
     raise SystemExit(f"FAIL: at most one configured API origin is allowed: {api_sources}")
 if api_sources:
@@ -89,4 +91,5 @@ print("PASS: exactly one restrictive CSP policy is present in packaged index.htm
 for name, sources in directives.items():
     print(f"PASS: CSP {name} = {' '.join(sources)}")
 print("PASS: only the pinned MapLibre CDN and exact OpenFreeMap tile origin are permitted")
+print("PASS: UNPKG is allowed in connect-src only for the pinned MapLibre worker fetch")
 print("PASS: no Google Maps, wildcard hosts, unsafe-inline or unsafe-eval source is permitted")
