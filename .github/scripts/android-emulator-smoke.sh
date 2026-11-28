@@ -211,14 +211,16 @@ except Exception as error:
 map_expected = {
     "schemaVersion", "status", "mapLibreLoaded", "mapCanvasPresent",
     "styleLoaded", "vectorSourceCount", "vectorTilesLoaded", "markerCount",
-    "interactionCount", "selectedLocation",
+    "interactionCount", "selectedLocation", "errorMessage",
 }
 if not isinstance(map_payload, dict) or set(map_payload) != map_expected:
     fail("MapLibre runtime probe keys did not match schema version 2")
-if type(map_payload["schemaVersion"]) is not int or map_payload["schemaVersion"] != 2:
-    fail("MapLibre runtime probe schemaVersion must be integer 2")
+if type(map_payload["schemaVersion"]) is not int or map_payload["schemaVersion"] != 3:
+    fail("MapLibre runtime probe schemaVersion must be integer 3")
+if type(map_payload["errorMessage"]) is not str:
+    fail("MapLibre runtime errorMessage must be a string")
 if map_payload["status"] != "ready":
-    fail(f"MapLibre passenger map did not reach ready state: {map_payload['status']}")
+    fail(f"MapLibre passenger map did not reach ready state: {map_payload['status']}; detail={map_payload['errorMessage']}")
 for field in ("mapLibreLoaded", "mapCanvasPresent", "styleLoaded", "vectorTilesLoaded"):
     if type(map_payload[field]) is not bool or map_payload[field] is not True:
         fail(f"MapLibre runtime {field} must be boolean true")
