@@ -22,6 +22,7 @@ type MapInstance = {
   getStyle: () => { sources?: Record<string, { type?: string; tiles?: string[] }> };
   areTilesLoaded: () => boolean;
   zoomIn: () => void;
+  easeTo: (options: Record<string, unknown>) => void;
 };
 type MapLibreModule = {
   Map: new (options: Record<string, unknown>) => MapInstance;
@@ -50,6 +51,8 @@ export function setMapLibreLoaderForTests(loader?: () => Promise<MapLibreModule>
     const moduleUrl: string = MAPLIBRE_MODULE_URL;
     return await import(/* @vite-ignore */ moduleUrl) as MapLibreModule;
   });
+  if (loader) cssPromise = Promise.resolve();
+  else cssPromise = null;
 }
 
 function loadMapLibreCss(): Promise<void> {
@@ -244,15 +247,8 @@ export function PassengerMapLibre({
       return;
     }
     navigator.geolocation.getCurrentPosition(position => {
-      mapRef.current?.fitBounds({
-        extend: () => undefined,
-        isEmpty: () => false,
-      } as Bounds);
-      const smokeMap = window.__maalenexMapSmoke;
-      if (smokeMap) void smokeMap;
       const point = [position.coords.longitude, position.coords.latitude] as LngLat;
-      const map = mapRef.current as (MapInstance & { easeTo?: (options: Record<string, unknown>) => void }) | null;
-      map?.easeTo?.({ center: point, zoom: 14 });
+      mapRef.current?.easeTo({ center: point, zoom: 14 });
       setGpsMessage("Showing your device location. This is not driver tracking.");
     }, error => {
       setGpsMessage(error.code === 1
