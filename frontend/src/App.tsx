@@ -33,7 +33,7 @@ import {
   type PassengerNotification,
 } from "./passenger-api";
 import { BookingFlow } from "./BookingFlow";
-import { PassengerGoogleMap } from "./PassengerGoogleMap";
+import { PassengerMapLibre } from "./PassengerMapLibre";
 import { MyBookings } from "./MyBookings";
 import { StaffConsole } from "./StaffConsole";
 import { Icon } from "./components/nexus-icons";
@@ -43,10 +43,12 @@ type Page = "dashboard" | "map" | "wallet" | "bookings" | "notifications" | "pro
 
 // Build-only CI fixture. It is absent from ordinary production builds and never represents a service location.
 const MAP_RUNTIME_SMOKE = import.meta.env.VITE_MAP_RUNTIME_SMOKE === "true";
-const MAP_RUNTIME_FIXTURE: PassengerLocation[] = [{
- id: "ci-map-fixture", name: "CI map fixture (not a service location)", type: "test_fixture",
- coordinates: { latitude: 37.422, longitude: -122.0841, source: "ci_test_fixture" },
-}];
+const MAP_RUNTIME_FIXTURE: PassengerLocation[] = [
+ { id: "ci-map-fixture-addis", name: "CI fixture — Addis Ababa", type: "test_fixture", coordinates: { latitude: 9.03, longitude: 38.74, source: "ci_test_fixture" } },
+ { id: "ci-map-fixture-hawassa", name: "CI fixture — Hawassa", type: "test_fixture", coordinates: { latitude: 7.062, longitude: 38.476, source: "ci_test_fixture" } },
+ { id: "ci-map-fixture-jinka", name: "CI fixture — Jinka", type: "test_fixture", coordinates: { latitude: 5.78, longitude: 36.57, source: "ci_test_fixture" } },
+ { id: "ci-map-fixture-koybe", name: "CI fixture — Koybe", type: "test_fixture", coordinates: { latitude: 5.767863, longitude: 36.798589, source: "ci_test_fixture" } },
+];
 const labels = {
   am: { dashboard:"ዳሽቦርድ", map:"ካርታ", wallet:"ቦርሳ", profile:"መገለጫ", help:"እገዛ", report:"ሪፖርት", login:"ግባ", register:"መለያ ፍጠር", about:"ስለ እኛ", welcome:"ወደ MaaleNex እንኳን በደህና መጡ", subtitle:"የጉዞዎን ቀጣይ እርምጃ በአንድ ቦታ ያቀናብሩ።", search:"መነሻ ወይም መድረሻ ይፈልጉ", quick:"ፈጣን አገልግሎቶች", journeys:"የጉዞ መረጃ", empty:"የተረጋገጠ የጉዞ መረጃ ሲገኝ እዚህ ይታያል።", balance:"የቦርሳ ቀሪ ሂሳብ", demo:"የማሳያ ሁኔታ", noFunds:"የእውነተኛ ገንዘብ ግብይት አልነቃም።", mapNote:"ካርታው የታተመና የተረጋገጠ የመስመር ጂኦሜትሪ ብቻ ያሳያል።", name:"ሙሉ ስም", phone:"ስልክ ቁጥር", password:"የይለፍ ቃል", email:"ኢሜይል", submit:"ቀጥል", coming:"ይህ ባህሪ ከደህንነት እና ከአገልግሎት ማገናኛ ማረጋገጫ በኋላ ይነቃል።", support:"እንዴት ልንርዳዎ?", reportTitle:"ችግር ሪፖርት ያድርጉ", message:"መልዕክትዎ", send:"ሪፖርት ላክ", sent:"የማሳያ ሪፖርት ተመዝግቧል። አሁንም ወደ ድጋፍ ሰርቨር አልተላከም።", account:"መለያዎን ያስተዳድሩ", language:"ቋንቋ", notifications:"ማሳወቂያዎች", bookings:"ማስያዣዎች", staff:"የሰራተኛ ማዕከል", signout:"ውጣ", noLogin:"አሁን የማሳያ ሁኔታ ብቻ ነው።" },
   en: { dashboard:"Dashboard", map:"Map", wallet:"Wallet", profile:"Profile", help:"Help", report:"Report", login:"Log in", register:"Create account", about:"About", welcome:"Welcome to MaaleNex", subtitle:"Your mobility tools, information and support in one place.", search:"Search origin or destination", quick:"Quick access", journeys:"Journey information", empty:"Verified journey information will appear here when published.", balance:"Wallet balance", demo:"DEMO MODE", noFunds:"Real-money transactions are not enabled.", mapNote:"The map draws only published, verified route geometry; it never infers a route from endpoints.", name:"Full name", phone:"Phone number", password:"Password", email:"Email", submit:"Continue", coming:"This capability will activate after security and service-provider verification.", support:"How can we help?", reportTitle:"Report an issue", message:"Your message", send:"Submit report", sent:"Demo report captured locally. It has not been sent to a support server.", account:"Manage your account", language:"Language", notifications:"Notifications", bookings:"My Bookings", staff:"Staff workspace", signout:"Sign out", noLogin:"This is currently a demonstration session only." }
@@ -110,7 +112,7 @@ export default function App() {
  const [locations,setLocations]=useState<PassengerLocation[]>(MAP_RUNTIME_SMOKE?MAP_RUNTIME_FIXTURE:[]);
  const [routes,setRoutes]=useState<PassengerRoute[]>([]);
  const [mapPickTarget,setMapPickTarget]=useState<"origin"|"destination">("origin");
- const [originId,setOriginId]=useState(MAP_RUNTIME_SMOKE?"ci-map-fixture":"");
+ const [originId,setOriginId]=useState(MAP_RUNTIME_SMOKE?"ci-map-fixture-addis":"");
  const [destinationId,setDestinationId]=useState("");
  const [travelDate,setTravelDate]=useState(()=>{const now=new Date();return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);});
  const [passengerCount,setPassengerCount]=useState(1);
@@ -414,7 +416,7 @@ export default function App() {
           <button type="button" className={mapPickTarget==="origin"?"map-pick active":"map-pick"} aria-pressed={mapPickTarget==="origin"} onClick={()=>setMapPickTarget("origin")}>{language==="am"?"መነሻ ምረጥ":"Pick origin"}</button>
           <button type="button" className={mapPickTarget==="destination"?"map-pick active":"map-pick"} aria-pressed={mapPickTarget==="destination"} onClick={()=>setMapPickTarget("destination")}>{language==="am"?"መድረሻ ምረጥ":"Pick destination"}</button>
         </div>
-        <PassengerGoogleMap locations={locations} routes={routes} originId={originId} destinationId={destinationId} language={language} onSelectLocation={id=>{if(mapPickTarget==="origin"){setOriginId(id);if(id===destinationId)setDestinationId("");}else{setDestinationId(id);if(id===originId)setOriginId("");}}}/>
+        <PassengerMapLibre locations={locations} routes={routes} originId={originId} destinationId={destinationId} language={language} onSelectLocation={id=>{if(mapPickTarget==="origin"){setOriginId(id);if(id===destinationId)setDestinationId("");}else{setDestinationId(id);if(id===originId)setOriginId("");}}}/>
         <p className="map-legend-note">{t.mapNote}</p>
         <p className="muted-copy">{language==="am"?"ካርታው የታተሙ እና የተረጋገጡ የቦታ መረጃዎችን ብቻ ያሳያል።":"The map displays only published, source-backed location and route geometry. Missing data is never fabricated."}</p>
       </section>
