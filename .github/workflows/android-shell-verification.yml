@@ -22,7 +22,8 @@ permissions:
 # This branch is PR-governed; pull_request is the single CI trigger to avoid
 # duplicate push + PR Android emulator builds and unnecessary dependency traffic.
 concurrency:
-  group: android-shell-${{ github.event.pull_request.head.ref || github.ref }}
+  # Versioned group isolates this MapLibre run from a stale pre-migration emulator run.
+  group: android-shell-maplibre-v2-${{ github.event.pull_request.head.ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
