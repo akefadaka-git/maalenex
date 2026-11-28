@@ -22,7 +22,7 @@ describe("MaaleNex full-platform interface foundation", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /EN/ }));
     fireEvent.click(within(screen.getByRole("navigation")).getByRole("button", { name: /Map/ }));
-    expect(screen.getAllByText(/No verified operating routes/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/The map draws only published, verified route geometry/)).toBeTruthy();
   });
   it("shows wallet preview without enabling real-money movement", () => {
     render(<App />);
@@ -280,6 +280,9 @@ describe("MaaleNex full-platform interface foundation", () => {
           { id: "origin-id", name: "Koybe", type: "town" },
           { id: "destination-id", name: "Jinka", type: "town" },
         ] } as Response;
+      }
+      if (url.endsWith("/catalog/routes")) {
+        return { ok: true, status: 200, json: async () => [] } as Response;
       }
       if (url.includes("/trips/search?")) {
         return { ok: true, status: 200, json: async () => [trip] } as Response;

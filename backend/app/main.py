@@ -17,12 +17,14 @@ from app.routers.passenger_support import router as passenger_support_router
 from app.routers.passenger_wallet import router as passenger_wallet_router
 from app.routers.staff_admin import router as staff_admin_router
 
+production = settings.app_env == "production"
+
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
-    description="Passenger MVP development API. Synthetic data only; payment, ticketing, boarding and production use are disabled.",
-    openapi_url=f"{settings.api_prefix}/openapi.json",
-    docs_url=f"{settings.api_prefix}/docs",
+    description="MaaleNex shared mobility platform API.",
+    openapi_url=None if production else f"{settings.api_prefix}/openapi.json",
+    docs_url=None if production else f"{settings.api_prefix}/docs",
     redoc_url=None,
 )
 app.add_middleware(
@@ -51,6 +53,6 @@ def root() -> dict[str, str | bool]:
     return {
         "name": settings.app_name,
         "environment": settings.app_env,
-        "status": "development",
+        "status": "running" if production else "development",
         "synthetic_data_only": settings.synthetic_data_only,
     }

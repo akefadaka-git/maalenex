@@ -197,7 +197,7 @@ def test_postgres_operator_invitation_is_single_use_and_creates_scoped_membershi
             login_identifier="inviter-" + uuid4().hex + "@example.test",
             display_name="Synthetic Inviter", status="active",
         )
-        role = Role(code="synthetic_operator_manager", description="Synthetic operator manager")
+        role = Role(code="synthetic_operator_manager_" + uuid4().hex, description="Synthetic operator manager")
         db.add_all([operator, inviter, role])
         db.flush()
         invitation = OrganizationInvitation(
@@ -312,8 +312,11 @@ def _create_staff_session(db, *, organization_id=None, permission_code="platform
         display_name="Synthetic Staff Reviewer", status="active",
     )
     role = Role(code="synthetic-role-" + uuid4().hex[:12], description="Synthetic test role")
-    permission = Permission(code=permission_code, description="Synthetic test permission")
-    db.add_all([user, role, permission])
+    permission = db.scalar(select(Permission).where(Permission.code == permission_code))
+    if permission is None:
+        permission = Permission(code=permission_code, description="Synthetic test permission")
+        db.add(permission)
+    db.add_all([user, role])
     db.flush()
     db.add_all([
         RolePermission(role_id=role.id, permission_id=permission.id),

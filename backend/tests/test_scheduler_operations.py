@@ -27,7 +27,7 @@ def test_production_environment_remains_rejected():
     try:
         Settings(app_env="production")
     except ValueError as error:
-        assert "Only development/test" in str(error)
+        assert "Production must explicitly disable synthetic-only mode" in str(error)
     else:
         raise AssertionError("Production configuration must remain disabled in this baseline.")
 

@@ -1,3 +1,5 @@
+from urllib.parse import urlsplit
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
@@ -25,28 +27,73 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @model_validator(mode="after")
-    def enforce_development_boundary(self) -> "Settings":
-        if self.app_env not in {"development", "test"}:
-            raise ValueError("Only development/test environments are permitted in this G1 baseline.")
-        if not self.synthetic_data_only:
-            raise ValueError("Synthetic-only mode is mandatory in this G1 baseline.")
+    def enforce_runtime_boundary(self) -> "Settings":
+        self.app_env = self.app_env.strip().lower()
+        if self.app_env not in {"development", "test", "production"}:
+            raise ValueError("APP_ENV must be development, test or production.")
+
         database = make_url(self.database_url)
         if database.drivername != "postgresql+psycopg":
-            raise ValueError("G1 database configuration must use PostgreSQL with psycopg.")
-        if database.host not in {"localhost", "127.0.0.1", "::1"}:
-            raise ValueError("G1 database host must be local; remote databases are prohibited.")
-        if database.database != "maalenex_dev":
-            raise ValueError("G1 database name must be maalenex_dev.")
+            raise ValueError("DATABASE_URL must use PostgreSQL with the psycopg driver.")
+
+        if self.app_env in {"development", "test"}:
+            if not self.synthetic_data_only:
+                raise ValueError("Synthetic-only mode is mandatory in development/test.")
+            if database.host not in {"localhost", "127.0.0.1", "::1"}:
+                raise ValueError("Development/test database host must be local.")
+            if database.database != "maalenex_dev":
+                raise ValueError("Development/test database name must be maalenex_dev.")
+        else:
+            if self.synthetic_data_only:
+                raise ValueError("Production must explicitly disable synthetic-only mode.")
+            if not self.secure_cookies:
+                raise ValueError("Production must enable SECURE_COOKIES.")
+            if database.host in {None, "localhost", "127.0.0.1", "::1"}:
+                raise ValueError("Production requires a remote managed PostgreSQL database.")
+            if database.database in {None, "maalenex_dev"}:
+                raise ValueError("Production must not use the development database.")
+            if not database.username or not database.password:
+                raise ValueError("Production DATABASE_URL must include database credentials.")
+            sslmode = database.query.get("sslmode")
+            if sslmode != "verify-full":
+                raise ValueError("Production PostgreSQL must use sslmode=verify-full for TLS identity verification.")
+            sslrootcert = database.query.get("sslrootcert")
+            if not sslrootcert:
+                raise ValueError("Production PostgreSQL must configure sslrootcert for provider CA verification.")
+            origins = self.allowed_origins
+            if not origins:
+                raise ValueError("Production must explicitly configure CORS_ORIGINS.")
+            for origin in origins:
+                parsed = urlsplit(origin)
+                if (
+                    parsed.scheme != "https"
+                    or not parsed.netloc
+                    or parsed.username
+                    or parsed.password
+                    or parsed.path
+                    or parsed.query
+                    or parsed.fragment
+                    or "*" in origin
+                ):
+                    raise ValueError("Production CORS origins must be exact HTTPS origins without paths or wildcards.")
+
         if not 5 <= self.scheduler_interval_seconds <= 3600:
             raise ValueError("Scheduler interval must be between 5 and 3600 seconds.")
         if self.scheduler_lease_seconds < self.scheduler_interval_seconds * 2:
             raise ValueError("Scheduler lease must be at least twice the polling interval.")
         if not 1 <= self.scheduler_batch_size <= 1000:
             raise ValueError("Scheduler batch size must be between 1 and 1000.")
+        if self.object_storage_enabled and not all((
+            self.object_storage_endpoint_url,
+            self.object_storage_bucket,
+            self.object_storage_access_key_id,
+            self.object_storage_secret_access_key,
+        )):
+            raise ValueError("Enabled object storage requires endpoint, bucket and credentials.")
         return self
 
     def should_use_secure_cookies(self, request_scheme: str) -> bool:
-        """Honor explicit TLS configuration without trusting forwarded headers."""
+        """Honor explicit TLS configuration without trusting arbitrary forwarded headers."""
         return self.secure_cookies or request_scheme.lower() == "https"
 
     @property

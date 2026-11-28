@@ -1,8 +1,9 @@
 name: MaaleNex Android shell verification
+# Exact-head transport checks validate configured API origin injection and reject insecure remote API URLs.
 
 on:
   pull_request:
-    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/my-bookings-hold-expiry-notifications]
+    branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards, fix/passenger-password-minimum-six]
     paths:
       - "android/**"
       - "frontend/**"
@@ -12,10 +13,18 @@ on:
       - ".github/workflows/android-shell-verification.yml"
       - ".github/workflows/osv-scanner.yml"
       - "docs/acceptance/**"
+      - "docs/deployment/**"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# This branch is PR-governed; pull_request is the single CI trigger to avoid
+# duplicate push + PR Android emulator builds and unnecessary dependency traffic.
+concurrency:
+  # Versioned group isolates this MapLibre run from a stale pre-migration emulator run.
+  group: android-shell-maplibre-v2-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   android-build-and-emulator:
@@ -47,10 +56,25 @@ jobs:
 
       - name: Build frontend for Android asset packaging
         working-directory: frontend
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_MAP_RUNTIME_SMOKE: "true"
         run: npm run build
 
       - name: Verify packaged WebView CSP contract
         run: python3 .github/scripts/verify-android-web-csp.py frontend/dist/index.html
+      - name: Verify configured HTTPS API origin and reject insecure remote origins
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          VITE_API_BASE_URL=https://api.example.invalid npm run build -- --outDir /tmp/maalenex-api-csp-check
+          python3 ../.github/scripts/verify-android-web-csp.py /tmp/maalenex-api-csp-check/index.html
+          if VITE_API_BASE_URL=http://api.example.invalid npm run build -- --outDir /tmp/maalenex-insecure-api-csp-check; then
+            echo "FAIL: insecure remote API origin was accepted"
+            exit 1
+          fi
+          echo "PASS: insecure remote API origin rejected"
 
       - name: Set up Java 17
         uses: actions/setup-java@v5

@@ -102,9 +102,10 @@ fi
 webview_ready=false
 attempt=0
 while [ "$attempt" -lt 45 ]; do
-  adb_cmd logcat -d -v brief > "$ARTIFACT_DIR/logcat-live.txt" 2>/dev/null || true
+  adb_cmd logcat -b all -d -v brief > "$ARTIFACT_DIR/logcat-live.txt" 2>/dev/null || true
   if grep -F "MaaleNexWebView" "$ARTIFACT_DIR/logcat-live.txt" | grep -F "WEBVIEW_PAGE_FINISHED" >/dev/null 2>&1 &&
-     grep -F "MaaleNexWebView" "$ARTIFACT_DIR/logcat-live.txt" | grep -F "WEBVIEW_JS_PROBE_JSON" >/dev/null 2>&1; then
+     grep -F "MaaleNexWebView" "$ARTIFACT_DIR/logcat-live.txt" | grep -F "WEBVIEW_JS_PROBE_JSON" >/dev/null 2>&1 &&
+     grep -F "MaaleNexWebView" "$ARTIFACT_DIR/logcat-live.txt" | grep -F "WEBVIEW_MAP_RUNTIME_JSON" >/dev/null 2>&1; then
     webview_ready=true
     break
   fi
@@ -117,7 +118,7 @@ if [ "$webview_ready" != "true" ]; then
 fi
 
 capture_diagnostics
-python3 - "$ARTIFACT_DIR/logcat.txt" "$ARTIFACT_DIR/logcat-bounded.txt" "$APP_PID" "$ARTIFACT_DIR/probe.json" <<'PY'
+python3 - "$ARTIFACT_DIR/logcat-live.txt" "$ARTIFACT_DIR/logcat-bounded.txt" "$APP_PID" "$ARTIFACT_DIR/probe.json" <<'PY'
 import json
 import re
 import sys
@@ -192,6 +193,53 @@ probe_path.write_text(raw_json + "\n", encoding="utf-8")
 print("PASS: WEBVIEW_PAGE_FINISHED for the packaged document")
 print(f"PASS: exactly one decoded probe record from app PID {pid}")
 print(f"WEBVIEW_JS_PROBE_JSON {raw_json}")
+# The map probe is emitted by the real Android WebView after the real
+# MapLibre renderer has loaded OpenFreeMap vector tiles and exercised a marker
+# selection plus a map zoom interaction. No provider key is involved.
+map_marker = "WEBVIEW_MAP_RUNTIME_JSON "
+map_records = [
+    (line, line.split(map_marker, 1)[1])
+    for line in full_log.splitlines()
+    if pid_marker.search(line) and map_marker in line
+]
+if len(map_records) != 1:
+    fail(f"expected exactly one MapLibre runtime probe from app PID; observed {len(map_records)}")
+try:
+    map_payload = json.loads(map_records[0][1])
+except Exception as error:
+    fail(f"MapLibre runtime probe was not valid JSON ({type(error).__name__})")
+map_expected = {
+    "schemaVersion", "status", "mapLibreLoaded", "mapCanvasPresent",
+    "styleLoaded", "vectorSourceCount", "vectorTilesLoaded", "markerCount",
+    "interactionCount", "selectedLocation", "errorMessage",
+}
+if not isinstance(map_payload, dict) or set(map_payload) != map_expected:
+    fail("MapLibre runtime probe keys did not match schema version 2")
+if type(map_payload["schemaVersion"]) is not int or map_payload["schemaVersion"] != 3:
+    fail("MapLibre runtime probe schemaVersion must be integer 3")
+if type(map_payload["errorMessage"]) is not str:
+    fail("MapLibre runtime errorMessage must be a string")
+if map_payload["status"] != "ready":
+    fail(f"MapLibre passenger map did not reach ready state: {map_payload['status']}; detail={map_payload['errorMessage']}")
+for field in ("mapLibreLoaded", "mapCanvasPresent", "styleLoaded", "vectorTilesLoaded"):
+    if type(map_payload[field]) is not bool or map_payload[field] is not True:
+        fail(f"MapLibre runtime {field} must be boolean true")
+for field, minimum in (("vectorSourceCount", 1), ("markerCount", 4), ("interactionCount", 1)):
+    if type(map_payload[field]) is not int or map_payload[field] < minimum:
+        fail(f"MapLibre runtime {field} must be an integer >= {minimum}")
+if type(map_payload["selectedLocation"]) is not str or not map_payload["selectedLocation"]:
+    fail("MapLibre marker interaction did not select a location")
+if "WEBVIEW_MAPLIBRE_CONSOLE_ERROR" in full_log:
+    fail("MapLibre, WebGL or OpenFreeMap reported a console error")
+print("PASS: MapLibre GL JS initialized in the Android WebView")
+print("PASS: Liberty style loaded from OpenFreeMap")
+print(f"PASS: {map_payload['vectorSourceCount']} OpenFreeMap vector source(s) loaded")
+print("PASS: visible vector tiles reached the loaded/idle state")
+print(f"PASS: {map_payload['markerCount']} Ethiopian test markers rendered")
+print(f"PASS: marker click selected {map_payload['selectedLocation']}")
+print("PASS: MapLibre zoom interaction completed")
+print(f"WEBVIEW_MAP_RUNTIME_JSON {json.dumps(map_payload, separators=(',', ':'))}")
+
 for check in (
     "schemaVersion == 1",
     'readyState == "complete"',
@@ -199,6 +247,8 @@ for check in (
     "rootTextLength is a positive integer",
     "no main-frame error, renderer loss, or FATAL EXCEPTION",
     "no Content Security Policy violation",
+    "MapLibre Liberty style and OpenFreeMap vector tiles loaded",
+    "Ethiopian marker click and zoom interaction completed",
 ):
     print(f"PASS: {check}")
 if summary:

@@ -1,6 +1,8 @@
 package com.maalenex.moto
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
 import android.os.SystemClock
@@ -14,6 +16,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.graphics.Typeface
 import android.webkit.ConsoleMessage
+import android.webkit.GeolocationPermissions
+import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -37,6 +41,8 @@ class MainActivity : Activity() {
     private var splashContentReady = false
     private var touchStartScale = Float.NaN
     private var savedZoomRestoreAttempted = false
+    private var pendingGeolocationOrigin: String? = null
+    private var pendingGeolocationCallback: GeolocationPermissions.Callback? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,6 +62,7 @@ class MainActivity : Activity() {
             )
             setBackgroundColor(Color.rgb(7, 26, 28))
             settings.javaScriptEnabled = true
+            settings.setGeolocationEnabled(true)
             settings.domStorageEnabled = false
             settings.allowFileAccess = false
             settings.allowContentAccess = false
@@ -64,12 +71,42 @@ class MainActivity : Activity() {
             settings.builtInZoomControls = true
             settings.displayZoomControls = false
             webChromeClient = object : WebChromeClient() {
+                override fun onGeolocationPermissionsShowPrompt(
+                    origin: String?,
+                    callback: GeolocationPermissions.Callback?
+                ) {
+                    if (callback == null || !WebViewGeolocationPolicy.isTrustedOrigin(origin)) {
+                        callback?.invoke(origin, false, false)
+                        return
+                    }
+                    if (hasLocationPermission()) {
+                        callback.invoke(origin, true, false)
+                        return
+                    }
+                    pendingGeolocationOrigin = origin
+                    pendingGeolocationCallback = callback
+                    requestPermissions(
+                        arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION),
+                        LOCATION_PERMISSION_REQUEST
+                    )
+                }
+
                 override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
                     val message = consoleMessage.message()
                     if (message.contains("Content Security Policy", ignoreCase = true) ||
                         message.contains("Refused to", ignoreCase = true)
                     ) {
                         android.util.Log.e(TAG, "WEBVIEW_CSP_VIOLATION $message")
+                    }
+                    if (message.startsWith("WEBVIEW_MAP_RUNTIME_JSON ")) {
+                        android.util.Log.i(TAG, message)
+                    }
+                    if (consoleMessage.messageLevel() == ConsoleMessage.MessageLevel.ERROR &&
+                        (message.contains("MapLibre", ignoreCase = true) ||
+                         message.contains("WebGL", ignoreCase = true) ||
+                         message.contains("tiles.openfreemap.org", ignoreCase = true))
+                    ) {
+                        android.util.Log.e(TAG, "WEBVIEW_MAPLIBRE_CONSOLE_ERROR ${message.take(400)}")
                     }
                     return true
                 }
@@ -103,6 +140,7 @@ class MainActivity : Activity() {
                     ) { result ->
                         logDecodedProbe(result)
                     }
+                    probeMapRuntime(view)
                     checkWebContentReady()
                 }
 
@@ -161,6 +199,12 @@ class MainActivity : Activity() {
                     return !trusted
                 }
             }
+        }
+        // Passenger authentication uses secure, cross-origin API cookies when the
+        // API is hosted separately from the packaged WebView origin.
+        CookieManager.getInstance().apply {
+            setAcceptCookie(true)
+            setAcceptThirdPartyCookies(webView, true)
         }
         ViewCompat.setOnApplyWindowInsetsListener(webView) { view, windowInsets ->
             val safeInsets = windowInsets.getInsets(
@@ -330,6 +374,54 @@ class MainActivity : Activity() {
         return super.dispatchTouchEvent(event)
     }
 
+    private fun probeMapRuntime(view: WebView) {
+        // CI builds mount a clearly labelled Ethiopian test fixture. Probe the
+        // real MapLibre renderer, OpenFreeMap vector sources/tiles, markers and
+        // a real map zoom interaction without recording user or service data.
+        val script = """
+            (function poll(attempt) {
+              const section = document.querySelector(".passenger-map");
+              const status = section?.getAttribute("data-map-status") || "not-mounted";
+              const styleLoaded = section?.getAttribute("data-map-style-loaded") === "true";
+              const tilesLoaded = section?.getAttribute("data-map-vector-tiles-loaded") === "true";
+              if ((section && status !== "loading" && styleLoaded && tilesLoaded) || attempt >= 100) {
+                const markers = Array.from(section?.querySelectorAll(".maalenex-map-marker") || []);
+                const before = Number(section?.getAttribute("data-map-interaction-count") || 0);
+                if (status === "ready" && markers.length > 0) {
+                  markers[0].click();
+                  window.__maalenexMapSmoke?.zoomIn();
+                  return waitForInteraction(before, 0);
+                }
+                return emit();
+              }
+              setTimeout(() => poll(attempt + 1), 500);
+              function waitForInteraction(previous, interactionAttempt) {
+                const current = Number(section?.getAttribute("data-map-interaction-count") || 0);
+                const selected = section?.getAttribute("data-selected-location") || "";
+                if ((current > previous && selected) || interactionAttempt >= 40) return emit();
+                setTimeout(() => waitForInteraction(previous, interactionAttempt + 1), 250);
+              }
+              function emit() {
+                const payload = {
+                  schemaVersion: 3,
+                  status,
+                  mapLibreLoaded: Boolean(window.__maalenexMapSmoke),
+                  mapCanvasPresent: Boolean(section?.querySelector(".maplibregl-canvas")),
+                  styleLoaded: section?.getAttribute("data-map-style-loaded") === "true",
+                  vectorSourceCount: Number(section?.getAttribute("data-map-vector-source-count") || 0),
+                  vectorTilesLoaded: section?.getAttribute("data-map-vector-tiles-loaded") === "true",
+                  markerCount: section?.querySelectorAll(".maalenex-map-marker").length || 0,
+                  interactionCount: Number(section?.getAttribute("data-map-interaction-count") || 0),
+                  selectedLocation: section?.getAttribute("data-selected-location") || "",
+                  errorMessage: section?.getAttribute("data-map-error") || ""
+                };
+                console.log("WEBVIEW_MAP_RUNTIME_JSON " + JSON.stringify(payload));
+              }
+            })(0);
+        """.trimIndent()
+        view.evaluateJavascript(script, null)
+    }
+
     private fun logDecodedProbe(callbackValue: String?) {
         try {
             require(!callbackValue.isNullOrBlank() && callbackValue != "null") {
@@ -382,12 +474,37 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun hasLocationPermission(): Boolean =
+        WebViewGeolocationPolicy.hasLocationPermission(
+            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED,
+            checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        )
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != LOCATION_PERMISSION_REQUEST) return
+        val origin = pendingGeolocationOrigin
+        val callback = pendingGeolocationCallback
+        pendingGeolocationOrigin = null
+        pendingGeolocationCallback = null
+        if (origin != null && callback != null) {
+            callback.invoke(origin, grantResults.any { it == PackageManager.PERMISSION_GRANTED }, false)
+        }
+    }
+
     @Deprecated("Use system back navigation on newer Android versions")
     override fun onBackPressed() {
         if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 
     override fun onDestroy() {
+        pendingGeolocationCallback?.invoke(pendingGeolocationOrigin, false, false)
+        pendingGeolocationCallback = null
+        pendingGeolocationOrigin = null
         if (::webView.isInitialized) {
             (webView.parent as? ViewGroup)?.removeView(webView)
             webView.destroy()
@@ -397,6 +514,7 @@ class MainActivity : Activity() {
 
     private companion object {
         const val TAG = "MaaleNexWebView"
+        const val LOCATION_PERMISSION_REQUEST = 6402
         const val SPLASH_MIN_DURATION_MS = 5000L
         const val SPLASH_MAX_WAIT_MS = 12000L
         const val SPLASH_CHECK_INTERVAL_MS = 100L

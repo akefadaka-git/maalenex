@@ -21,6 +21,7 @@ function csrfToken(cookieName = "mnm_passenger_csrf"): string | undefined {
 }
 
 async function request<T>(path: string, init: RequestInit = {}, csrfCookieName = "mnm_passenger_csrf"): Promise<T> {
+  if (!navigator.onLine) throw new Error("You are offline. Reconnect before requesting current passenger services or changing a booking.");
   if (!API_ROOT) throw new Error("Passenger account service is not configured for this app build.");
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
@@ -67,11 +68,28 @@ export function logoutPassenger(): Promise<void> {
   return request("/passenger/auth/sessions/current", { method: "DELETE" });
 }
 
+
+export type MapCoordinates = { latitude: number; longitude: number; source: string | null };
 export type PassengerLocation = {
   id: string;
   name: string;
   type: string;
+  coordinates?: MapCoordinates | null;
 };
+export type PassengerRouteStop = PassengerLocation & { sequence: number; boarding_allowed: boolean; alighting_allowed: boolean };
+export type PassengerRoute = {
+  id: string;
+  code: string;
+  origin: PassengerLocation;
+  destination: PassengerLocation;
+  stops: PassengerRouteStop[];
+  geometry: { type: "LineString"; coordinates: [number, number][] } | null;
+  geometry_status: "published" | "not_published";
+};
+
+export function listPassengerRoutes(): Promise<PassengerRoute[]> {
+  return request("/catalog/routes");
+}
 
 export type PassengerTrip = {
   id: string;
