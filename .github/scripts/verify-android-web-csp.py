@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the packaged SPA's restrictive WebView CSP before Android packaging."""
+"""Verify the packaged SPA CSP for the keyless MapLibre/OpenFreeMap runtime."""
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -46,14 +46,13 @@ required = {
     "frame-src": ["'none'"],
     "child-src": ["'none'"],
     "form-action": ["'self'"],
-    "script-src": ["'self'", "https://maps.googleapis.com", "https://maps.gstatic.com"],
+    "script-src": ["'self'", "https://unpkg.com"],
     "script-src-attr": ["'none'"],
     "style-src": ["'self'"],
-    # Google Maps may add style elements at runtime; style attributes remain blocked.
-    "style-src-elem": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+    "style-src-elem": ["'self'", "https://unpkg.com"],
     "style-src-attr": ["'none'"],
-    "img-src": ["'self'", "data:", "https://maps.googleapis.com", "https://maps.gstatic.com", "https://*.googleapis.com", "https://*.gstatic.com", "https://*.google.com", "https://*.googleusercontent.com"],
-    "font-src": ["'self'", "https://fonts.gstatic.com"],
+    "img-src": ["'self'", "data:", "blob:"],
+    "font-src": ["'self'"],
     "media-src": ["'self'"],
     "worker-src": ["'self'", "blob:"],
     "manifest-src": ["'self'"],
@@ -63,10 +62,11 @@ for name, expected in required.items():
         raise SystemExit(f"FAIL: CSP directive {name} expected {expected}, got {directives.get(name)}")
 
 connect_sources = directives.get("connect-src", [])
-google_connect = ["https://maps.googleapis.com", "https://maps.gstatic.com", "https://*.googleapis.com", "https://*.google.com", "https://*.gstatic.com"]
-if not connect_sources or connect_sources[0] != "'self'" or not all(source in connect_sources for source in google_connect):
-    raise SystemExit(f"FAIL: connect-src must include self and the explicit Google Maps service domains: {connect_sources}")
-api_sources = [source for source in connect_sources[1:] if source not in google_connect]
+if not connect_sources or connect_sources[0] != "'self'":
+    raise SystemExit(f"FAIL: connect-src must begin with self: {connect_sources}")
+if connect_sources.count("https://tiles.openfreemap.org") != 1:
+    raise SystemExit(f"FAIL: connect-src must allow the exact OpenFreeMap tile origin: {connect_sources}")
+api_sources = [source for source in connect_sources[1:] if source != "https://tiles.openfreemap.org"]
 if len(api_sources) > 1:
     raise SystemExit(f"FAIL: at most one configured API origin is allowed: {api_sources}")
 if api_sources:
@@ -75,21 +75,18 @@ if api_sources:
     if not api_origin.netloc or (api_origin.scheme != "https" and not local_http):
         raise SystemExit(f"FAIL: API CSP origin must be HTTPS (HTTP only for localhost): {api_sources[0]}")
     if api_origin.username or api_origin.password or api_origin.path not in {"", "/"} or api_origin.query or api_origin.fragment:
-        raise SystemExit(f"FAIL: API CSP entry must be an origin only: {connect_sources[1]}")
+        raise SystemExit(f"FAIL: API CSP entry must be an origin only: {api_sources[0]}")
 
 for name, sources in directives.items():
-    if "'unsafe-eval'" in sources:
-        raise SystemExit(f"FAIL: unsafe-eval is not permitted in {name}: {sources}")
-    if "*" in sources:
-        raise SystemExit(f"FAIL: unrestricted wildcard is not permitted in {name}: {sources}")
-    if any("*." in source and source not in {
-        "https://*.googleapis.com", "https://*.gstatic.com",
-        "https://*.google.com", "https://*.googleusercontent.com",
-    } for source in sources):
-        raise SystemExit(f"FAIL: non-Google wildcard source in {name}: {sources}")
-    if "'unsafe-inline'" in sources and name != "style-src-elem":
-        raise SystemExit(f"FAIL: unsafe-inline is only permitted for Google Maps style elements: {name} {sources}")
-print("PASS: exactly one CSP policy is present in packaged index.html")
+    if "*" in sources or any("*." in source for source in sources):
+        raise SystemExit(f"FAIL: wildcard source is not permitted in {name}: {sources}")
+    if "'unsafe-eval'" in sources or "'unsafe-inline'" in sources:
+        raise SystemExit(f"FAIL: unsafe script/style execution is not permitted in {name}: {sources}")
+    if name not in required and name != "connect-src":
+        raise SystemExit(f"FAIL: unexpected CSP directive {name}: {sources}")
+
+print("PASS: exactly one restrictive CSP policy is present in packaged index.html")
 for name, sources in directives.items():
     print(f"PASS: CSP {name} = {' '.join(sources)}")
-print("PASS: inline style attributes and inline scripts are blocked; only style elements retain the Maps compatibility exception")
+print("PASS: only the pinned MapLibre CDN and exact OpenFreeMap tile origin are permitted")
+print("PASS: no Google Maps, wildcard hosts, unsafe-inline or unsafe-eval source is permitted")
