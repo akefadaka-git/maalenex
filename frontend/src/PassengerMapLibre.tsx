@@ -28,6 +28,7 @@ type MapLibreModule = {
   Map: new (options: Record<string, unknown>) => MapInstance;
   Marker: new (options?: Record<string, unknown>) => Marker;
   LngLatBounds: new () => Bounds;
+  setWorkerUrl: (url: string) => void;
 };
 declare global {
   interface Window {
