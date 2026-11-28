@@ -106,7 +106,7 @@ describe("PassengerMapLibre", () => {
 
   it("rejects invalid latitude and longitude values", async () => {
     const mock = createMapLibreMock();
-    setMapLibreLoaderForTests(async () => mock.module);
+    setMapLibreLoaderForTests(async () => mock.module as never);
     const invalid = [{ id: "bad", name: "Invalid", type: "town", coordinates: { latitude: 95, longitude: 38, source: "test" } }] as PassengerLocation[];
     render(<PassengerMapLibre locations={invalid} routes={[]} originId="" destinationId="" language="en" onSelectLocation={() => undefined} />);
     expect(await screen.findByText("Verified map data not published")).toBeTruthy();
