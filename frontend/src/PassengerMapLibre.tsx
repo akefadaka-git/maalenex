@@ -14,7 +14,7 @@ type LngLat = [number, number];
 type Bounds = { extend: (point: LngLat) => void; isEmpty: () => boolean };
 type Marker = { setLngLat: (point: LngLat) => Marker; addTo: (map: MapInstance) => Marker; remove: () => void; getElement: () => HTMLButtonElement };
 type MapInstance = {
-  on: (event: string, callback: () => void) => void;
+  on: (event: string, callback: (event?: any) => void) => void;
   remove: () => void;
   fitBounds: (bounds: Bounds, options?: Record<string, unknown>) => void;
   addSource: (id: string, source: Record<string, unknown>) => void;
@@ -216,22 +216,27 @@ export function PassengerMapLibre({
       map.on("zoomend", () => {
         if (active) setInteractionCount(value => value + 1);
       });
-      map.on("error", () => {
+      map.on("error", (event?: { error?: { message?: string } }) => {
         if (active && !mapStyleReady) {
+          const detail = event?.error?.message || "MapLibre reported a style or vector-tile loading error.";
           const offline = navigator.onLine === false;
-          setStatus(offline ? "offline" : "error");
-          setMessage(offline
+          const failure = offline
             ? "The WebView reports no network connection. Map tiles cannot be loaded until connectivity returns."
-            : "The map style or vector tiles could not be loaded. Check the network and try again.");
+            : detail;
+          console.error("MaaleNex MapLibre error: " + detail);
+          setStatus(offline ? "offline" : "error");
+          setMessage(failure);
         }
       });
     }).catch(error => {
       if (active) {
         const offline = navigator.onLine === false;
+        const detail = error instanceof Error ? error.message : String(error);
+        console.error("MaaleNex MapLibre initialization failed: " + detail);
         setStatus(offline ? "offline" : "error");
         setMessage(offline
           ? "The WebView reports no network connection. Map tiles cannot be loaded until connectivity returns."
-          : error instanceof Error ? error.message : "MapLibre could not be initialized.");
+          : detail || "MapLibre could not be initialized.");
       }
     });
 
@@ -267,6 +272,7 @@ export function PassengerMapLibre({
     <section
       className="passenger-map"
       data-map-status={status}
+      data-map-error={message}
       data-map-style-loaded={String(styleLoaded)}
       data-map-vector-source-count={vectorSourceCount}
       data-map-vector-tiles-loaded={String(vectorTilesLoaded)}
