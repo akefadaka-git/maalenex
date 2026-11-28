@@ -32,7 +32,8 @@ function createMapLibreMock() {
     easeTo: vi.fn(),
     remove: vi.fn(),
   };
-  const MapConstructor = vi.fn(function MapConstructor() { return map; });
+  let mapOptions: Record<string, unknown> | undefined;
+  const MapConstructor = vi.fn(function MapConstructor(options: Record<string, unknown>) { mapOptions = options; return map; });
   const markers: HTMLButtonElement[] = [];
   const MarkerConstructor = vi.fn(function MarkerConstructor(options: { element: HTMLButtonElement }) {
     const element = options.element;
@@ -49,6 +50,7 @@ function createMapLibreMock() {
   });
   return {
     module: { Map: MapConstructor, Marker: MarkerConstructor, LngLatBounds: LngLatBoundsConstructor },
+    getMapOptions: () => mapOptions,
     map, markers, MapConstructor, MarkerConstructor,
   };
 }
@@ -62,7 +64,7 @@ describe("PassengerMapLibre", () => {
 
   it("loads Liberty vector tiles, preserves Ethiopian WGS84 coordinates, draws published geometry and supports marker/zoom interaction", async () => {
     const mock = createMapLibreMock();
-    setMapLibreLoaderForTests(async () => mock.module);
+    setMapLibreLoaderForTests(async () => mock.module as never);
     const onSelectLocation = vi.fn();
     const route: PassengerRoute = {
       id: "published-route-fixture",
@@ -77,7 +79,7 @@ describe("PassengerMapLibre", () => {
     render(<PassengerMapLibre locations={locations} routes={[route]} originId="koybe" destinationId="jinka" language="en" onSelectLocation={onSelectLocation} />);
 
     await waitFor(() => expect(mock.MapConstructor).toHaveBeenCalledOnce());
-    expect(mock.MapConstructor.mock.calls[0][0]).toMatchObject({
+    expect(mock.getMapOptions()).toMatchObject({
       style: "https://tiles.openfreemap.org/styles/liberty",
       center: [36.798589, 5.767863],
     });
