@@ -34,26 +34,38 @@ declare global {
   interface Window {
     __maalenexMapSmoke?: { zoomIn: () => void };
     __maalenexMapLibre?: MapLibreModule;
+    __maalenexMapLibrePromise?: Promise<MapLibreModule>;
     __maalenexMapLibreError?: string;
   }
 }
 
 const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 const MAPLIBRE_VERSION = "6.11.2";
-const MAPLIBRE_MODULE_URL = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.mjs`;
 const MAPLIBRE_CSS_URL = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.css`;
-let mapLibreLoader: () => Promise<MapLibreModule> = async () => {
-  // @vite-ignore — MapLibre is pinned to a versioned ESM CDN URL; no API key or bundler dependency.
-  const moduleUrl: string = MAPLIBRE_MODULE_URL;
-  return await import(/* @vite-ignore */ moduleUrl) as MapLibreModule;
-};
+async function loadBrowserMapLibre(): Promise<MapLibreModule> {
+  if (window.__maalenexMapLibre) return window.__maalenexMapLibre;
+  if (window.__maalenexMapLibrePromise) return await window.__maalenexMapLibrePromise;
+
+  // Vite may execute the React entry before the following module script has
+  // completed its CDN import. Wait for the script and its shared promise.
+  const script = document.querySelector<HTMLScriptElement>("script[data-maalenex-maplibre-loader]");
+  if (script) {
+    await new Promise<void>((resolve, reject) => {
+      script.addEventListener("load", () => resolve(), { once: true });
+      script.addEventListener("error", () => reject(new Error("The MapLibre browser loader script failed to load.")), { once: true });
+    });
+  }
+
+  if (window.__maalenexMapLibre) return window.__maalenexMapLibre;
+  if (window.__maalenexMapLibrePromise) return await window.__maalenexMapLibrePromise;
+  throw new Error(window.__maalenexMapLibreError || "The pinned MapLibre browser module did not initialize.");
+}
+
+let mapLibreLoader: () => Promise<MapLibreModule> = loadBrowserMapLibre;
 let cssPromise: Promise<void> | null = null;
 
 export function setMapLibreLoaderForTests(loader?: () => Promise<MapLibreModule>) {
-  mapLibreLoader = loader ?? (async () => {
-    if (window.__maalenexMapLibre) return window.__maalenexMapLibre;
-    throw new Error(window.__maalenexMapLibreError || "The pinned MapLibre browser module did not initialize.");
-  });
+  mapLibreLoader = loader ?? loadBrowserMapLibre;
   if (loader) cssPromise = Promise.resolve();
   else cssPromise = null;
 }
@@ -224,7 +236,7 @@ export function PassengerMapLibre({
           const detail = event?.error?.message || "MapLibre reported a style or vector-tile loading error.";
           const offline = navigator.onLine === false;
           const failure = offline
-            ? "The WebView reports no network connection. Map tiles cannot be loaded until connectivity returns."
+            ? `The WebView reports no network connection. MapLibre detail: ${detail}`
             : detail;
           console.error("MaaleNex MapLibre error: " + detail);
           setStatus(offline ? "offline" : "error");
@@ -238,7 +250,7 @@ export function PassengerMapLibre({
         console.error("MaaleNex MapLibre initialization failed: " + detail);
         setStatus(offline ? "offline" : "error");
         setMessage(offline
-          ? "The WebView reports no network connection. Map tiles cannot be loaded until connectivity returns."
+          ? `The WebView reports no network connection. MapLibre initialization detail: ${detail}`
           : detail || "MapLibre could not be initialized.");
       }
     });
