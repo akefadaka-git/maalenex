@@ -99,7 +99,7 @@ describe("PassengerMapLibre", () => {
 
     mock.markers[0].click();
     expect(onSelectLocation).toHaveBeenCalledWith("koybe");
-    expect(document.querySelector(".passenger-map")?.getAttribute("data-selected-location")).toBe("koybe");
+    await waitFor(() => expect(document.querySelector(".passenger-map")?.getAttribute("data-selected-location")).toBe("koybe"));
     mock.map.zoomIn();
     expect(document.querySelector(".passenger-map")?.getAttribute("data-map-interaction-count")).not.toBe("0");
   });
