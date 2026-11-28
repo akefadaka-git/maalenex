@@ -18,6 +18,10 @@ on:
     branches: [main, feat/a3-passenger-only-integration, feat/full-platform-clean, feat/acceptance-remediation, feat/passenger-identity-service, feat/passenger-journey-search, feat/passenger-booking-flow, feat/passenger-support-service, feat/passenger-reports-complaints, feat/passenger-wallet-service, feat/passenger-notifications-service, feat/my-bookings-hold-expiry-notifications, feat/scheduler-operations-rbac-dashboards, feat/passenger-backend-connectivity-foundation, fix/passenger-password-minimum-six]
     paths:
       - "backend/**"
+      - "frontend/src/App.tsx"
+      - "frontend/src/PassengerMapLibre.tsx"
+      - "frontend/src/PassengerMapLibre.test.tsx"
+      - "android/app/src/main/java/com/maalenex/moto/MainActivity.kt"
       - ".github/workflows/g1-backend-verification.yml"
   workflow_dispatch:
 
