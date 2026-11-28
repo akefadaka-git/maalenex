@@ -32,6 +32,8 @@ type MapLibreModule = {
 declare global {
   interface Window {
     __maalenexMapSmoke?: { zoomIn: () => void };
+    __maalenexMapLibre?: MapLibreModule;
+    __maalenexMapLibreError?: string;
   }
 }
 
@@ -48,8 +50,8 @@ let cssPromise: Promise<void> | null = null;
 
 export function setMapLibreLoaderForTests(loader?: () => Promise<MapLibreModule>) {
   mapLibreLoader = loader ?? (async () => {
-    const moduleUrl: string = MAPLIBRE_MODULE_URL;
-    return await import(/* @vite-ignore */ moduleUrl) as MapLibreModule;
+    if (window.__maalenexMapLibre) return window.__maalenexMapLibre;
+    throw new Error(window.__maalenexMapLibreError || "The pinned MapLibre browser module did not initialize.");
   });
   if (loader) cssPromise = Promise.resolve();
   else cssPromise = null;
