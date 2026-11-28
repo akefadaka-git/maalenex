@@ -403,7 +403,7 @@ class MainActivity : Activity() {
               }
               function emit() {
                 const payload = {
-                  schemaVersion: 2,
+                  schemaVersion: 3,
                   status,
                   mapLibreLoaded: Boolean(window.__maalenexMapSmoke),
                   mapCanvasPresent: Boolean(section?.querySelector(".maplibregl-canvas")),
@@ -412,7 +412,8 @@ class MainActivity : Activity() {
                   vectorTilesLoaded: section?.getAttribute("data-map-vector-tiles-loaded") === "true",
                   markerCount: section?.querySelectorAll(".maalenex-map-marker").length || 0,
                   interactionCount: Number(section?.getAttribute("data-map-interaction-count") || 0),
-                  selectedLocation: section?.getAttribute("data-selected-location") || ""
+                  selectedLocation: section?.getAttribute("data-selected-location") || "",
+                  errorMessage: section?.getAttribute("data-map-error") || ""
                 };
                 console.log("WEBVIEW_MAP_RUNTIME_JSON " + JSON.stringify(payload));
               }
