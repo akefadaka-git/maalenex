@@ -128,11 +128,6 @@ export function PassengerMapLibre({
     const available = locations.map(location => ({ location, point: validPoint(location.coordinates) }))
       .filter((item): item is { location: PassengerLocation; point: LngLat } => item.point !== null);
 
-    if (!navigator.onLine) {
-      setStatus("offline");
-      setMessage("You are offline. Map tiles and current route information are unavailable.");
-      return () => { active = false; };
-    }
     if (available.length === 0 && routePoints.length === 0) {
       setStatus("missing-data");
       setMessage("Published locations do not yet contain verified coordinates, and no published route geometry is available. Ask an administrator to publish source-verified map data.");
@@ -223,14 +218,20 @@ export function PassengerMapLibre({
       });
       map.on("error", () => {
         if (active && !mapStyleReady) {
-          setStatus("error");
-          setMessage("The map style or vector tiles could not be loaded. Check your internet connection and try again.");
+          const offline = navigator.onLine === false;
+          setStatus(offline ? "offline" : "error");
+          setMessage(offline
+            ? "The WebView reports no network connection. Map tiles cannot be loaded until connectivity returns."
+            : "The map style or vector tiles could not be loaded. Check the network and try again.");
         }
       });
     }).catch(error => {
       if (active) {
-        setStatus("error");
-        setMessage(error instanceof Error ? error.message : "MapLibre could not be initialized.");
+        const offline = navigator.onLine === false;
+        setStatus(offline ? "offline" : "error");
+        setMessage(offline
+          ? "The WebView reports no network connection. Map tiles cannot be loaded until connectivity returns."
+          : error instanceof Error ? error.message : "MapLibre could not be initialized.");
       }
     });
 
