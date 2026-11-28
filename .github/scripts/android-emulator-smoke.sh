@@ -193,9 +193,9 @@ probe_path.write_text(raw_json + "\n", encoding="utf-8")
 print("PASS: WEBVIEW_PAGE_FINISHED for the packaged document")
 print(f"PASS: exactly one decoded probe record from app PID {pid}")
 print(f"WEBVIEW_JS_PROBE_JSON {raw_json}")
-# The map probe is emitted by the real Android WebView after the React map
-# component reaches a terminal state. It distinguishes provider success from
-# the expected no-key fallback without exposing the API key.
+# The map probe is emitted by the real Android WebView after the real
+# MapLibre renderer has loaded OpenFreeMap vector tiles and exercised a marker
+# selection plus a map zoom interaction. No provider key is involved.
 map_marker = "WEBVIEW_MAP_RUNTIME_JSON "
 map_records = [
     (line, line.split(map_marker, 1)[1])
@@ -203,41 +203,39 @@ map_records = [
     if pid_marker.search(line) and map_marker in line
 ]
 if len(map_records) != 1:
-    fail(f"expected exactly one map runtime probe from app PID; observed {len(map_records)}")
+    fail(f"expected exactly one MapLibre runtime probe from app PID; observed {len(map_records)}")
 try:
     map_payload = json.loads(map_records[0][1])
 except Exception as error:
-    fail(f"map runtime probe was not valid JSON ({type(error).__name__})")
+    fail(f"MapLibre runtime probe was not valid JSON ({type(error).__name__})")
 map_expected = {
-    "schemaVersion", "status", "mapsApiLoaded", "mapDomPresent",
-    "googleMapsScriptPresent", "mapTileImageCount",
+    "schemaVersion", "status", "mapLibreLoaded", "mapCanvasPresent",
+    "styleLoaded", "vectorSourceCount", "vectorTilesLoaded", "markerCount",
+    "interactionCount", "selectedLocation",
 }
 if not isinstance(map_payload, dict) or set(map_payload) != map_expected:
-    fail("map runtime probe keys did not match schema version 1")
-if type(map_payload["schemaVersion"]) is not int or map_payload["schemaVersion"] != 1:
-    fail("map runtime probe schemaVersion must be integer 1")
-if type(map_payload["status"]) is not str:
-    fail("map runtime status must be a string")
-for field in ("mapsApiLoaded", "mapDomPresent", "googleMapsScriptPresent"):
-    if type(map_payload[field]) is not bool:
-        fail(f"map runtime {field} must be boolean")
-if type(map_payload["mapTileImageCount"]) is not int or map_payload["mapTileImageCount"] < 0:
-    fail("map runtime tile image count must be a non-negative integer")
-if "WEBVIEW_MAP_CONSOLE_ERROR" in full_log:
-    fail("Google Maps JavaScript API reported a provider/authentication error")
-if map_payload["status"] == "ready":
-    if not all(map_payload[field] for field in ("mapsApiLoaded", "mapDomPresent", "googleMapsScriptPresent")):
-        fail("map component reported ready without the Google Maps API and map DOM")
-    print("PASS: Google Maps JavaScript API loaded in Android WebView")
-    print("PASS: Google Maps map DOM initialized in Android WebView")
-    print(f"MAPS_PROVIDER_RUNTIME=PASS tile_image_count={map_payload['mapTileImageCount']}")
-elif map_payload["status"] == "missing-key":
-    if map_payload["mapsApiLoaded"] or map_payload["mapDomPresent"] or map_payload["googleMapsScriptPresent"]:
-        fail("missing-key fallback unexpectedly reports a loaded provider map")
-    print("PASS: Android WebView map component exposes the explicit missing-key fallback")
-    print("MAPS_PROVIDER_RUNTIME=NOT RUN (VITE_GOOGLE_MAPS_API_KEY is not configured for this workflow)")
-else:
-    fail(f"unexpected passenger map runtime status: {map_payload['status']}")
+    fail("MapLibre runtime probe keys did not match schema version 2")
+if type(map_payload["schemaVersion"]) is not int or map_payload["schemaVersion"] != 2:
+    fail("MapLibre runtime probe schemaVersion must be integer 2")
+if map_payload["status"] != "ready":
+    fail(f"MapLibre passenger map did not reach ready state: {map_payload['status']}")
+for field in ("mapLibreLoaded", "mapCanvasPresent", "styleLoaded", "vectorTilesLoaded"):
+    if type(map_payload[field]) is not bool or map_payload[field] is not True:
+        fail(f"MapLibre runtime {field} must be boolean true")
+for field, minimum in (("vectorSourceCount", 1), ("markerCount", 4), ("interactionCount", 1)):
+    if type(map_payload[field]) is not int or map_payload[field] < minimum:
+        fail(f"MapLibre runtime {field} must be an integer >= {minimum}")
+if type(map_payload["selectedLocation"]) is not str or not map_payload["selectedLocation"]:
+    fail("MapLibre marker interaction did not select a location")
+if "WEBVIEW_MAPLIBRE_CONSOLE_ERROR" in full_log:
+    fail("MapLibre, WebGL or OpenFreeMap reported a console error")
+print("PASS: MapLibre GL JS initialized in the Android WebView")
+print("PASS: Liberty style loaded from OpenFreeMap")
+print(f"PASS: {map_payload['vectorSourceCount']} OpenFreeMap vector source(s) loaded")
+print("PASS: visible vector tiles reached the loaded/idle state")
+print(f"PASS: {map_payload['markerCount']} Ethiopian test markers rendered")
+print(f"PASS: marker click selected {map_payload['selectedLocation']}")
+print("PASS: MapLibre zoom interaction completed")
 print(f"WEBVIEW_MAP_RUNTIME_JSON {json.dumps(map_payload, separators=(',', ':'))}")
 
 for check in (
@@ -247,6 +245,8 @@ for check in (
     "rootTextLength is a positive integer",
     "no main-frame error, renderer loss, or FATAL EXCEPTION",
     "no Content Security Policy violation",
+    "MapLibre Liberty style and OpenFreeMap vector tiles loaded",
+    "Ethiopian marker click and zoom interaction completed",
 ):
     print(f"PASS: {check}")
 if summary:
