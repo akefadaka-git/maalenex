@@ -102,7 +102,7 @@ fi
 webview_ready=false
 attempt=0
 while [ "$attempt" -lt 45 ]; do
-  adb_cmd logcat -d -v brief > "$ARTIFACT_DIR/logcat-live.txt" 2>/dev/null || true
+  adb_cmd logcat -b all -d -v brief > "$ARTIFACT_DIR/logcat-live.txt" 2>/dev/null || true
   if grep -F "MaaleNexWebView" "$ARTIFACT_DIR/logcat-live.txt" | grep -F "WEBVIEW_PAGE_FINISHED" >/dev/null 2>&1 &&
      grep -F "MaaleNexWebView" "$ARTIFACT_DIR/logcat-live.txt" | grep -F "WEBVIEW_JS_PROBE_JSON" >/dev/null 2>&1 &&
      grep -F "MaaleNexWebView" "$ARTIFACT_DIR/logcat-live.txt" | grep -F "WEBVIEW_MAP_RUNTIME_JSON" >/dev/null 2>&1; then
@@ -118,7 +118,7 @@ if [ "$webview_ready" != "true" ]; then
 fi
 
 capture_diagnostics
-python3 - "$ARTIFACT_DIR/logcat.txt" "$ARTIFACT_DIR/logcat-bounded.txt" "$APP_PID" "$ARTIFACT_DIR/probe.json" <<'PY'
+python3 - "$ARTIFACT_DIR/logcat-live.txt" "$ARTIFACT_DIR/logcat-bounded.txt" "$APP_PID" "$ARTIFACT_DIR/probe.json" <<'PY'
 import json
 import re
 import sys
