@@ -65,7 +65,7 @@ function loadMapLibreCss(): Promise<void> {
     link.crossOrigin = "anonymous";
     link.dataset.maalenexMaplibreCss = "true";
     link.onload = () => resolve();
-    link.onerror = () => reject(new Error("MapLibre styles could not be loaded."));
+    link.onerror = () => { link.remove(); reject(new Error("MapLibre styles could not be loaded.")); };
     document.head.appendChild(link);
   }).catch(error => {
     cssPromise = null;
@@ -84,6 +84,7 @@ function validPoint(value: unknown): LngLat | null {
 }
 
 function geometryPoints(route: PassengerRoute | undefined): LngLat[] {
+  if (route?.geometry_status !== "published") return [];
   const coordinates = route?.geometry?.coordinates;
   if (!Array.isArray(coordinates)) return [];
   return coordinates.flatMap(pair =>
@@ -122,6 +123,7 @@ export function PassengerMapLibre({
   useEffect(() => {
     let active = true;
     let map: MapInstance | null = null;
+    let mapStyleReady = false;
     const markers: Marker[] = [];
     const available = locations.map(location => ({ location, point: validPoint(location.coordinates) }))
       .filter((item): item is { location: PassengerLocation; point: LngLat } => item.point !== null);
@@ -202,8 +204,9 @@ export function PassengerMapLibre({
         if (!active || !map) return;
         const sources = Object.values(map.getStyle().sources ?? {});
         setVectorSourceCount(sources.filter(source =>
-          source.type === "vector" && (source.tiles ?? []).some(tile => tile.includes("tiles.openfreemap.org"))
+          source.type === "vector" && ((source.tiles ?? []).some(tile => tile.includes("tiles.openfreemap.org")) || (source.url ?? "").includes("tiles.openfreemap.org"))
         ).length);
+        mapStyleReady = true;
         setStyleLoaded(true);
         if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 48, maxZoom: 12 });
         setStatus("ready");
@@ -219,7 +222,7 @@ export function PassengerMapLibre({
         if (active) setInteractionCount(value => value + 1);
       });
       map.on("error", () => {
-        if (active && !styleLoaded) {
+        if (active && !mapStyleReady) {
           setStatus("error");
           setMessage("The map style or vector tiles could not be loaded. Check your internet connection and try again.");
         }
