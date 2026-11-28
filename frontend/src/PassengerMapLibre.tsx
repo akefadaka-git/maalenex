@@ -19,7 +19,7 @@ type MapInstance = {
   fitBounds: (bounds: Bounds, options?: Record<string, unknown>) => void;
   addSource: (id: string, source: Record<string, unknown>) => void;
   addLayer: (layer: Record<string, unknown>) => void;
-  getStyle: () => { sources?: Record<string, { type?: string; tiles?: string[] }> };
+  getStyle: () => { sources?: Record<string, { type?: string; tiles?: string[]; url?: string }> };
   areTilesLoaded: () => boolean;
   zoomIn: () => void;
   easeTo: (options: Record<string, unknown>) => void;
@@ -58,7 +58,7 @@ export function setMapLibreLoaderForTests(loader?: () => Promise<MapLibreModule>
 function loadMapLibreCss(): Promise<void> {
   if (document.querySelector('link[data-maalenex-maplibre-css="true"]')) return Promise.resolve();
   if (cssPromise) return cssPromise;
-  cssPromise = new Promise((resolve, reject) => {
+  cssPromise = new Promise<void>((resolve, reject) => {
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = MAPLIBRE_CSS_URL;
@@ -71,7 +71,7 @@ function loadMapLibreCss(): Promise<void> {
     cssPromise = null;
     throw error;
   });
-  return cssPromise;
+  return cssPromise!;
 }
 
 function validPoint(value: unknown): LngLat | null {
