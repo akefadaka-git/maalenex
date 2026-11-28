@@ -101,16 +101,12 @@ class MainActivity : Activity() {
                     if (message.startsWith("WEBVIEW_MAP_RUNTIME_JSON ")) {
                         android.util.Log.i(TAG, message)
                     }
-                    if (message.contains("Google Maps JavaScript API error", ignoreCase = true) ||
-                        message.contains("RefererNotAllowedMapError", ignoreCase = true) ||
-                        message.contains("InvalidKeyMapError", ignoreCase = true) ||
-                        message.contains("ApiNotActivatedMapError", ignoreCase = true) ||
-                        message.contains("BillingNotEnabledMapError", ignoreCase = true)
+                    if (consoleMessage.messageLevel() == ConsoleMessage.MessageLevel.ERROR &&
+                        (message.contains("MapLibre", ignoreCase = true) ||
+                         message.contains("WebGL", ignoreCase = true) ||
+                         message.contains("tiles.openfreemap.org", ignoreCase = true))
                     ) {
-                        val safeMessage = Regex("([?&]key=)[^&\\s]+").replace(message) {
-                            "${it.groupValues[1]}[REDACTED]"
-                        }
-                        android.util.Log.e(TAG, "WEBVIEW_MAP_CONSOLE_ERROR ${safeMessage.take(400)}")
+                        android.util.Log.e(TAG, "WEBVIEW_MAPLIBRE_CONSOLE_ERROR ${message.take(400)}")
                     }
                     return true
                 }
@@ -379,28 +375,47 @@ class MainActivity : Activity() {
     }
 
     private fun probeMapRuntime(view: WebView) {
-        // CI builds set VITE_MAP_RUNTIME_SMOKE=true to mount the real map component
-        // with a clearly labelled, non-production fixture. Poll until it reaches a
-        // terminal state, then emit only non-secret runtime facts (never the API key).
+        // CI builds mount a clearly labelled Ethiopian test fixture. Probe the
+        // real MapLibre renderer, OpenFreeMap vector sources/tiles, markers and
+        // a real map zoom interaction without recording user or service data.
         val script = """
             (function poll(attempt) {
               const section = document.querySelector(".passenger-map");
               const status = section?.getAttribute("data-map-status") || "not-mounted";
-              if ((section && status !== "loading") || attempt >= 90) {
-                const payload = {
-                  schemaVersion: 1,
-                  status,
-                  mapsApiLoaded: Boolean(window.google?.maps),
-                  mapDomPresent: Boolean(section?.querySelector(".gm-style")),
-                  googleMapsScriptPresent: Array.from(document.scripts).some(
-                    item => item.src.startsWith("https://maps.googleapis.com/maps/api/js")
-                  ),
-                  mapTileImageCount: section?.querySelectorAll(".gm-style img").length || 0
-                };
-                console.log("WEBVIEW_MAP_RUNTIME_JSON " + JSON.stringify(payload));
-                return;
+              const styleLoaded = section?.getAttribute("data-map-style-loaded") === "true";
+              const tilesLoaded = section?.getAttribute("data-map-vector-tiles-loaded") === "true";
+              if ((section && status !== "loading" && styleLoaded && tilesLoaded) || attempt >= 100) {
+                const markers = Array.from(section?.querySelectorAll(".maalenex-map-marker") || []);
+                const before = Number(section?.getAttribute("data-map-interaction-count") || 0);
+                if (status === "ready" && markers.length > 0) {
+                  markers[0].click();
+                  window.__maalenexMapSmoke?.zoomIn();
+                  return waitForInteraction(before, 0);
+                }
+                return emit();
               }
               setTimeout(() => poll(attempt + 1), 500);
+              function waitForInteraction(previous, interactionAttempt) {
+                const current = Number(section?.getAttribute("data-map-interaction-count") || 0);
+                const selected = section?.getAttribute("data-selected-location") || "";
+                if ((current > previous && selected) || interactionAttempt >= 40) return emit();
+                setTimeout(() => waitForInteraction(previous, interactionAttempt + 1), 250);
+              }
+              function emit() {
+                const payload = {
+                  schemaVersion: 2,
+                  status,
+                  mapLibreLoaded: Boolean(window.__maalenexMapSmoke),
+                  mapCanvasPresent: Boolean(section?.querySelector(".maplibregl-canvas")),
+                  styleLoaded: section?.getAttribute("data-map-style-loaded") === "true",
+                  vectorSourceCount: Number(section?.getAttribute("data-map-vector-source-count") || 0),
+                  vectorTilesLoaded: section?.getAttribute("data-map-vector-tiles-loaded") === "true",
+                  markerCount: section?.querySelectorAll(".maalenex-map-marker").length || 0,
+                  interactionCount: Number(section?.getAttribute("data-map-interaction-count") || 0),
+                  selectedLocation: section?.getAttribute("data-selected-location") || ""
+                };
+                console.log("WEBVIEW_MAP_RUNTIME_JSON " + JSON.stringify(payload));
+              }
             })(0);
         """.trimIndent()
         view.evaluateJavascript(script, null)
